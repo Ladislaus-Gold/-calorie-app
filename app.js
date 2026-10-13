@@ -7,9 +7,9 @@ import {
 import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
-  onSnapshot, query, where, serverTimestamp, writeBatch,
+  onSnapshot, query, where, serverTimestamp, writeBatch, increment,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=5";
+import { STARTER } from "./starter.js?v=6";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -96,6 +96,79 @@ const CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 
 const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const SCAN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 8v8M11 8v8M14 8v8M17 8v8"/></svg>';
 
+const DROP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.2 6 10.5a6 6 0 0 1-12 0C6 9.2 12 3 12 3z"/></svg>';
+const PULSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>';
+
+/* ================= Здоровье: константы и расчёты ================= */
+const SEX = [{ v: "male", t: "Мужской" }, { v: "female", t: "Женский" }];
+const GOALS = [{ v: "lose", t: "Похудеть" }, { v: "gain", t: "Набрать мышцы" }, { v: "maintain", t: "Удержать вес" }];
+const GOAL_NAME = { lose: "похудеть", gain: "набрать мышцы", maintain: "удержать вес" };
+const LEVELS = [
+  { v: "sedentary", t: "Сидячий образ жизни", k: 1.2 },
+  { v: "light", t: "Лёгкая: 1–3 тренировки в неделю", k: 1.375 },
+  { v: "moderate", t: "Умеренная: 3–5 тренировок в неделю", k: 1.55 },
+  { v: "high", t: "Высокая: 6–7 тренировок или физический труд", k: 1.725 },
+];
+// MET: во сколько раз нагрузка расходует больше энергии, чем покой (справочные значения)
+const ACTIVITIES = [
+  { id: "walk", name: "Ходьба, обычный темп", met: 3.5 },
+  { id: "walkfast", name: "Быстрая ходьба", met: 4.3 },
+  { id: "run8", name: "Бег трусцой (около 8 км/ч)", met: 8.3 },
+  { id: "run10", name: "Бег (около 10 км/ч)", met: 9.8 },
+  { id: "bike", name: "Велосипед, умеренный темп", met: 6.8 },
+  { id: "swim", name: "Плавание", met: 5.8 },
+  { id: "strength", name: "Силовая тренировка", met: 5.0, strength: true },
+  { id: "hiit", name: "Круговая тренировка, HIIT", met: 8.0 },
+  { id: "yoga", name: "Йога", met: 2.5 },
+  { id: "dance", name: "Танцы", met: 5.0 },
+  { id: "team", name: "Командные игры", met: 7.0 },
+];
+const WEEKLY = {
+  lose: { minutes: 200, strength: 2, text: "Ориентир: 200 минут умеренной нагрузки в неделю (быстрая ходьба, велосипед, плавание) и 2 силовые тренировки, чтобы сохранить мышцы при снижении веса." },
+  gain: { minutes: 180, strength: 3, text: "Ориентир: 3 силовые тренировки в неделю с постепенным ростом нагрузки и 1–2 лёгких кардио по 20–30 минут, всего около 180 минут." },
+  maintain: { minutes: 150, strength: 2, text: "Ориентир: 150 минут умеренной нагрузки в неделю и 2 силовые тренировки." },
+};
+
+// Основной обмен по формуле Миффлина: Сан-Жеора, затем коэффициент образа жизни и поправка на цель
+function computePlan(p) {
+  const age = Number(p.age), h = Number(p.heightCm), w = Number(p.weightKg);
+  if (!(age >= 18 && age <= 80 && h >= 120 && h <= 230 && w >= 30 && w <= 250)) return null;
+  if (!SEX.some((x) => x.v === p.sex) || !GOAL_NAME[p.goal]) return null;
+  const level = LEVELS.find((l) => l.v === p.activity) || LEVELS[0];
+  const bmr = 10 * w + 6.25 * h - 5 * age + (p.sex === "male" ? 5 : -161);
+  const tdee = bmr * level.k;
+  const bmi = w / ((h / 100) ** 2);
+  const warnings = [];
+  let goal = p.goal;
+  if (goal === "lose" && bmi < 18.5) {
+    goal = "maintain";
+    warnings.push("При вашем индексе массы тела снижение веса не рекомендуется, поэтому план рассчитан на поддержание веса.");
+  }
+  const floor = p.sex === "male" ? 1500 : 1200;
+  let kcal = tdee;
+  if (goal === "lose") {
+    const deficit = Math.min(700, Math.max(300, tdee * 0.2));
+    kcal = tdee - deficit;
+    if (kcal < floor) { kcal = floor; warnings.push(`Калории не опускаются ниже безопасного минимума: ${fmtInt(floor)} ккал в день.`); }
+  } else if (goal === "gain") {
+    kcal = tdee + Math.min(400, Math.max(200, tdee * 0.1));
+  }
+  kcal = Math.round(kcal / 10) * 10;
+  const perKg = goal === "lose" ? 2.0 : goal === "gain" ? 1.8 : 1.6;
+  let protein = Math.round(perKg * w);
+  const fat = Math.round(Math.max(0.8 * w, (0.25 * kcal) / 9));
+  let carbs = Math.round((kcal - protein * 4 - fat * 9) / 4);
+  if (carbs < 50) { protein = Math.round(1.6 * w); carbs = Math.round((kcal - protein * 4 - fat * 9) / 4); }
+  carbs = Math.max(0, carbs);
+  const water = Math.min(4500, Math.max(1500, Math.round((w * 33) / 50) * 50));
+  const wk = WEEKLY[goal];
+  const bmiLabel = bmi < 18.5 ? "ниже нормы" : bmi < 25 ? "в норме" : bmi < 30 ? "выше нормы" : "значительно выше нормы";
+  return {
+    bmr: Math.round(bmr), tdee: Math.round(tdee), kcal, protein, fat, carbs, water, bmi: r1(bmi), bmiLabel, goal, warnings,
+    weekly: { ...wk, kcal: Math.round((5 * w * wk.minutes) / 60 / 10) * 10 },
+  };
+}
+
 const state = {
   user: null,
   tab: "diary",
@@ -106,7 +179,11 @@ const state = {
   repDays: 7,
   prodSearch: "",
   error: "",
-  ready: { products: false, entries: false, settings: false },
+  profile: {},
+  water: [],
+  activity: [],
+  obShown: false,
+  ready: { products: false, entries: false, settings: false, water: false, activity: false },
   unsubs: [],
 };
 
@@ -129,7 +206,7 @@ function calc(per100, grams) {
   };
 }
 const per100Of = (p) => ({ kcal: Number(p.kcal) || 0, protein: Number(p.protein) || 0, fat: Number(p.fat) || 0, carbs: Number(p.carbs) || 0 });
-const per100Text = (p) => `${fmt(p.kcal)} ккал, Б ${fmt(p.protein)}, Ж ${fmt(p.fat)}, У ${fmt(p.carbs)} на 100 г`;
+const per100Text = (p) => `${fmt(p.kcal)} ккал на 100 г: белки ${fmt(p.protein)}, жиры ${fmt(p.fat)}, углеводы ${fmt(p.carbs)}`;
 
 function streak() {
   const have = new Set(state.entries.map((e) => e.date));
@@ -187,12 +264,13 @@ function stopData() {
   state.unsubs.forEach((u) => { try { u(); } catch { /* ignore */ } });
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
-  state.ready = { products: false, entries: false, settings: false };
+  state.ready = { products: false, entries: false, settings: false, water: false, activity: false };
+  state.profile = {}; state.water = []; state.activity = []; state.obShown = false;
 }
 
 function markReady(name) {
   state.ready[name] = true;
-  if (state.ready.products && state.ready.entries && state.ready.settings) $("#loading").classList.add("hidden");
+  if (Object.values(state.ready).every(Boolean)) $("#loading").classList.add("hidden");
 }
 
 function startData(uid) {
@@ -223,9 +301,20 @@ function startData(uid) {
   }, fail));
 
   state.unsubs.push(onSnapshot(doc(db, "users", uid, "settings", "profile"), (snap) => {
-    const g = snap.exists() ? Number(snap.data().goalKcal) : 0;
+    state.profile = snap.exists() ? snap.data() : {};
+    const g = Number(state.profile.goalKcal);
     state.goal = g > 0 ? g : 2000;
-    markReady("settings"); render();
+    markReady("settings"); render(); maybeOnboard();
+  }, fail));
+
+  state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "water"), where("date", ">=", from)), (snap) => {
+    state.water = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    markReady("water"); render();
+  }, fail));
+
+  state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "activity"), where("date", ">=", from)), (snap) => {
+    state.activity = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    markReady("activity"); render();
   }, fail));
 }
 
@@ -286,7 +375,7 @@ const writeFail = (err) => { console.error(err); toast("Не удалось со
 function render() {
   if (!state.user) return;
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
-  const views = { diary: viewDiary, products: viewProducts, reports: viewReports, me: viewMe };
+  const views = { diary: viewDiary, products: viewProducts, health: viewHealth, reports: viewReports, me: viewMe };
   const banner = state.error ? `<div class="banner" role="alert">${esc(state.error)}</div>` : "";
   $("#view").innerHTML = banner + views[state.tab]();
 }
@@ -305,15 +394,15 @@ function donut(t) {
   }
   return `<svg viewBox="0 0 120 120" class="donut" role="img" aria-label="Калории и БЖУ">
     <circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>${segs}
-    <text x="60" y="60" text-anchor="middle" class="d-num">${fmtInt(t.kcal)}</text>
-    <text x="60" y="78" text-anchor="middle" class="d-unit">ккал</text></svg>`;
+    <text x="60" y="59" text-anchor="middle" class="d-num">${fmtInt(t.kcal)}</text>
+    <text x="60" y="73" text-anchor="middle" class="d-unit">ккал</text></svg>`;
 }
 
 /* ================= Дневник ================= */
 function dateShort(s) { const d = parseD(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
 
 function macrosHtml(p, f, c) {
-  return `<span class="mx"><i style="background:var(--protein)"></i>Б ${fmt(p)}</span><span class="mx"><i style="background:var(--fat)"></i>Ж ${fmt(f)}</span><span class="mx"><i style="background:var(--carbs)"></i>У ${fmt(c)}</span>`;
+  return `<span class="mx"><i style="background:var(--protein)"></i>Белки ${fmt(p)}</span><span class="mx"><i style="background:var(--fat)"></i>Жиры ${fmt(f)}</span><span class="mx"><i style="background:var(--carbs)"></i>Углеводы ${fmt(c)}</span>`;
 }
 
 function pageHead(overline, title, actions = "") {
@@ -346,11 +435,12 @@ function viewDiary() {
   const left = state.goal - t.kcal;
   const over = left < 0;
   const barPct = Math.min(100, (t.kcal / state.goal) * 100);
+  const pf = state.profile;
   const legend = [
-    ["Белки", "var(--protein)", t.protein, pct(kP)],
-    ["Углеводы", "var(--carbs)", t.carbs, pct(kC)],
-    ["Жиры", "var(--fat)", t.fat, pct(kF)],
-  ].map(([n, c, g, p]) => `<div class="lg-row"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}</span><span class="lg-val">${fmt(g)} г<small>${p}%</small></span></div>`).join("");
+    ["Белки", "var(--protein)", t.protein, pct(kP), pf.goalProtein],
+    ["Углеводы", "var(--carbs)", t.carbs, pct(kC), pf.goalCarbs],
+    ["Жиры", "var(--fat)", t.fat, pct(kF), pf.goalFat],
+  ].map(([n, c, g, p, tg]) => `<div class="lg-row"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}${tg ? `<small>цель ${fmtInt(tg)} г</small>` : ""}</span><span class="lg-val">${fmt(g)} г<small>${p}%</small></span></div>`).join("");
 
   // приёмы пищи
   const mealsHtml = MEALS.map((m) => {
@@ -364,9 +454,10 @@ function viewDiary() {
     return `<section class="card meal">
       <div class="meal-head">
         <span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span>
-        <div class="meal-info"><div class="meal-name">${m.name}</div><div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs)}</div></div>
+        <div class="meal-name">${m.name}</div>
         <div class="meal-kcal">${fmtInt(mt.kcal)}<small>ккал</small></div>
         <button type="button" class="add-btn" data-act="addFood" data-meal="${m.id}" aria-label="Добавить в «${m.name}»">+</button>
+        <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs)}</div>
       </div>
       ${rows ? `<div class="entries">${rows}</div>` : ""}
     </section>`;
@@ -384,6 +475,7 @@ function viewDiary() {
       <div class="hero-caption">Съедено ${fmtInt(t.kcal)} ккал</div>
       <div class="hero-track"><i style="width:${barPct}%"></i></div>
     </section>
+    ${miniTiles(day)}
     <section class="card">
       <h2 class="h2">Баланс БЖУ</h2>
       <div class="sum-grid">${donut(t)}<div class="legend">${legend}</div></div>
@@ -472,6 +564,8 @@ function viewReports() {
       <div class="chart-labels">${labels}</div>
       <p class="chart-note">Пунктир: ваша цель ${fmtInt(state.goal)} ккал. Красным отмечены дни с перебором.</p>
     </section>
+    ${barsCard("Вода по дням", days, waterOn, waterTarget, "мл", "water")}
+    ${barsCard("Нагрузки по дням", days, actMinutes, null, "мин", "")}
     <section class="card">
       <h2 class="h2">В среднем за день</h2>
       ${withData.length ? `<div class="stat-grid">
@@ -494,6 +588,7 @@ function viewMe() {
   return `
     ${pageHead("Профиль", "Я")}
     <section class="card"><div class="me-head">${avatar}<div><div class="me-name">${esc(u.displayName || "Без имени")}</div><div class="me-mail">${esc(u.email || "")}</div></div></div></section>
+    ${planCardHtml()}
     <section class="card">
       <h2 class="h2">Дневная цель</h2>
       <label class="field"><span>Калории в день</span><input id="goal-input" class="input" inputmode="numeric" value="${state.goal}" autocomplete="off"></label>
@@ -852,7 +947,7 @@ function openAddFood(mealId, presetProduct) {
     }
     body.innerHTML = `<div class="plist">${res.map((d, i) => `
       <button type="button" class="prow" data-off-i="${i}">
-        <span><span class="p-name">${esc(d.name)}</span><span class="p-sub">${d.brand ? `${esc(d.brand)}. ` : ""}Б ${fmt(d.protein || 0)}  Ж ${fmt(d.fat || 0)}  У ${fmt(d.carbs || 0)}</span></span>
+        <span><span class="p-name">${esc(d.name)}</span><span class="p-macros">${macrosHtml(d.protein || 0, d.fat || 0, d.carbs || 0)}</span>${d.brand ? `<span class="p-sub">${esc(d.brand)}</span>` : ""}</span>
         <span class="p-kcal">${fmtInt(d.kcal)}<small>ккал / 100 г</small></span></button>`).join("")}</div>
       <button type="button" class="btn ghost full" id="af-back2" style="margin-top:12px">Назад</button>`;
     $("#af-back2", ov).addEventListener("click", showList);
@@ -1021,6 +1116,286 @@ function openProductForm(product, onSaved, prefill = {}) {
   }
 }
 
+/* ================= Здоровье: вода, нагрузки, профиль ================= */
+const currentPlan = () => computePlan(state.profile);
+const waterOn = (d) => { const x = state.water.find((w) => w.date === d); return x ? Number(x.ml) || 0 : 0; };
+const actOn = (d) => state.activity.filter((a) => a.date === d);
+const actMinutes = (d) => actOn(d).reduce((sum, a) => sum + (Number(a.minutes) || 0), 0);
+const actBurned = (d) => actOn(d).reduce((sum, a) => sum + (Number(a.kcal) || 0), 0);
+const waterBase = () => (Number(state.profile.waterBaseMl) > 0 ? Number(state.profile.waterBaseMl) : 2000);
+// Норма воды растёт с нагрузкой: примерно 500 мл на час тренировки
+const waterTarget = (d) => Math.round((waterBase() + actMinutes(d) * 8) / 50) * 50;
+const userWeight = () => (Number(state.profile.weightKg) > 0 ? Number(state.profile.weightKg) : 70);
+const weekDays = (s) => Array.from({ length: 7 }, (_, i) => addDays(weekStart(s), i));
+
+const dayNavButtons = (day) => `
+  <button type="button" class="iconbtn" data-act="prevDay" aria-label="Предыдущий день" ${day <= minDate() ? "disabled" : ""}>${CHEV_L}</button>
+  <button type="button" class="chip-btn" data-act="today">${dateShort(day)}</button>
+  <button type="button" class="iconbtn" data-act="nextDay" aria-label="Следующий день">${CHEV_R}</button>`;
+
+const fillProfilePrompt = `<section class="card">
+  <h2 class="h2">Настройте план</h2>
+  <p class="foot-note" style="margin:0 0 12px">Укажите пол, возраст, рост, вес и цель: приложение рассчитает калории, БЖУ, норму воды и рекомендации по нагрузке.</p>
+  <button type="button" class="btn primary full" data-act="openProfile">Заполнить данные</button>
+</section>`;
+
+// Две плитки в дневнике: вода и нагрузка за выбранный день
+function miniTiles(day) {
+  const ml = waterOn(day), tg = waterTarget(day);
+  const mins = actMinutes(day), burned = actBurned(day);
+  const plan = currentPlan();
+  const dayGoal = plan ? Math.ceil(plan.weekly.minutes / 7) : 30;
+  return `<div class="mini-row">
+    <button type="button" class="mini water" data-act="goTab" data-tab="health">
+      <span class="mini-top"><span class="mini-ic">${DROP_SVG}</span><span class="mini-label">Вода</span></span>
+      <span class="mini-val">${fmtInt(ml)}<small>мл</small></span>
+      <span class="mini-sub">норма ${fmtInt(tg)} мл</span>
+      <span class="mini-bar"><i style="width:${Math.min(100, (ml / tg) * 100)}%"></i></span>
+    </button>
+    <button type="button" class="mini act" data-act="goTab" data-tab="health">
+      <span class="mini-top"><span class="mini-ic">${PULSE_SVG}</span><span class="mini-label">Нагрузка</span></span>
+      <span class="mini-val">${fmtInt(mins)}<small>мин</small></span>
+      <span class="mini-sub">сожжено ${fmtInt(burned)} ккал</span>
+      <span class="mini-bar"><i style="width:${Math.min(100, (mins / dayGoal) * 100)}%"></i></span>
+    </button>
+  </div>`;
+}
+
+function viewHealth() {
+  const day = state.date;
+  const plan = currentPlan();
+  const ml = waterOn(day), tg = waterTarget(day);
+  const extra = actMinutes(day) * 8;
+  const left = tg - ml;
+  const acts = actOn(day).sort((a, b) => createdMs(a) - createdMs(b));
+  const mins = actMinutes(day), burned = actBurned(day);
+  const wk = weekDays(day);
+  const wkMin = wk.reduce((sum, d) => sum + actMinutes(d), 0);
+  const wkStr = wk.reduce((sum, d) => sum + actOn(d).filter((a) => a.type === "strength").length, 0);
+  const wt = plan ? plan.weekly : { minutes: 150, strength: 2, text: WEEKLY.maintain.text };
+  const actRows = acts.map((a) => `
+    <button type="button" class="entry" data-act="editActivity" data-id="${esc(a.id)}">
+      <span class="e-main"><span class="e-name">${esc(a.name)}</span><span class="e-sub">${fmt(a.minutes)} мин</span></span>
+      <span class="e-kcal">${fmtInt(a.kcal)}<small>ккал</small></span>
+    </button>`).join("");
+  return `
+    ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
+    ${plan ? "" : fillProfilePrompt}
+    <section class="card">
+      <div class="card-top"><h2 class="h2">Вода</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
+      <div class="big-line">${fmtInt(ml)}<small>мл</small></div>
+      <div class="track water"><i style="width:${Math.min(100, (ml / tg) * 100)}%"></i></div>
+      <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось выпить ${fmtInt(left)} мл.` : "Норма на сегодня выполнена."}${extra ? ` В норму добавлено ${fmtInt(Math.round(extra / 50) * 50)} мл за нагрузку.` : ""}</p>
+      <div class="chips">
+        ${[150, 250, 330, 500].map((n) => `<button type="button" class="chip water" data-act="addWater" data-ml="${n}">+${n}</button>`).join("")}
+        <button type="button" class="chip" data-act="waterCustom">Другое</button>
+        <button type="button" class="chip muted" data-act="addWater" data-ml="-250">−250</button>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-top"><h2 class="h2">Нагрузки</h2><button type="button" class="btn ghost sm" data-act="addActivity">+ Добавить</button></div>
+      <div class="stat-grid">
+        <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
+        <div class="stat"><b>${fmtInt(burned)}</b><span>ккал сожжено</span></div>
+      </div>
+      ${actRows ? `<div class="entries flat">${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Добавьте прогулку, тренировку или любую нагрузку.</p>`}
+    </section>
+    <section class="card">
+      <div class="card-top"><h2 class="h2">Неделя</h2><span class="pill">${fmtInt(wkMin)} из ${wt.minutes} мин</span></div>
+      <div class="track"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
+      <p class="foot-note" style="margin:12px 0 0">Силовых тренировок: <b>${wkStr}</b> из ${wt.strength}. ${esc(wt.text)}</p>
+    </section>`;
+}
+
+function chartLabels(days) {
+  return days.map((d, i) => {
+    const dt = parseD(d);
+    const t = state.repDays === 7 ? WD_SHORT[dt.getDay()] : (i % 5 === 0 ? dt.getDate() : "");
+    return `<span>${t}</span>`;
+  }).join("");
+}
+
+function barsCard(title, days, valFn, goalFn, unit, cls) {
+  const vals = days.map(valFn);
+  const goal = goalFn ? Math.max(...days.map(goalFn)) : 0;
+  const max = Math.max(goal * 1.15, ...vals, 1);
+  const bars = vals.map((v) => `<div class="col"><div class="b ${v > 0 ? cls : "zero"}" style="height:${v > 0 ? Math.max(2, (v / max) * 100) : 2}%"></div></div>`).join("");
+  const withData = vals.filter((v) => v > 0);
+  const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
+  return `<section class="card"><h2 class="h2">${title}</h2>
+    <div class="chart">${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
+    <div class="chart-labels">${chartLabels(days)}</div>
+    <p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${fmtInt(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${fmtInt(goal)} ${unit}).` : ""}</p></section>`;
+}
+
+function planCardHtml() {
+  const pr = state.profile, plan = currentPlan();
+  if (!plan) return fillProfilePrompt;
+  const lvl = LEVELS.find((l) => l.v === pr.activity) || LEVELS[0];
+  const warns = plan.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("");
+  return `<section class="card">
+    <div class="card-top"><h2 class="h2">Мой план</h2><button type="button" class="btn ghost sm" data-act="openProfile">Изменить</button></div>
+    <p class="foot-note" style="margin:0 0 12px">Пол: ${pr.sex === "male" ? "мужской" : "женский"}, ${fmt(pr.age)} лет, ${fmt(pr.heightCm)} см, ${fmt(pr.weightKg)} кг. Цель: ${GOAL_NAME[pr.goal]}. ${esc(lvl.t)}.</p>
+    <div class="stat-grid">
+      <div class="stat"><b>${fmtInt(plan.kcal)}</b><span>ккал в день</span></div>
+      <div class="stat"><b>${fmtInt(plan.water)} мл</b><span>воды в день</span></div>
+      <div class="stat"><b>${plan.protein} г</b><span>белки в день</span></div>
+      <div class="stat"><b>${plan.fat} г</b><span>жиры в день</span></div>
+      <div class="stat"><b>${plan.carbs} г</b><span>углеводы в день</span></div>
+      <div class="stat"><b>${fmt(plan.bmi)}</b><span>индекс массы тела: ${plan.bmiLabel}</span></div>
+    </div>
+    <p class="foot-note" style="margin:12px 0 0">Основной обмен: ${fmtInt(plan.bmr)} ккал, расход с учётом образа жизни: ${fmtInt(plan.tdee)} ккал. ${esc(plan.weekly.text)} Это примерно ${fmtInt(plan.weekly.kcal)} ккал в неделю.</p>
+    ${warns}
+    <p class="foot-note" style="margin:12px 0 0">Индекс массы тела не учитывает мышечную массу. Все значения ориентировочные, для здоровых взрослых, и не заменяют рекомендацию врача. При беременности, диабете и других заболеваниях согласуйте питание и нагрузку с врачом.</p>
+  </section>`;
+}
+
+function previewPlanHtml(plan) {
+  return `<div class="pv-kcal">${fmtInt(plan.kcal)}<small>ккал в день</small></div>
+    <div class="pv-macros"><div><b>${plan.protein}</b>белки, г</div><div><b>${plan.fat}</b>жиры, г</div><div><b>${plan.carbs}</b>углеводы, г</div></div>
+    <p class="foot-note" style="margin:10px 0 0">Вода: <b>${fmtInt(plan.water)} мл</b> в день. Нагрузка: <b>${plan.weekly.minutes} мин</b> в неделю.</p>
+    ${plan.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}`;
+}
+
+// Окно «Мои данные»: при первом входе и по кнопке «Изменить»
+function openProfile(first) {
+  const pr = state.profile;
+  const st = { sex: pr.sex || "", goal: pr.goal || "" };
+  const seg = (name, opts, cur) => `<div class="seg full" data-seg="${name}">${opts.map((o) => `<button type="button" data-v="${o.v}" class="${o.v === cur ? "on" : ""}">${o.t}</button>`).join("")}</div>`;
+  const val = (v) => (v ? String(v).replace(".", ",") : "");
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>${first ? "Давайте познакомимся" : "Мои данные"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <p class="foot-note" style="margin:-4px 2px 14px">По этим данным приложение рассчитает калории, БЖУ, норму воды и рекомендации по нагрузке. Возраст нужен для точности расчёта.</p>
+    <div class="field"><span>Пол</span>${seg("sex", SEX, st.sex)}</div>
+    <div class="field-grid3">
+      <label class="field"><span>Возраст, лет</span><input id="pr-age" class="input" inputmode="numeric" value="${val(pr.age)}" autocomplete="off"></label>
+      <label class="field"><span>Рост, см</span><input id="pr-h" class="input" inputmode="decimal" value="${val(pr.heightCm)}" autocomplete="off"></label>
+      <label class="field"><span>Вес, кг</span><input id="pr-w" class="input" inputmode="decimal" value="${val(pr.weightKg)}" autocomplete="off"></label>
+    </div>
+    <div class="field"><span>Цель</span>${seg("goal", GOALS, st.goal)}</div>
+    <label class="field"><span>Образ жизни</span><select id="pr-level" class="input">${LEVELS.map((l) => `<option value="${l.v}" ${l.v === (pr.activity || "light") ? "selected" : ""}>${l.t}</option>`).join("")}</select></label>
+    <div class="preview" id="pr-prev"></div>
+    <div class="row">${first ? `<button type="button" class="btn ghost" id="pr-skip">Позже</button>` : ""}<button type="button" class="btn primary grow" id="pr-save">Рассчитать и сохранить</button></div>`);
+
+  const read = () => ({ sex: st.sex, goal: st.goal, age: num($("#pr-age", ov).value), heightCm: num($("#pr-h", ov).value), weightKg: num($("#pr-w", ov).value), activity: $("#pr-level", ov).value });
+  const upd = () => {
+    const d = read(), plan = computePlan(d), box = $("#pr-prev", ov);
+    if (plan) box.innerHTML = previewPlanHtml(plan);
+    else if (Number.isFinite(d.age) && d.age < 18) box.innerHTML = `<p class="foot-note" style="margin:0">Расчёт сделан для взрослых, от 18 лет.</p>`;
+    else box.innerHTML = `<p class="foot-note" style="margin:0">Заполните все поля, и здесь появится ваш план.</p>`;
+  };
+  upd();
+  ov.addEventListener("input", upd);
+  ov.addEventListener("change", upd);
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-seg] [data-v]");
+    if (!b) return;
+    st[b.parentElement.dataset.seg] = b.dataset.v;
+    b.parentElement.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    upd();
+  });
+  if (first) $("#pr-skip", ov).addEventListener("click", () => { lsSet(`ob_skip_${state.user.uid}`, "1"); ov.close(); });
+  $("#pr-save", ov).addEventListener("click", () => {
+    const d = read(), plan = computePlan(d);
+    if (!plan) { toast(Number.isFinite(d.age) && d.age < 18 ? "Расчёт сделан для взрослых, от 18 лет" : "Заполните пол, возраст, рост, вес и цель"); return; }
+    setDoc(docRef("settings", "profile"), {
+      sex: d.sex, age: d.age, heightCm: d.heightCm, weightKg: d.weightKg, goal: d.goal, activity: d.activity,
+      goalKcal: plan.kcal, goalProtein: plan.protein, goalFat: plan.fat, goalCarbs: plan.carbs, waterBaseMl: plan.water,
+      planUpdatedAt: serverTimestamp(),
+    }, { merge: true }).catch(writeFail);
+    ov.close();
+    toast("План рассчитан и сохранён");
+  });
+}
+
+// Первый вход: если профиль не заполнен, предлагаем заполнить (один раз за сессию, «Позже» запоминается)
+function maybeOnboard() {
+  if (state.obShown || !state.user || lsGet(`ob_skip_${state.user.uid}`)) return;
+  setTimeout(() => {
+    if (state.obShown || !state.user || computePlan(state.profile) || document.querySelector(".overlay, .scanner")) return;
+    state.obShown = true;
+    openProfile(true);
+  }, 700);
+}
+
+function changeWater(n) {
+  const day = state.date, cur = waterOn(day);
+  const ref = doc(db, "users", state.user.uid, "water", day);
+  if (n < 0 && cur + n <= 0) setDoc(ref, { date: day, ml: 0 }, { merge: true }).catch(writeFail);
+  else setDoc(ref, { date: day, ml: increment(n) }, { merge: true }).catch(writeFail);
+  toast(n > 0 ? `Добавлено ${n} мл воды` : "Убрано 250 мл");
+}
+
+function openWaterSheet() {
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Вода</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <label class="field"><span>Количество, мл</span><input id="wc-ml" class="input big" inputmode="numeric" value="200" autocomplete="off"></label>
+    <div class="chips">${[100, 200, 300, 400, 750, 1000].map((n) => `<button type="button" class="chip" data-n="${n}">${n}</button>`).join("")}</div>
+    <button type="button" class="btn primary full" id="wc-add">Добавить</button>`);
+  const input = $("#wc-ml", ov);
+  input.focus(); input.select();
+  ov.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { input.value = c.dataset.n; }));
+  $("#wc-add", ov).addEventListener("click", () => {
+    const n = num(input.value);
+    if (!(n > 0 && n <= 3000)) { toast("Введите количество воды от 1 до 3000 мл"); return; }
+    changeWater(Math.round(n));
+    ov.close();
+  });
+}
+
+function openActivitySheet(entry) {
+  const w = userWeight();
+  const type0 = entry ? entry.type : "walkfast";
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>${entry ? "Нагрузка" : "Новая нагрузка"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <label class="field"><span>Вид нагрузки</span><select id="ac-type" class="input">
+      ${ACTIVITIES.map((a) => `<option value="${a.id}" ${a.id === type0 ? "selected" : ""}>${a.name}</option>`).join("")}
+      <option value="custom" ${type0 === "custom" ? "selected" : ""}>Другое: свои калории</option></select></label>
+    <div id="ac-custom" class="hidden">
+      <label class="field"><span>Название</span><input id="ac-name" class="input" maxlength="60" value="${entry && entry.type === "custom" ? esc(entry.name) : ""}" autocomplete="off" placeholder="Например, Подтягивания"></label>
+      <label class="field"><span>Сожжено, ккал</span><input id="ac-kcal" class="input" inputmode="numeric" value="${entry && entry.type === "custom" ? entry.kcal : ""}" autocomplete="off"></label>
+    </div>
+    <label class="field"><span>Длительность, мин</span><input id="ac-min" class="input big" inputmode="numeric" value="${entry ? entry.minutes : 30}" autocomplete="off"></label>
+    <div class="chips">${[15, 30, 45, 60, 90].map((n) => `<button type="button" class="chip" data-n="${n}">${n}</button>`).join("")}</div>
+    <div class="preview" id="ac-prev"></div>
+    <p class="foot-note" style="margin:-4px 2px 14px">Калории считаются по формуле: MET × ваш вес (${fmt(w)} кг) × время в часах. Значения ориентировочные.</p>
+    <div class="row">${entry ? `<button type="button" class="btn danger" id="ac-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="ac-save">Сохранить</button></div>`);
+
+  const calcNow = () => {
+    const type = $("#ac-type", ov).value, min = num($("#ac-min", ov).value);
+    $("#ac-custom", ov).classList.toggle("hidden", type !== "custom");
+    if (type === "custom") return { type, min, kcal: num($("#ac-kcal", ov).value), met: null, name: $("#ac-name", ov).value.trim() || "Другая нагрузка" };
+    const a = ACTIVITIES.find((x) => x.id === type);
+    return { type, min, kcal: min > 0 ? Math.round((a.met * w * min) / 60) : NaN, met: a.met, name: a.name };
+  };
+  const upd = () => {
+    const c = calcNow();
+    $("#ac-prev", ov).innerHTML = `<div class="pv-kcal">${Number.isFinite(c.kcal) ? fmtInt(c.kcal) : 0}<small>ккал сожжено</small></div>${c.met && c.min > 0 ? `<p class="foot-note" style="margin:8px 0 0">${fmt(c.met)} MET × ${fmt(w)} кг × ${fmt(c.min)} мин ÷ 60</p>` : ""}`;
+  };
+  upd();
+  ov.addEventListener("input", upd);
+  ov.addEventListener("change", upd);
+  ov.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { $("#ac-min", ov).value = c.dataset.n; upd(); }));
+  $("#ac-save", ov).addEventListener("click", () => {
+    const c = calcNow();
+    if (!(c.min > 0 && c.min <= 600)) { toast("Введите длительность от 1 до 600 минут"); return; }
+    if (!Number.isFinite(c.kcal) || c.kcal > 5000) { toast("Введите калории от 0 до 5000"); return; }
+    const data = { type: c.type, name: c.name, minutes: c.min, kcal: Math.round(c.kcal), met: c.met };
+    if (entry) updateDoc(docRef("activity", entry.id), data).catch(writeFail);
+    else addDoc(colRef("activity"), { ...data, date: state.date, createdAt: serverTimestamp() }).catch(writeFail);
+    ov.close();
+    toast("Нагрузка сохранена");
+  });
+  if (entry) {
+    $("#ac-del", ov).addEventListener("click", () => {
+      if (!confirm(`Удалить «${entry.name}»?`)) return;
+      deleteDoc(docRef("activity", entry.id)).catch(writeFail);
+      ov.close();
+      toast("Удалено");
+    });
+  }
+}
+
 /* ================= Обработчики ================= */
 const actions = {
   prevDay() { if (state.date > minDate()) { state.date = addDays(state.date, -1); render(); } },
@@ -1030,6 +1405,12 @@ const actions = {
   addFood(ds) { openAddFood(ds.meal); },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { openProductForm(null); },
+  goTab(ds) { state.tab = ds.tab; render(); window.scrollTo(0, 0); },
+  addWater(ds) { changeWater(Number(ds.ml)); },
+  waterCustom() { openWaterSheet(); },
+  addActivity() { openActivitySheet(null); },
+  editActivity(ds) { const a = state.activity.find((x) => x.id === ds.id); if (a) openActivitySheet(a); },
+  openProfile() { openProfile(false); },
   scanProduct() { openScanner((code) => processBarcode(code, (p) => openProductForm(p), null)); },
   importStarter() {
     const items = starterMissing();
