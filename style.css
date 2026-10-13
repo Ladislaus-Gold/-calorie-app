@@ -32,7 +32,8 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html { background: var(--bg); }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -44,7 +45,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
 }
-body.noscroll { overflow: hidden; }
+body.noscroll #app { overflow: hidden; }
 .hidden { display: none !important; }
 button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
 input, select { font: inherit; letter-spacing: inherit; }
@@ -52,9 +53,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 b { font-weight: 600; }
 
 /* ---------- Каркас ---------- */
-#app { max-width: 480px; margin: 0 auto; min-height: 100vh; }
+/* Как в Accounting: документ не прокручивается, прокручивается только #app,
+   сдвинутый вниз на строку состояния. Так iOS не рисует светлую подложку под часами. */
+#app { position: fixed; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top, 0px); overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
+.view { max-width: 480px; margin: 0 auto; }
 .view {
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 30px);
+  padding: 10px 14px calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 30px);
 }
 .nav {
   position: fixed; left: 50%; transform: translateX(-50%);
@@ -149,12 +153,12 @@ b { font-weight: 600; }
 
 /* ---------- Приёмы пищи ---------- */
 .meal { padding: 6px; }
-.meal-head { display: grid; grid-template-columns: 40px 1fr auto 36px; grid-template-areas: "ic name kcal add" "ic macros macros macros"; gap: 2px 10px; align-items: center; padding: 8px 8px 8px 10px; }
+.meal-head { display: grid; grid-template-columns: 40px 1fr auto 36px; grid-template-areas: "ic name kcal add" "ic macros kcal add"; gap: 2px 10px; align-items: center; padding: 8px 8px 8px 10px; }
 .meal-head .meal-ic { grid-area: ic; }
 .meal-head .meal-name { grid-area: name; align-self: center; }
 .meal-head .meal-kcal { grid-area: kcal; align-self: center; }
 .meal-head .add-btn { grid-area: add; align-self: center; }
-.meal-head .meal-macros { grid-area: macros; align-self: start; }
+.meal-head .meal-macros { grid-area: macros; align-self: start; min-width: 0; }
 .meal-ic { width: 40px; height: 40px; border-radius: 13px; background: var(--amber-soft); color: #C98A00; display: flex; align-items: center; justify-content: center; }
 .meal-ic svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .meal-ic.lunch { background: #FFE9D2; color: #D0701A; }
@@ -273,7 +277,7 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .sheet-head .icon-btn { background: rgba(0, 0, 0, .06); border-color: transparent; box-shadow: none; }
 
 /* ---------- Вход ---------- */
-.login { min-height: 100vh; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; justify-content: space-between; padding: calc(env(safe-area-inset-top, 0px) + 56px) 24px calc(env(safe-area-inset-bottom, 0px) + 32px); background: linear-gradient(180deg, #D5EFDC 0%, var(--bg) 60%); }
+.login { position: fixed; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; justify-content: space-between; padding: calc(env(safe-area-inset-top, 0px) + 56px) 24px calc(env(safe-area-inset-bottom, 0px) + 32px); background: linear-gradient(180deg, #D5EFDC 0%, var(--bg) 60%); }
 .login-hero { text-align: center; }
 .login-logo { border-radius: 24px; box-shadow: 0 14px 32px rgba(27, 157, 75, .28); }
 .login h1 { font-size: 36px; margin: 22px 0 8px; font-weight: 700; letter-spacing: -.045em; }

@@ -1990,7 +1990,7 @@ const actions = {
   addFood(ds) { openAddFood(ds.meal); },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { openProductForm(null); },
-  goTab(ds) { state.tab = ds.tab; render(); window.scrollTo(0, 0); },
+  goTab(ds) { state.tab = ds.tab; render(); { const sc = document.getElementById("app"); if (sc) sc.scrollTop = 0; } },
   addWater(ds) { changeWater(Number(ds.ml)); },
   addDrink() { openDrinkSheet(); },
   quickDrink(ds) { openDrinkSheet(null, ds.did); },
@@ -2054,7 +2054,7 @@ $("#nav").addEventListener("click", (e) => {
   if (!b) return;
   state.tab = b.dataset.tab;
   render();
-  window.scrollTo(0, 0);
+  { const sc = document.getElementById("app"); if (sc) sc.scrollTop = 0; }
 });
 
 readLinkFromUrl();
