@@ -755,12 +755,129 @@ function loadZXing() {
   return zxingPromise;
 }
 
-// Распознаватель: сначала встроенный BarcodeDetector браузера, иначе ZXing-C++ (WebAssembly) с CDN.
+// ---------- Собственный сканер EAN-13 (без внешних библиотек, работает всегда) ----------
+const EAN_L = ["3211","2221","2122","1411","1132","1231","1114","1312","1213","3112"];
+const EAN_G = EAN_L.map((p) => p.split("").reverse().join(""));
+const EAN_PAR = ["LLLLLL","LLGLGG","LLGGLG","LLGGGL","LGLLGG","LGGLLG","LGGGLL","LGLGLG","LGLGGL","LGGLGL"];
+function eanDigit(w, tables) {
+  const sum = w[0] + w[1] + w[2] + w[3];
+  if (sum <= 0) return null;
+  let best = null, bestErr = 1e9;
+  for (const [kind, table] of tables) {
+    for (let d = 0; d < 10; d++) {
+      let err = 0;
+      for (let k = 0; k < 4; k++) { const diff = (w[k] * 7) / sum - Number(table[d][k]); err += diff * diff; }
+      if (err < bestErr) { bestErr = err; best = { d, kind }; }
+    }
+  }
+  return bestErr < 1.4 ? best : null;
+}
+function eanChecksumOk(c) {
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(c[i]) * (i % 2 ? 3 : 1);
+  return (10 - (sum % 10)) % 10 === Number(c[12]);
+}
+// runs: [{b:true/false, w:число}] -> код или null
+function decodeEanRuns(runs) {
+  for (let i = 0; i + 59 <= runs.length; i++) {
+    if (!runs[i].b) continue;
+    const g0 = runs[i].w, g1 = runs[i + 1].w, g2 = runs[i + 2].w;
+    const u = (g0 + g1 + g2) / 3;
+    if (u < 1.2) continue;
+    if (Math.max(g0, g1, g2) > u * 1.8 || Math.min(g0, g1, g2) < u * 0.45) continue;
+    // тихая зона слева (если есть предыдущий пробел) должна быть заметно больше модуля
+    if (i > 0 && runs[i - 1].w < u * 3) continue;
+    let p = i + 3, left = "", par = "", ok = true;
+    for (let k = 0; k < 6 && ok; k++, p += 4) {
+      const r = eanDigit([runs[p].w, runs[p + 1].w, runs[p + 2].w, runs[p + 3].w], [["L", EAN_L], ["G", EAN_G]]);
+      if (!r) ok = false; else { left += r.d; par += r.kind; }
+    }
+    if (!ok) continue;
+    const mid = [runs[p], runs[p + 1], runs[p + 2], runs[p + 3], runs[p + 4]];
+    if (mid.some((m) => m.w > u * 2.2 || m.w < u * 0.4)) continue;
+    p += 5;
+    let right = "";
+    for (let k = 0; k < 6 && ok; k++, p += 4) {
+      const r = eanDigit([runs[p].w, runs[p + 1].w, runs[p + 2].w, runs[p + 3].w], [["R", EAN_L]]);
+      if (!r) ok = false; else right += r.d;
+    }
+    if (!ok) continue;
+    const first = EAN_PAR.indexOf(par);
+    if (first < 0) continue;
+    const code = String(first) + left + right;
+    if (eanChecksumOk(code)) return code;
+  }
+  return null;
+}
+// Одна строка яркости -> серия чёрно-белых отрезков (адаптивный порог против бликов)
+function rowToRuns(row) {
+  const n = row.length;
+  const win = Math.max(24, Math.round(n / 6));
+  const pre = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + row[i];
+  const runs = [];
+  let cur = null, w = 0;
+  for (let i = 0; i < n; i++) {
+    const lo = Math.max(0, i - win), hi = Math.min(n, i + win + 1);
+    const mean = (pre[hi] - pre[lo]) / (hi - lo);
+    const black = row[i] < mean - 6;
+    if (cur === null) { cur = black; w = 1; }
+    else if (black === cur) w++;
+    else { runs.push({ b: cur, w }); cur = black; w = 1; }
+  }
+  if (cur !== null) runs.push({ b: cur, w });
+  return runs;
+}
+function decodeRow(row) {
+  const runs = rowToRuns(row);
+  if (runs.length < 59) return null;
+  const c = decodeEanRuns(runs);
+  if (c) return c;
+  const rev = runs.slice().reverse(); // код вверх ногами
+  return decodeEanRuns(rev);
+}
+function lumaOfCanvas(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const { width: w, height: h } = canvas;
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const y = new Uint8Array(w * h);
+  for (let i = 0, j = 0; j < y.length; i += 4, j++) y[j] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+  return { w, h, y };
+}
+function transposeLuma(L) {
+  const { w, h, y } = L;
+  const t = new Uint8Array(w * h);
+  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) t[c * h + r] = y[r * w + c];
+  return { w: h, h: w, y: t };
+}
+function scanLuma(L, step) {
+  const { w, h, y } = L;
+  for (let r = 0; r < h; r += step) {
+    for (const off of [0, 1]) {
+      // усредняем две-три соседние строки: меньше шума
+      const row = new Uint8Array(w);
+      const r1 = Math.min(h - 1, r + off + 1);
+      for (let x = 0; x < w; x++) row[x] = (y[r * w + x] + y[r1 * w + x] + y[Math.min(h - 1, r + off) * w + x]) / 3;
+      const c = decodeRow(row);
+      if (c) return c;
+    }
+  }
+  return null;
+}
+// Пробуем кадр как есть и повёрнутым на 90° (код может лежать боком)
+function ownDecodeCanvas(canvas, step = 3) {
+  const L = lumaOfCanvas(canvas);
+  return scanLuma(L, step) || scanLuma(transposeLuma(L), step);
+}
+
+// ---------- Дополнительный распознаватель: встроенный BarcodeDetector или WebAssembly с CDN ----------
 const BC_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
 const DETECTOR_URLS = [
   "https://cdn.jsdelivr.net/npm/barcode-detector@3.2.1/dist/es/ponyfill.min.js",
   "https://fastly.jsdelivr.net/npm/barcode-detector@3.2.1/dist/es/ponyfill.min.js",
+  "https://unpkg.com/barcode-detector@3.2.1/dist/es/ponyfill.min.js",
 ];
+const diag = { engine: "собственный", wasm: "не загружен", lastErr: "", frames: 0 };
 let detectorPromise = null;
 function getDetector() {
   if (!detectorPromise) {
@@ -768,7 +885,7 @@ function getDetector() {
       if ("BarcodeDetector" in window) {
         try {
           const sup = await window.BarcodeDetector.getSupportedFormats();
-          if (sup.includes("ean_13")) return new window.BarcodeDetector({ formats: BC_FORMATS.filter((f) => sup.includes(f)) });
+          if (sup.includes("ean_13")) { diag.wasm = "системный"; return new window.BarcodeDetector({ formats: BC_FORMATS.filter((f) => sup.includes(f)) }); }
         } catch { /* перейдём на WebAssembly */ }
       }
       for (const url of DETECTOR_URLS) {
@@ -777,84 +894,115 @@ function getDetector() {
           const det = new mod.BarcodeDetector({ formats: BC_FORMATS });
           const warm = document.createElement("canvas");
           warm.width = warm.height = 8;
-          await det.detect(warm).catch(() => {}); // заранее подгружаем модуль распознавания
+          await det.detect(warm); // если WASM не скачался — упадёт здесь, а не на живом кадре
+          diag.wasm = "WASM";
           return det;
-        } catch (e) { console.warn("Не загрузился распознаватель:", url, e); }
+        } catch (e) { diag.lastErr = String((e && e.message) || e).slice(0, 60); console.warn("Не загрузился распознаватель:", url, e); }
       }
+      diag.wasm = "недоступен";
       return null;
-    })().then((d) => { if (!d) detectorPromise = null; return d; });
+    })().then((d) => { if (!d) setTimeout(() => { detectorPromise = null; }, 15000); return d; });
   }
   return detectorPromise;
 }
 
 const firstCode = (results) => { const hit = (results || []).find((r) => r && r.rawValue); return hit ? String(hit.rawValue) : null; };
 
-// Живое сканирование: кадр с камеры уменьшается и отправляется на распознавание несколько раз в секунду.
-async function startLiveScan(video, onCode, isDone) {
-  const det = await getDetector();
-  if (!det) return startZXingJs(video, onCode);
+function frameToCanvas(source, sw, sh, maxSide, canvas) {
+  const k = Math.min(1, maxSide / Math.max(sw, sh));
+  canvas.width = Math.round(sw * k);
+  canvas.height = Math.round(sh * k);
+  canvas.getContext("2d", { willReadFrequently: true }).drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+// Живое сканирование: кадр обрабатывается собственным сканером и (когда загрузится) дополнительным распознавателем.
+async function startLiveScan(video, onCode, isDone, onStatus, onTorch) {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
     audio: false,
   });
   video.srcObject = stream;
   await video.play().catch(() => {});
-  try { await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch { /* не везде поддерживается */ }
+  const track = stream.getVideoTracks()[0];
+  try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch { /* не везде поддерживается */ }
+  // Подсветка: включается через камеру, если браузер это разрешает (Android/Chrome; на iPhone в Safari обычно нет)
+  let caps = {};
+  try { caps = (track.getCapabilities && track.getCapabilities()) || {}; } catch { /* ignore */ }
+  let torchOn = false;
+  const setTorch = async (on) => {
+    await track.applyConstraints({ advanced: [{ torch: !!on }] });
+    torchOn = !!on;
+    return torchOn;
+  };
+  if (onTorch) onTorch({ supported: !!caps.torch, toggle: () => setTorch(!torchOn) });
+  let dark = 0;
+  let det = null;
+  getDetector().then((d) => { det = d; }).catch(() => {});
   const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   let busy = false;
+  let n = 0;
   const timer = setInterval(async () => {
     if (busy || isDone() || video.readyState < 2 || !video.videoWidth) return;
     busy = true;
     try {
-      const k = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
-      canvas.width = Math.round(video.videoWidth * k);
-      canvas.height = Math.round(video.videoHeight * k);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const code = firstCode(await det.detect(canvas));
+      n++; diag.frames = n;
+      frameToCanvas(video, video.videoWidth, video.videoHeight, 1280, canvas);
+      if (n % 8 === 1 && onTorch) {
+        // средняя яркость кадра: тёмный кадр -> предлагаем подсветку
+        const sm = document.createElement("canvas"); sm.width = sm.height = 16;
+        const sx = sm.getContext("2d", { willReadFrequently: true }); sx.drawImage(canvas, 0, 0, 16, 16);
+        const px = sx.getImageData(0, 0, 16, 16).data; let t = 0;
+        for (let i = 0; i < px.length; i += 4) t += (px[i] + px[i + 1] + px[i + 2]) / 3;
+        dark = t / 256;
+        onTorch({ dark: dark < 70 });
+      }
+      let code = ownDecodeCanvas(canvas, 4);
+      if (!code && det) {
+        try { code = firstCode(await det.detect(canvas)); } catch (e) { diag.lastErr = String((e && e.message) || e).slice(0, 60); }
+      }
       if (code && !isDone()) onCode(code);
-    } catch (e) { console.warn("Кадр не распознан:", e); } finally { busy = false; }
-  }, 160);
+      else if (n % 6 === 0 && onStatus) onStatus(`Кадров: ${n} · движок: собственный + ${diag.wasm}${diag.lastErr ? " · " + diag.lastErr : ""}`);
+    } catch (e) { diag.lastErr = String((e && e.message) || e).slice(0, 60); console.warn("Кадр не распознан:", e); } finally { busy = false; }
+  }, 140);
   return () => {
     clearInterval(timer);
+    if (torchOn) { try { track.applyConstraints({ advanced: [{ torch: false }] }); } catch { /* ignore */ } }
     stream.getTracks().forEach((t) => t.stop());
     video.srcObject = null;
   };
 }
 
-// Запасной вариант, если не загрузился WebAssembly-распознаватель
-async function startZXingJs(video, onCode) {
+// Запасной вариант: библиотека ZXing-js (если подгрузится)
+async function zxingFromUrl(url) {
   const ZX = await loadZXing();
-  const hints = new Map();
-  hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8, ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128]);
-  hints.set(ZX.DecodeHintType.TRY_HARDER, true);
-  const reader = new ZX.BrowserMultiFormatReader(hints, 250);
-  await reader.decodeFromConstraints(
-    { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-    video,
-    (result) => { if (result) onCode(result.getText()); },
-  );
-  return () => { try { reader.reset(); } catch { /* ignore */ } };
+  return (await new ZX.BrowserMultiFormatReader().decodeFromImageUrl(url)).getText();
 }
 
-// Распознавание по фотографии (обычная камера телефона даёт чёткий кадр с автофокусом)
+// Распознавание по фотографии: несколько масштабов, повороты, затем запасные движки
 async function decodeFromFile(file) {
-  const det = await getDetector();
-  if (!det) {
-    try {
-      const ZX = await loadZXing();
-      const url = URL.createObjectURL(file);
-      try { return (await new ZX.BrowserMultiFormatReader().decodeFromImageUrl(url)).getText(); } finally { URL.revokeObjectURL(url); }
-    } catch { return null; }
-  }
   const bmp = await createImageBitmap(file);
-  const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bmp.width * k);
-  canvas.height = Math.round(bmp.height * k);
-  canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
-  if (bmp.close) bmp.close();
-  return firstCode(await det.detect(canvas));
+  let code = null;
+  try {
+    for (const side of [1600, 1000, 2400]) {
+      frameToCanvas(bmp, bmp.width, bmp.height, side, canvas);
+      code = ownDecodeCanvas(canvas, 2);
+      if (code) return code;
+    }
+  } finally { if (bmp.close) { /* закроем позже */ } }
+  const det = await Promise.race([getDetector(), new Promise((r) => setTimeout(() => r(null), 8000))]);
+  if (det) {
+    frameToCanvas(bmp, bmp.width, bmp.height, 2000, canvas);
+    try { code = firstCode(await det.detect(canvas)); } catch (e) { diag.lastErr = String((e && e.message) || e).slice(0, 60); }
+    if (code) return code;
+  }
+  try {
+    const url = URL.createObjectURL(file);
+    try { code = await zxingFromUrl(url); } finally { URL.revokeObjectURL(url); }
+    if (code) return code;
+  } catch { /* ignore */ }
+  return null;
 }
 
 function openScanner(onCode) {
@@ -863,9 +1011,11 @@ function openScanner(onCode) {
   ov.innerHTML = `
     <video playsinline muted autoplay></video>
     <div class="scan-frame"></div>
+    <button type="button" class="icon-btn scan-torch hidden" id="sc-torch" aria-label="Подсветка">🔦</button>
     <button type="button" class="icon-btn scan-close" data-sc-close aria-label="Закрыть">×</button>
     <div class="scan-bottom">
       <p class="scan-hint" id="sc-hint">Запускаю камеру…</p>
+      <p class="scan-diag" id="sc-diag"></p>
       <div id="sc-manual-box" class="row hidden"><input id="sc-code" class="input" inputmode="numeric" placeholder="Цифры под штрих-кодом" autocomplete="off"><button type="button" class="btn primary" id="sc-go">Найти</button></div>
       <button type="button" class="btn primary full" id="sc-photo-btn">Сфотографировать код</button>
       <button type="button" class="btn ghost full" id="sc-manual">Ввести код вручную</button>
@@ -876,6 +1026,7 @@ function openScanner(onCode) {
   const video = $("video", ov);
   const setHint = (t) => { const h = $("#sc-hint", ov); if (h) h.textContent = t; };
   let cleanup = null;
+  let torchCtl = null;
   let done = false;
 
   const stop = () => {
@@ -907,7 +1058,7 @@ function openScanner(onCode) {
       const code = await decodeFromFile(file);
       if (done) return;
       if (code) finish(code);
-      else setHint("Код на фото не распознан. Сфотографируйте ближе, ровно и при хорошем свете или введите код вручную.");
+      else setHint("Код на фото не распознан. Сфотографируйте ближе, чтобы код занял почти весь кадр, или введите цифры вручную." + (diag.lastErr ? " [" + diag.lastErr + "]" : ""));
     } catch (err) {
       console.error("Фото:", err);
       if (!done) setHint("Не удалось прочитать фото. Введите код вручную.");
@@ -916,7 +1067,20 @@ function openScanner(onCode) {
 
   (async () => {
     try {
-      const c = await startLiveScan(video, finish, () => done);
+      const c = await startLiveScan(video, finish, () => done, (t) => { const d = $("#sc-diag", ov); if (d) d.textContent = t; }, (info) => {
+        const tb = $("#sc-torch", ov);
+        if (!tb) return;
+        if (info.toggle) {
+          torchCtl = info;
+          tb.classList.remove("hidden");
+          tb.onclick = async () => {
+            try { const on = await info.toggle(); tb.classList.toggle("on", on); }
+            catch { setHint(info.supported ? "Не удалось включить подсветку." : "Этот телефон не даёт включить вспышку из браузера. Включите фонарик в Пункте управления и наведите камеру."); }
+          };
+          if (!info.supported) tb.classList.add("nosup");
+        }
+        if (info.dark && !tb.classList.contains("on")) setHint("Темно. Нажмите 🔦 вверху, чтобы включить подсветку.");
+      });
       if (done) { try { c && c(); } catch { /* ignore */ } return; }
       cleanup = c;
       setHint("Держите код ровно в рамке, на расстоянии 15–20 см. Не читается: нажмите «Сфотографировать код».");
