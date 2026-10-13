@@ -18,7 +18,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -247,3 +247,6 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .note { background: var(--green-l); color: var(--green-d); border-radius: var(--r-md); padding: 10px 12px; font-size: 13.5px; margin-bottom: 14px; }
 .inline { display: grid; grid-template-columns: 1fr 48px; gap: 8px; }
 .inline .icon-btn { width: 48px; height: 48px; border-radius: var(--r-md); box-shadow: none; background: var(--green-l); color: var(--green-d); }
+
+.vh { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
+.scan-bottom .scan-hint { padding: 0 6px; font-size: 14.5px; line-height: 1.3; }

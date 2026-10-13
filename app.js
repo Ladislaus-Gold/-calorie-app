@@ -8,7 +8,7 @@ import {
   getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, serverTimestamp, writeBatch,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=3";
+import { STARTER } from "./starter.js?v=4";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -502,6 +502,108 @@ function loadZXing() {
   return zxingPromise;
 }
 
+// Распознаватель: сначала встроенный BarcodeDetector браузера, иначе ZXing-C++ (WebAssembly) с CDN.
+const BC_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
+const DETECTOR_URLS = [
+  "https://cdn.jsdelivr.net/npm/barcode-detector@3.2.1/dist/es/ponyfill.min.js",
+  "https://fastly.jsdelivr.net/npm/barcode-detector@3.2.1/dist/es/ponyfill.min.js",
+];
+let detectorPromise = null;
+function getDetector() {
+  if (!detectorPromise) {
+    detectorPromise = (async () => {
+      if ("BarcodeDetector" in window) {
+        try {
+          const sup = await window.BarcodeDetector.getSupportedFormats();
+          if (sup.includes("ean_13")) return new window.BarcodeDetector({ formats: BC_FORMATS.filter((f) => sup.includes(f)) });
+        } catch { /* перейдём на WebAssembly */ }
+      }
+      for (const url of DETECTOR_URLS) {
+        try {
+          const mod = await import(url);
+          const det = new mod.BarcodeDetector({ formats: BC_FORMATS });
+          const warm = document.createElement("canvas");
+          warm.width = warm.height = 8;
+          await det.detect(warm).catch(() => {}); // заранее подгружаем модуль распознавания
+          return det;
+        } catch (e) { console.warn("Не загрузился распознаватель:", url, e); }
+      }
+      return null;
+    })().then((d) => { if (!d) detectorPromise = null; return d; });
+  }
+  return detectorPromise;
+}
+
+const firstCode = (results) => { const hit = (results || []).find((r) => r && r.rawValue); return hit ? String(hit.rawValue) : null; };
+
+// Живое сканирование: кадр с камеры уменьшается и отправляется на распознавание несколько раз в секунду.
+async function startLiveScan(video, onCode, isDone) {
+  const det = await getDetector();
+  if (!det) return startZXingJs(video, onCode);
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false,
+  });
+  video.srcObject = stream;
+  await video.play().catch(() => {});
+  try { await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ focusMode: "continuous" }] }); } catch { /* не везде поддерживается */ }
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  let busy = false;
+  const timer = setInterval(async () => {
+    if (busy || isDone() || video.readyState < 2 || !video.videoWidth) return;
+    busy = true;
+    try {
+      const k = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+      canvas.width = Math.round(video.videoWidth * k);
+      canvas.height = Math.round(video.videoHeight * k);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const code = firstCode(await det.detect(canvas));
+      if (code && !isDone()) onCode(code);
+    } catch (e) { console.warn("Кадр не распознан:", e); } finally { busy = false; }
+  }, 160);
+  return () => {
+    clearInterval(timer);
+    stream.getTracks().forEach((t) => t.stop());
+    video.srcObject = null;
+  };
+}
+
+// Запасной вариант, если не загрузился WebAssembly-распознаватель
+async function startZXingJs(video, onCode) {
+  const ZX = await loadZXing();
+  const hints = new Map();
+  hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8, ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128]);
+  hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+  const reader = new ZX.BrowserMultiFormatReader(hints, 250);
+  await reader.decodeFromConstraints(
+    { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+    video,
+    (result) => { if (result) onCode(result.getText()); },
+  );
+  return () => { try { reader.reset(); } catch { /* ignore */ } };
+}
+
+// Распознавание по фотографии (обычная камера телефона даёт чёткий кадр с автофокусом)
+async function decodeFromFile(file) {
+  const det = await getDetector();
+  if (!det) {
+    try {
+      const ZX = await loadZXing();
+      const url = URL.createObjectURL(file);
+      try { return (await new ZX.BrowserMultiFormatReader().decodeFromImageUrl(url)).getText(); } finally { URL.revokeObjectURL(url); }
+    } catch { return null; }
+  }
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bmp.width * k);
+  canvas.height = Math.round(bmp.height * k);
+  canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  if (bmp.close) bmp.close();
+  return firstCode(await det.detect(canvas));
+}
+
 function openScanner(onCode) {
   const ov = document.createElement("div");
   ov.className = "scanner";
@@ -512,18 +614,20 @@ function openScanner(onCode) {
     <div class="scan-bottom">
       <p class="scan-hint" id="sc-hint">Запускаю камеру…</p>
       <div id="sc-manual-box" class="row hidden"><input id="sc-code" class="input" inputmode="numeric" placeholder="Цифры под штрих-кодом" autocomplete="off"><button type="button" class="btn primary" id="sc-go">Найти</button></div>
+      <button type="button" class="btn primary full" id="sc-photo-btn">Сфотографировать код</button>
       <button type="button" class="btn ghost full" id="sc-manual">Ввести код вручную</button>
+      <input type="file" accept="image/*" capture="environment" id="sc-photo" class="vh">
     </div>`;
   document.body.appendChild(ov);
   document.body.classList.add("noscroll");
   const video = $("video", ov);
-  let reader = null;
+  const setHint = (t) => { const h = $("#sc-hint", ov); if (h) h.textContent = t; };
+  let cleanup = null;
   let done = false;
 
   const stop = () => {
     done = true;
-    try { reader && reader.reset(); } catch { /* ignore */ }
-    try { const st = video.srcObject; st && st.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
+    try { cleanup && cleanup(); } catch { /* ignore */ }
     ov.remove();
     if (!document.querySelector(".overlay")) document.body.classList.remove("noscroll");
   };
@@ -540,28 +644,37 @@ function openScanner(onCode) {
     if (!/^\d{6,14}$/.test(code)) { toast("Введите только цифры штрих-кода (от 6 до 14)"); return; }
     finish(code);
   });
-
-  loadZXing().then(async (ZX) => {
-    if (done) return;
-    const hints = new Map();
-    hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8, ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128]);
-    hints.set(ZX.DecodeHintType.TRY_HARDER, true);
-    reader = new ZX.BrowserMultiFormatReader(hints, 250);
-    await reader.decodeFromConstraints(
-      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-      video,
-      (result) => { if (result) finish(result.getText()); },
-    );
-    if (done) { try { reader.reset(); } catch { /* ignore */ } return; }
-    $("#sc-hint", ov).textContent = "Наведите камеру на штрих-код";
-  }).catch((err) => {
-    if (done) return;
-    console.error("Сканер:", err);
-    const name = err && err.name;
-    $("#sc-hint", ov).textContent = name === "NotAllowedError"
-      ? "Нет доступа к камере. Разрешите камеру для этого сайта в настройках телефона или введите код вручную."
-      : "Не удалось запустить камеру. Введите код вручную.";
+  $("#sc-photo-btn", ov).addEventListener("click", () => $("#sc-photo", ov).click());
+  $("#sc-photo", ov).addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    setHint("Читаю фото…");
+    try {
+      const code = await decodeFromFile(file);
+      if (done) return;
+      if (code) finish(code);
+      else setHint("Код на фото не распознан. Сфотографируйте ближе, ровно и при хорошем свете или введите код вручную.");
+    } catch (err) {
+      console.error("Фото:", err);
+      if (!done) setHint("Не удалось прочитать фото. Введите код вручную.");
+    }
   });
+
+  (async () => {
+    try {
+      const c = await startLiveScan(video, finish, () => done);
+      if (done) { try { c && c(); } catch { /* ignore */ } return; }
+      cleanup = c;
+      setHint("Держите код ровно в рамке, на расстоянии 15–20 см. Не читается: нажмите «Сфотографировать код».");
+    } catch (err) {
+      if (done) return;
+      console.error("Сканер:", err);
+      setHint(err && err.name === "NotAllowedError"
+        ? "Нет доступа к камере. Разрешите камеру для этого сайта в настройках телефона или введите код вручную."
+        : "Не удалось запустить камеру. Нажмите «Сфотографировать код» или введите код вручную.");
+    }
+  })();
 }
 
 // Найти продукт по штрих-коду: сначала у себя, потом в Open Food Facts, иначе ручной ввод.
@@ -865,3 +978,6 @@ $("#nav").addEventListener("click", (e) => {
 
 // Опечатки в данных не должны ломать интерфейс молча
 window.addEventListener("unhandledrejection", (e) => console.error("Необработанная ошибка:", e.reason));
+
+// Запрет масштабирования жестами на iPhone (щипок); двойное касание блокирует touch-action в CSS
+["gesturestart", "gesturechange", "gestureend"].forEach((name) => document.addEventListener(name, (e) => e.preventDefault(), { passive: false }));
