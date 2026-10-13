@@ -9,8 +9,8 @@ import {
   collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=21";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=21";
+import { STARTER } from "./starter.js?v=22";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=22";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -792,9 +792,11 @@ async function geminiModels(key) {
   const list = (j.models || [])
     .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
     .map((m) => m.name)
-    .filter((n) => /gemini-[\d.]+-flash/.test(n) && !/lite|image|live|tts|audio|thinking|exp|robotics|computer|embedding|learnlm|customtools/.test(n));
-  list.sort((a, b) => (/preview/.test(a) - /preview/.test(b)) || (ver(b) - ver(a)) || a.length - b.length); // сначала стабильные, внутри — новее
-  aiModelsCache = list.length ? list.slice(0, 3) : ["models/gemini-flash-latest"];
+    .filter((n) => /gemini-[\d.]+-flash/.test(n) && !/image|live|tts|audio|thinking|exp|robotics|computer|embedding|learnlm|customtools/.test(n));
+  // сначала обычные стабильные (новее выше), затем preview, в самом конце облегчённые lite: они реже перегружены
+  const rank = (n) => (/lite/.test(n) ? 2 : /preview/.test(n) ? 1 : 0);
+  list.sort((a, b) => (rank(a) - rank(b)) || (ver(b) - ver(a)) || a.length - b.length);
+  aiModelsCache = list.length ? list.slice(0, 5) : ["models/gemini-flash-latest"];
   return aiModelsCache;
 }
 async function geminiError(r) {
@@ -809,7 +811,12 @@ async function askGemini(prompt) {
   if (!key) throw new Error("no-key");
   const models = await geminiModels(key);
   let last = null;
-  for (const model of models) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const attempts = [];
+  models.forEach((m, i) => { attempts.push(m); if (i < 2) attempts.push(m); }); // у первых двух моделей одна повторная попытка
+  for (let k = 0; k < attempts.length; k++) {
+    const model = attempts[k];
+    if (k > 0 && attempts[k - 1] === model) await sleep(3000);
     try {
       const r = await fetch(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: "POST",
@@ -825,6 +832,7 @@ async function askGemini(prompt) {
     } catch (e) {
       last = e;
       if (e.status === 400 || e.status === 401 || e.status === 403 || e.status === 429) break; // ключ или лимит: другая модель не поможет
+      if (e.status === 404) { /* модель недоступна: пробуем следующую */ }
     }
   }
   aiModelsCache = null;
@@ -961,6 +969,7 @@ async function runAi() {
       s === 400 && /API key/i.test(m) ? "Ключ Gemini не подошёл. Проверьте его и вставьте заново."
         : s === 403 ? "Доступ запрещён: проверьте ключ Gemini."
           : s === 429 ? "Достигнут лимит запросов Gemini. Попробуйте позже."
+            : (s === 503 || s === 500 || /high demand|overloaded|unavailable/i.test(m)) ? "Gemini сейчас перегружен (это на стороне Google). Подождите минуту и нажмите ещё раз."
             : /Failed to fetch|NetworkError|Load failed/i.test(m) ? "Нет связи с Gemini. Проверьте интернет."
               : `Gemini: ${m.slice(0, 120) || "ошибка"}`,
     );
