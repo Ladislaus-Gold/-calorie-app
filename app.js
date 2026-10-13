@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 28;
+const APP_VERSION = 29;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -182,7 +182,7 @@ const state = {
   insOpen: false,
   status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
-  hist: { entries: [], water: [], activity: [], drinks: [] },
+  hist: { entries: [], water: [], activity: [], drinks: [], workouts: [] },
   histFrom: null,
   liveFrom: null,
   histBusy: false,
@@ -191,6 +191,8 @@ const state = {
   profile: {},
   water: [],
   activity: [],
+  health: [],
+  workouts: [],
   drinks: [],
   fav: [],
   obShown: false,
@@ -292,7 +294,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.drinks = []; state.fav = []; state.obShown = false; state.aiLast = null;
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.obShown = false; state.aiLast = null;
 }
 
 function markReady(name) {
@@ -346,6 +348,17 @@ function startData(uid) {
     markReady("activity"); render();
   }, fail));
 
+  // Данные из Apple Health (через Health Auto Export и Worker): итоги по дням и тренировки. Не блокируют загрузку приложения
+  state.unsubs.push(onSnapshot(collection(db, "users", uid, "health"), (snap) => {
+    state.health = snap.docs.map((d) => ({ ...d.data(), id: d.id, date: d.id }));
+    render();
+  }, (err) => console.warn("Данные Apple Health:", err)));
+
+  state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "workouts"), where("date", ">=", from)), (snap) => {
+    state.workouts = snap.docs.map((d) => ({ id: d.id, ...d.data() })).concat(state.hist.workouts);
+    render();
+  }, (err) => console.warn("Тренировки Apple Health:", err)));
+
   state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "drinks"), where("date", ">=", from)), (snap) => {
     state.drinks = snap.docs.map((d) => ({ id: d.id, ...d.data() })).concat(state.hist.drinks);
     markReady("drinks"); render();
@@ -379,7 +392,7 @@ function loadHistory(from) {
     state.histBusy = true; render();
     try {
       const uid = state.user.uid;
-      const names = ["entries", "water", "activity", "drinks"];
+      const names = ["entries", "water", "activity", "drinks", "workouts"];
       const res = await Promise.all(names.map((n) => getDocs(query(collection(db, "users", uid, n), where("date", ">=", from), where("date", "<", upper)))));
       names.forEach((n, i) => {
         const rows = res[i].docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -396,7 +409,7 @@ function loadHistory(from) {
 }
 const earliestDate = () => {
   let m = todayStr();
-  for (const k of ["entries", "water", "activity", "drinks"]) for (const x of state[k]) if (x.date && x.date < m) m = x.date;
+  for (const k of ["entries", "water", "activity", "drinks", "workouts"]) for (const x of state[k]) if (x.date && x.date < m) m = x.date;
   return m;
 };
 
@@ -687,6 +700,7 @@ function analyze(days) {
       d, has: list.length > 0, list, ...t, drinkKcal,
       water: waterOn(d), hyd: hydrationOn(d), target: waterTarget(d), caf: caffeineOn(d),
       actMin: actMinutes(d), burned: actBurned(d), items,
+      steps: stepsOn(d), hrAvg: Number((healthOn(d) || {}).hrAvg) || 0, restHr: Number((healthOn(d) || {}).restingHr) || 0,
     };
   });
   const logged = per.filter((x) => x.has);
@@ -737,10 +751,19 @@ function analyze(days) {
   const actDays = per.filter((x) => x.actMin > 0);
   const actTotalMin = sum(per, (x) => x.actMin), actTotalKcal = sum(per, (x) => x.burned);
   const weeks = Math.max(1, per.length / 7);
+  const stepDays = per.filter((x) => x.steps > 0), hrDays = per.filter((x) => x.hrAvg > 0), restDays = per.filter((x) => x.restHr > 0);
+  const stepsAvg = stepDays.length ? sum(stepDays, (x) => x.steps) / stepDays.length : 0;
+  const hrAvgAll = hrDays.length ? sum(hrDays, (x) => x.hrAvg) / hrDays.length : 0;
+  const restAvg = restDays.length ? sum(restDays, (x) => x.restHr) / restDays.length : 0;
+  const wkInRange = state.workouts.filter((w) => w.date >= days[0] && w.date <= days[days.length - 1]);
   const types = {};
   state.activity.filter((a) => a.date >= days[0] && a.date <= days[days.length - 1]).forEach((a) => {
     const t = types[a.name || a.type] = types[a.name || a.type] || { name: a.name || a.type, n: 0, min: 0, kcal: 0, strength: a.type === "strength" };
     t.n++; t.min += Number(a.minutes) || 0; t.kcal += Number(a.kcal) || 0;
+  });
+  wkInRange.forEach((w) => {
+    const t = types[w.name] = types[w.name] || { name: w.name, n: 0, min: 0, kcal: 0, strength: false };
+    t.n++; t.min += Number(w.minutes) || 0; t.kcal += Number(w.kcal) || 0;
   });
   const actTypes = Object.values(types).sort((a, b) => b.min - a.min);
   const strengthSessions = actTypes.filter((t) => t.strength).reduce((s, t) => s + t.n, 0);
@@ -753,6 +776,7 @@ function analyze(days) {
     cafAvg: cafDays.length ? cafTotal / cafDays.length : 0, cafDays: cafDays.length, cafLim, cafOver,
     actDays: actDays.length, actTotalMin, actTotalKcal, weeks, actTypes, strengthSessions, overDays, underDays,
     burnedAvg: per.length ? actTotalKcal / per.length : 0,
+    stepDays: stepDays.length, stepsAvg, hrAvgAll, restAvg, workoutCount: wkInRange.length,
   };
 }
 
@@ -806,6 +830,7 @@ function localInsights(a) {
     const t = a.plan ? a.plan.weekly : null;
     if (t) add(perWeek >= t.minutes ? "good" : "warn", `Нагрузка: ${fmtInt(perWeek)} мин в неделю при ориентире ${t.minutes} мин. Активных дней: ${a.actDays} из ${a.days.length}.`);
     else add("info", `Нагрузка: ${fmtInt(perWeek)} мин в неделю, активных дней ${a.actDays} из ${a.days.length}.`);
+    if (a.stepDays) add(a.stepsAvg >= STEPS_GOAL ? "good" : "info", `Шагов в среднем ${fmtInt(a.stepsAvg)} в день (дней с данными ${a.stepDays}). Ориентир для здоровья: около ${fmtInt(STEPS_GOAL)} шагов.`);
     if (t) {
       const sw = a.strengthSessions / a.weeks;
       if (sw < t.strength * 0.7) add("info", `Силовых тренировок ${fmt(sw)} в неделю при ориентире ${t.strength}.`);
@@ -905,18 +930,22 @@ function aiPayload(a) {
       минут_всего: a.actTotalMin, активных_дней: a.actDays, минут_в_неделю: r(a.actTotalMin / a.weeks), сожжено_ккал_всего: r(a.actTotalKcal),
       виды: a.actTypes.map((t) => ({ вид: t.name, раз: t.n, мин: t.min, ккал: t.kcal })),
     },
+    данные_с_часов_Apple_Health: a.stepDays || a.hrAvgAll || a.workoutCount ? {
+      шагов_в_день_среднее: r(a.stepsAvg), дней_с_данными_о_шагах: a.stepDays,
+      средний_пульс_уд_мин: r(a.hrAvgAll), пульс_покоя_уд_мин: r(a.restAvg), тренировок_записано_часами: a.workoutCount,
+    } : "нет данных с часов",
     ...(a.days.length > 120
       ? {
         по_неделям: Array.from({ length: Math.ceil(a.per.length / 7) }, (_, w) => {
           const seg = a.per.slice(w * 7, w * 7 + 7), lg = seg.filter((x) => x.has), hy = seg.filter((x) => x.hyd > 0);
           const av = (arr, f) => (arr.length ? r(arr.reduce((t, x) => t + f(x), 0) / arr.length) : null);
-          return [seg[0].d, av(lg, (x) => x.kcal), av(lg, (x) => x.protein), av(hy, (x) => x.hyd), r(seg.reduce((t, x) => t + x.caf, 0) / seg.length), seg.reduce((t, x) => t + x.actMin, 0)];
+          return [seg[0].d, av(lg, (x) => x.kcal), av(lg, (x) => x.protein), av(hy, (x) => x.hyd), r(seg.reduce((t, x) => t + x.caf, 0) / seg.length), seg.reduce((t, x) => t + x.actMin, 0), av(seg.filter((x) => x.steps > 0), (x) => x.steps)];
         }),
-        формат_по_неделям: "[дата начала недели, среднее ккал за дни с записями, средние белки г, средняя жидкость мл, средний кофеин мг в день, нагрузка мин за неделю]; null значит записей нет",
+        формат_по_неделям: "[дата начала недели, среднее ккал за дни с записями, средние белки г, средняя жидкость мл, средний кофеин мг в день, нагрузка мин за неделю, средние шаги в день]; null значит записей нет",
       }
       : {
-        по_дням: a.per.map((x) => [x.d.slice(5), x.has ? r(x.kcal) : null, x.has ? r(x.protein) : null, x.hyd ? r(x.hyd) : null, r(x.caf), x.actMin]),
-        формат_по_дням: "[дата ММ-ДД, ккал, белки г, жидкость мл, кофеин мг, нагрузка мин]; null значит записей нет",
+        по_дням: a.per.map((x) => [x.d.slice(5), x.has ? r(x.kcal) : null, x.has ? r(x.protein) : null, x.hyd ? r(x.hyd) : null, r(x.caf), x.actMin, x.steps ? r(x.steps) : null, x.hrAvg ? r(x.hrAvg) : null]),
+        формат_по_дням: "[дата ММ-ДД, ккал, белки г, жидкость мл, кофеин мг, нагрузка мин, шаги, средний пульс]; null значит записей нет",
       }),
   };
 }
@@ -929,6 +958,7 @@ function aiPrompt(a) {
 - Пиши простым языком, без воды и без общих фраз про здоровый образ жизни.
 - Формат: заголовки второго уровня («## Общая картина», «## Питание», «## Жидкость и напитки», «## Кофеин», «## Нагрузка», «## Упражнения дома», «## Что получается хорошо», «## На что обратить внимание», «## План на ближайшую неделю»). Внутри разделов короткие абзацы и списки через «- ». Таблицы не используй. «План на ближайшую неделю»: 3–5 конкретных, выполнимых шагов.
 - Раздел «Кофеин» пропусти, если кофеина нет.
+- В разделе «Нагрузка» учти шаги, пульс и тренировки с часов Apple Watch, если они есть в данных: оцени уровень активности по шагам и пульсу и скажи, как это согласуется с целью. Пульс покоя и средний пульс не трактуй как диагноз.
 - Раздел «Упражнения дома» обязателен: 4–6 конкретных упражнений без оборудования или с минимумом (стул, бутылки с водой, коврик) под цель пользователя, его вес, возраст и текущую нагрузку из данных. Для каждого: название, сколько подходов и повторений (или минут), сколько раз в неделю и короткая подсказка по технике. Если нагрузок в данных нет или мало, начни с лёгкого уровня и укажи, как постепенно усложнять. Учитывай питание: если калорий или белка заметно не хватает, предупреди, что интенсивность лучше повышать позже. Не предлагай экстремальных нагрузок и добавь, что при болях, травмах или хронических заболеваниях стоит посоветоваться с врачом.
 
 Данные (JSON):
@@ -1130,7 +1160,7 @@ function viewReports() {
     </section>
     <section class="card">
       <h2 class="h2">Итоги периода</h2>
-      ${a.L || a.hydDays || a.actTotalMin ? `<div class="stat-grid">
+      ${a.L || a.hydDays || a.actTotalMin || a.stepDays ? `<div class="stat-grid">
         ${kv("ккал в день", fmtInt(a.kcalAvg), `цель ${fmtInt(a.goal)}`)}
         ${kv("дней с перебором", String(a.overDays), "более 10% к цели")}
         ${kv("жидкость в день", `${fmtInt(a.hydAvg)} мл`, `норма ${fmtInt(a.targetAvg)} мл`)}
@@ -1139,6 +1169,8 @@ function viewReports() {
         ${kv("дней выше нормы кофеина", String(a.cafOver))}
         ${kv("нагрузка в неделю", `${fmtInt(a.actTotalMin / a.weeks)} мин`, plan ? `ориентир ${plan.weekly.minutes}` : "")}
         ${kv("сожжено нагрузкой", `${fmtInt(a.actTotalKcal)} ккал`, `активных дней ${a.actDays}`)}
+        ${a.stepDays ? kv("шагов в день", fmtInt(a.stepsAvg), `дней с данными ${a.stepDays}`) : ""}
+        ${a.restAvg || a.hrAvgAll ? kv("пульс в покое", a.restAvg ? `${fmtInt(a.restAvg)} уд/мин` : "—", a.hrAvgAll ? `средний за день ${fmtInt(a.hrAvgAll)}` : "") : ""}
       </div>` : `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`}
     </section>
     <section class="card">
@@ -1174,6 +1206,7 @@ function viewReports() {
     ${drinkRows.length ? `<section class="card"><h2 class="h2">Что я пью</h2>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
     ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true)}
     ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "")}
+    ${a.stepDays ? barsCard(`Шаги ${by}`, chartKeys, gfn(stepsOn), (() => STEPS_GOAL), "шагов", "") : ""}
     ${actRows.length ? `<section class="card"><h2 class="h2">Нагрузки по видам</h2>${rankRows(actRows)}</section>` : ""}
     <p class="foot-note" style="margin:6px 4px 0">Все записи хранятся в вашем аккаунте без ограничения по времени. Старые периоды подгружаются при выборе.</p>`;
 }
@@ -2037,8 +2070,20 @@ function openProductForm(product, onSaved, prefill = {}) {
 const currentPlan = () => computePlan(state.profile);
 const waterOn = (d) => (byDateIndex("water").get(d) || EMPTY).reduce((sum, x) => sum + (Number(x.ml) || 0), 0);
 const actOn = (d) => byDateIndex("activity").get(d) || EMPTY;
-const actMinutes = (d) => actOn(d).reduce((sum, a) => sum + (Number(a.minutes) || 0), 0);
-const actBurned = (d) => actOn(d).reduce((sum, a) => sum + (Number(a.kcal) || 0), 0);
+// Данные из Apple Health: итоги дня (шаги, активные ккал, пульс) и тренировки с часов
+const healthOn = (d) => (byDateIndex("health").get(d) || EMPTY)[0] || null;
+const workoutsOn = (d) => (byDateIndex("workouts").get(d) || EMPTY);
+const stepsOn = (d) => { const h = healthOn(d); return h && Number(h.steps) > 0 ? Number(h.steps) : 0; };
+const wkMinutes = (d) => workoutsOn(d).reduce((sum, w) => sum + (Number(w.minutes) || 0), 0);
+const wkKcal = (d) => workoutsOn(d).reduce((sum, w) => sum + (Number(w.kcal) || 0), 0);
+// Нагрузка дня: записи вручную + тренировки с часов. Активные ккал часов уже включают тренировки, поэтому берём большее
+const actMinutes = (d) => actOn(d).reduce((sum, a) => sum + (Number(a.minutes) || 0), 0) + wkMinutes(d);
+const actBurned = (d) => {
+  const h = healthOn(d);
+  return actOn(d).reduce((sum, a) => sum + (Number(a.kcal) || 0), 0) + Math.max(h ? Number(h.activeKcal) || 0 : 0, wkKcal(d));
+};
+const STEPS_GOAL = 8000;
+const timeOf = (ts) => { try { const dt = ts && ts.toDate ? ts.toDate() : ts && ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts); return Number.isNaN(dt.getTime()) ? "" : dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 const waterBase = () => (Number(state.profile.waterBaseMl) > 0 ? Number(state.profile.waterBaseMl) : 2000);
 // Норма воды растёт с нагрузкой: примерно 500 мл на час тренировки
 const waterTarget = (d) => Math.round((waterBase() + actMinutes(d) * 8) / 50) * 50;
@@ -2129,6 +2174,7 @@ function miniTiles(day) {
       <span class="mini-top"><span class="mini-ic">${PULSE_SVG}</span><span class="mini-label">Нагрузка</span></span>
       <span class="mini-val">${fmtInt(mins)}<small>мин</small></span>
       <span class="mini-sub">сожжено ${fmtInt(burned)} ккал</span>
+      ${stepsOn(day) ? `<span class="mini-sub">${fmtInt(stepsOn(day))} шагов</span>` : ""}
       <span class="mini-bar"><i style="width:${Math.min(100, (mins / dayGoal) * 100)}%"></i></span>
     </button>
   </div>${banner}`;
@@ -2151,8 +2197,12 @@ function viewHealth() {
   const caf = caffeineStatus(day);
   const acts = actOn(day).sort((a, b) => createdMs(a) - createdMs(b));
   const mins = actMinutes(day), burned = actBurned(day);
+  const hd = healthOn(day), wkts = workoutsOn(day).slice().sort((x, y) => (x.start && x.start.seconds || 0) - (y.start && y.start.seconds || 0));
+  const steps = stepsOn(day);
   const wk = weekDays(day);
   const wkMin = wk.reduce((sum, d) => sum + actMinutes(d), 0);
+  const wkStepsDays = wk.filter((d) => stepsOn(d) > 0);
+  const wkStepsAvg = wkStepsDays.length ? wkStepsDays.reduce((sum, d) => sum + stepsOn(d), 0) / wkStepsDays.length : 0;
   const wkStr = wk.reduce((sum, d) => sum + actOn(d).filter((a) => a.type === "strength").length, 0);
   const wt = plan ? plan.weekly : { minutes: 150, strength: 2, text: WEEKLY.maintain.text };
   const favs = favDrinks();
@@ -2161,6 +2211,10 @@ function viewHealth() {
       <span class="e-main"><span class="e-name">${esc(a.name)}</span><span class="e-sub">${fmt(a.minutes)} мин</span></span>
       <span class="e-kcal">${fmtInt(a.kcal)}<small>ккал</small></span>
     </button>`).join("");
+  const wktRows = wkts.map((w) => {
+    const bits = [timeOf(w.start), w.minutes ? `${fmtInt(w.minutes)} мин` : "", w.distanceKm ? `${fmt(w.distanceKm)} км` : "", w.hrAvg ? `пульс ${fmtInt(w.hrAvg)}${w.hrMax ? ` (макс ${fmtInt(w.hrMax)})` : ""}` : ""].filter(Boolean);
+    return `<div class="entry"><span class="e-main"><span class="e-name">${esc(w.name)}</span><span class="e-sub">${bits.join(" · ")} · Apple Watch</span></span><span class="e-kcal">${w.kcal ? fmtInt(w.kcal) : "—"}<small>ккал</small></span></div>`;
+  }).join("");
   // Сначала самые свежие; по умолчанию видны два последних, остальные раскрываются кнопкой
   const FLUID_SHOW = 2;
   const fluidOpen = state.fluidOpenDay === day;
@@ -2198,18 +2252,31 @@ function viewHealth() {
       <p class="foot-note" style="margin:12px 0 0">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>
     </section>
     <section class="card">
-      <div class="card-top"><h2 class="h2">Нагрузки</h2><button type="button" class="btn ghost sm" data-act="addActivity">+ Добавить</button></div>
+      <div class="card-top"><h2 class="h2">Активность</h2><span class="pill">${hd ? "Apple Health" : "нет данных с часов"}</span></div>
+      ${hd ? `<div class="big-line">${fmtInt(steps)}<small>шагов</small></div>
+      <div class="track"><i style="width:${Math.min(100, (steps / STEPS_GOAL) * 100)}%"></i></div>
+      <p class="foot-note" style="margin:10px 0 12px">Ориентир ${fmtInt(STEPS_GOAL)} шагов в день.${hd.updatedAt ? ` Обновлено в ${timeOf(hd.updatedAt)}.` : ""}</p>
+      <div class="stat-grid">
+        <div class="stat"><b>${hd.activeKcal ? fmtInt(hd.activeKcal) : "—"}</b><span>активных ккал</span></div>
+        <div class="stat"><b>${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}</b><span>средний пульс${hd.hrMin && hd.hrMax ? `<br>от ${fmtInt(hd.hrMin)} до ${fmtInt(hd.hrMax)}` : ""}</span></div>
+        <div class="stat"><b>${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</b><span>пульс в покое</span></div>
+        <div class="stat"><b>${fmtInt(wkStepsAvg)}</b><span>шагов в день за неделю</span></div>
+      </div>` : `<p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>`}
+    </section>
+    <section class="card">
+      <div class="card-top"><h2 class="h2">Тренировки</h2><button type="button" class="btn ghost sm" data-act="addActivity">+ Добавить</button></div>
       <div class="stat-grid">
         <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
         <div class="stat"><b>${fmtInt(burned)}</b><span>ккал сожжено</span></div>
       </div>
-      ${actRows ? `<div class="entries flat">${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Добавьте прогулку, тренировку или любую нагрузку.</p>`}
+      ${actRows || wktRows ? `<div class="entries flat">${wktRows}${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
     <section class="card">
       <div class="card-top"><h2 class="h2">Неделя</h2><span class="pill">${fmtInt(wkMin)} из ${wt.minutes} мин</span></div>
       <div class="track"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
       <p class="foot-note" style="margin:12px 0 0">Силовых тренировок: <b>${wkStr}</b> из ${wt.strength}. ${esc(wt.text)}</p>
-    </section>`;
+    </section>
+    ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "") : ""}`;
 }
 
 function chartLabels(days) {
