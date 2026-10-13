@@ -9,8 +9,8 @@ import {
   collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=22";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=22";
+import { STARTER } from "./starter.js?v=23";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=23";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -180,6 +180,7 @@ const state = {
   goal: 2000,
   repDays: 7,
   repCustom: null,
+  fluidOpenDay: null,
   hist: { entries: [], water: [], activity: [], drinks: [] },
   histFrom: null,
   liveFrom: null,
@@ -2041,7 +2042,15 @@ function viewHealth() {
       <span class="e-main"><span class="e-name">${esc(a.name)}</span><span class="e-sub">${fmt(a.minutes)} мин</span></span>
       <span class="e-kcal">${fmtInt(a.kcal)}<small>ккал</small></span>
     </button>`).join("");
-  const fluidRows = items.map((i) => `
+  // Сначала самые свежие; по умолчанию видны два последних, остальные раскрываются кнопкой
+  const FLUID_SHOW = 2;
+  const fluidOpen = state.fluidOpenDay === day;
+  const fluidSorted = items.slice().reverse();
+  const fluidShown = fluidOpen ? fluidSorted : fluidSorted.slice(0, FLUID_SHOW);
+  const fluidMore = fluidSorted.length > FLUID_SHOW
+    ? `<button type="button" class="more-btn" data-act="toggleFluid">${fluidOpen ? "Свернуть" : `Ещё ${fluidSorted.length - FLUID_SHOW}`}</button>`
+    : "";
+  const fluidRows = fluidShown.map((i) => `
     <button type="button" class="entry" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
       <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${fmt(i.ml)} мл, засчитано ${signed(Math.round(itemHyd(i)))} мл${i.kind === "food" ? ", из дневника питания" : ""}</span></span>
       <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
@@ -2061,7 +2070,7 @@ function viewHealth() {
       </div>
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
       ${favs.length ? `<p class="foot-note" style="margin:14px 2px 8px">Избранное и частые напитки</p><div class="chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
-      ${fluidRows ? `<div class="entries flat">${fluidRows}</div>` : ""}
+      ${fluidRows ? `<div class="entries flat">${fluidRows}</div>${fluidMore}` : ""}
     </section>
     <section class="card">
       <div class="card-top"><h2 class="h2">Кофеин</h2><span class="pill ${caf.level === "ok" ? "" : caf.level}">${caf.mg} из ${caf.limit} мг</span></div>
@@ -2519,6 +2528,7 @@ const actions = {
   goTab(ds) { state.tab = ds.tab; render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
   addWater(ds) { changeWater(Number(ds.ml)); },
   addDrink() { openDrinkSheet(); },
+  toggleFluid() { state.fluidOpenDay = state.fluidOpenDay === state.date ? null : state.date; render(); },
   quickDrink(ds) { openDrinkSheet(null, ds.did); },
   editFluid(ds) {
     if (ds.kind === "food") { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); }
