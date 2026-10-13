@@ -6,8 +6,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, serverTimestamp,
+  onSnapshot, query, where, serverTimestamp, writeBatch,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+import { STARTER } from "./starter.js?v=3";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,6 +77,7 @@ const ICONS = {
 };
 const svgIcon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const SCAN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 8v8M11 8v8M14 8v8M17 8v8"/></svg>';
 
 const state = {
   user: null,
@@ -311,10 +313,14 @@ function viewDiary() {
 }
 
 /* ================= Продукты ================= */
+const fold = (t) => String(t || "").toLowerCase().replace(/ё/g, "е");
 function filterProducts(q) {
-  const s = q.trim().toLowerCase();
-  if (!s) return state.products;
-  return state.products.filter((p) => `${p.name} ${p.brand || ""} ${p.barcode || ""}`.toLowerCase().includes(s));
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return state.products;
+  return state.products.filter((p) => {
+    const hay = fold(`${p.name} ${p.brand || ""} ${p.barcode || ""}`);
+    return words.every((w) => hay.includes(w)); // все слова запроса должны встретиться: «куриная жарен»
+  });
 }
 
 function productRow(p, attr) {
@@ -324,7 +330,7 @@ function productRow(p, attr) {
     <span class="p-kcal">${fmtInt(p.kcal)}<small>ккал / 100 г</small></span></button>`;
 }
 
-const emptyProducts = `<div class="empty"><b>Продуктов пока нет</b>Добавьте первый: введённые данные сохранятся, и в следующий раз продукт найдётся сразу.</div>`;
+const emptyProducts = `<div class="empty"><b>Продуктов пока нет</b>Отсканируйте штрих-код, добавьте продукт вручную или загрузите базовый набор на вкладке «Продукты».</div>`;
 
 function productListHtml() {
   const items = filterProducts(state.prodSearch);
@@ -336,9 +342,17 @@ function productListHtml() {
 function viewProducts() {
   return `
     <header class="topbar simple"><h1>Мои продукты</h1>
-      <button type="button" class="btn primary" style="height:42px" data-act="newProduct">+ Новый</button></header>
+      <div class="row" style="gap:8px">
+        <button type="button" class="icon-btn" data-act="scanProduct" aria-label="Сканировать штрих-код">${SCAN_SVG}</button>
+        <button type="button" class="btn primary" style="height:42px" data-act="newProduct">+ Новый</button>
+      </div></header>
     <input id="prod-search" class="input search" type="search" placeholder="Название или штрих-код" value="${esc(state.prodSearch)}" autocomplete="off">
-    <section class="card" style="padding:6px 14px"><div id="plist" class="plist">${productListHtml()}</div></section>`;
+    <section class="card" style="padding:6px 14px"><div id="plist" class="plist">${productListHtml()}</div></section>
+    ${starterMissing().length ? `<section class="card">
+      <h2 class="h2">Базовые продукты</h2>
+      <p class="chart-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${starterMissing().length} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный. У жареных значения ориентировочные и уже включают типичное количество масла.</p>
+      <button type="button" class="btn ghost full" data-act="importStarter">Добавить в мой список</button>
+    </section>` : ""}`;
 }
 
 /* ================= Отчёты ================= */
@@ -407,6 +421,165 @@ function viewMe() {
     <section class="card"><button type="button" class="btn danger full" data-act="logout">Выйти из аккаунта</button></section>`;
 }
 
+/* ================= Штрих-коды, Open Food Facts, камера ================= */
+const normBC = (s) => String(s || "").replace(/\D/g, "").replace(/^0+/, "");
+const OFF_NOTE = "Данные из Open Food Facts. Сверьте с упаковкой и при необходимости поправьте.";
+const NEW_BC_NOTE = "Этого продукта нет в общей базе. Введите данные с упаковки один раз: дальше он будет находиться по штрих-коду.";
+const OFF_FAIL_NOTE = "Не удалось связаться с Open Food Facts. Введите данные с упаковки вручную.";
+const offNum = (v) => { if (v === undefined || v === null || v === "") return ""; const n = Number(v); return Number.isFinite(n) ? r1(n) : ""; };
+
+function normOFF(p, code) {
+  const n = p.nutriments || {};
+  let kcal = offNum(n["energy-kcal_100g"]);
+  const kj = n["energy-kj_100g"];
+  if (kcal === "" && kj !== undefined && kj !== null && kj !== "" && Number.isFinite(Number(kj))) kcal = r1(Number(kj) / 4.184);
+  return {
+    name: String(p.product_name_ru || p.product_name || "").trim(),
+    brand: String(p.brands || "").split(",")[0].trim(),
+    barcode: String(code || p.code || ""),
+    kcal, protein: offNum(n.proteins_100g), fat: offNum(n.fat_100g), carbs: offNum(n.carbohydrates_100g),
+  };
+}
+
+async function fetchJson(url, ms = 9000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctl.signal });
+    let json = null;
+    try { json = await r.json(); } catch { /* не JSON */ }
+    return { status: r.status, json };
+  } catch (e) {
+    console.warn("Запрос не удался:", url, e);
+    return { error: true };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+const OFF_FIELDS = "code,product_name,product_name_ru,brands,nutriments";
+
+async function fetchOFF(code) {
+  const r = await fetchJson(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=${OFF_FIELDS}`);
+  if (r.error) return { state: "error" };
+  if (r.json && r.json.status === 1 && r.json.product) {
+    const d = normOFF(r.json.product, code);
+    return d.name || d.kcal !== "" ? { state: "found", data: d } : { state: "none" };
+  }
+  return r.status === 404 || (r.json && r.json.status === 0) ? { state: "none" } : { state: "error" };
+}
+
+// null — ошибка связи, [] — ничего не найдено
+async function searchOFF(q) {
+  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${OFF_FIELDS}`;
+  const r = await fetchJson(url, 15000);
+  if (r.error || !r.json || !Array.isArray(r.json.products)) return null;
+  return r.json.products.map((p) => normOFF(p, p.code)).filter((d) => d.name && d.kcal !== "").slice(0, 15);
+}
+
+let zxingPromise = null;
+function loadZXing() {
+  if (window.ZXing) return Promise.resolve(window.ZXing);
+  if (!zxingPromise) {
+    zxingPromise = new Promise((resolve, reject) => {
+      const urls = [
+        "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js",
+        "https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js",
+        "https://unpkg.com/@zxing/library@latest/umd/index.min.js",
+      ];
+      let i = 0;
+      const next = () => {
+        if (i >= urls.length) { zxingPromise = null; reject(new Error("zxing-load")); return; }
+        const sc = document.createElement("script");
+        sc.src = urls[i++];
+        sc.onload = () => (window.ZXing ? resolve(window.ZXing) : next());
+        sc.onerror = next;
+        document.head.appendChild(sc);
+      };
+      next();
+    });
+  }
+  return zxingPromise;
+}
+
+function openScanner(onCode) {
+  const ov = document.createElement("div");
+  ov.className = "scanner";
+  ov.innerHTML = `
+    <video playsinline muted autoplay></video>
+    <div class="scan-frame"></div>
+    <button type="button" class="icon-btn scan-close" data-sc-close aria-label="Закрыть">×</button>
+    <div class="scan-bottom">
+      <p class="scan-hint" id="sc-hint">Запускаю камеру…</p>
+      <div id="sc-manual-box" class="row hidden"><input id="sc-code" class="input" inputmode="numeric" placeholder="Цифры под штрих-кодом" autocomplete="off"><button type="button" class="btn primary" id="sc-go">Найти</button></div>
+      <button type="button" class="btn ghost full" id="sc-manual">Ввести код вручную</button>
+    </div>`;
+  document.body.appendChild(ov);
+  document.body.classList.add("noscroll");
+  const video = $("video", ov);
+  let reader = null;
+  let done = false;
+
+  const stop = () => {
+    done = true;
+    try { reader && reader.reset(); } catch { /* ignore */ }
+    try { const st = video.srcObject; st && st.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
+    ov.remove();
+    if (!document.querySelector(".overlay")) document.body.classList.remove("noscroll");
+  };
+  const finish = (code) => { if (done) return; stop(); onCode(code); };
+
+  ov.addEventListener("click", (e) => { if (e.target.closest("[data-sc-close]")) stop(); });
+  $("#sc-manual", ov).addEventListener("click", () => {
+    $("#sc-manual-box", ov).classList.remove("hidden");
+    $("#sc-manual", ov).classList.add("hidden");
+    $("#sc-code", ov).focus();
+  });
+  $("#sc-go", ov).addEventListener("click", () => {
+    const code = $("#sc-code", ov).value.replace(/\s+/g, "");
+    if (!/^\d{6,14}$/.test(code)) { toast("Введите только цифры штрих-кода (от 6 до 14)"); return; }
+    finish(code);
+  });
+
+  loadZXing().then(async (ZX) => {
+    if (done) return;
+    const hints = new Map();
+    hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8, ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128]);
+    hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+    reader = new ZX.BrowserMultiFormatReader(hints, 250);
+    await reader.decodeFromConstraints(
+      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+      video,
+      (result) => { if (result) finish(result.getText()); },
+    );
+    if (done) { try { reader.reset(); } catch { /* ignore */ } return; }
+    $("#sc-hint", ov).textContent = "Наведите камеру на штрих-код";
+  }).catch((err) => {
+    if (done) return;
+    console.error("Сканер:", err);
+    const name = err && err.name;
+    $("#sc-hint", ov).textContent = name === "NotAllowedError"
+      ? "Нет доступа к камере. Разрешите камеру для этого сайта в настройках телефона или введите код вручную."
+      : "Не удалось запустить камеру. Введите код вручную.";
+  });
+}
+
+// Найти продукт по штрих-коду: сначала у себя, потом в Open Food Facts, иначе ручной ввод.
+async function processBarcode(code, onOwn, onSaved) {
+  const own = state.products.find((p) => normBC(p.barcode) === normBC(code));
+  if (own) { onOwn(own); return; }
+  toast("Ищу в Open Food Facts…");
+  const r = await fetchOFF(code);
+  if (r.state === "found") openProductForm(null, onSaved, { ...r.data, note: OFF_NOTE });
+  else if (r.state === "none") openProductForm(null, onSaved, { barcode: code, note: NEW_BC_NOTE });
+  else openProductForm(null, onSaved, { barcode: code, note: OFF_FAIL_NOTE });
+}
+
+const starterMissing = () => {
+  const have = new Set(state.products.map((p) => String(p.name).trim().toLowerCase()));
+  return STARTER.filter((x) => !have.has(x[0].toLowerCase()));
+};
+
 /* ================= Окна снизу ================= */
 function openSheet(html) {
   const ov = document.createElement("div");
@@ -444,22 +617,51 @@ function openAddFood(mealId, presetProduct) {
 
   function showList() {
     body.innerHTML = `
+      <button type="button" class="btn primary full scan-cta" id="af-scan">${SCAN_SVG}<span>Сканировать штрих-код</span></button>
       <input id="af-q" class="input search" type="search" placeholder="Найти в моих продуктах" value="${esc(q)}" autocomplete="off">
       <div id="af-list" class="plist"></div>
+      <div id="af-off"></div>
       <button type="button" class="btn ghost full" id="af-new" style="margin-top:12px">+ Новый продукт</button>`;
     const draw = () => {
       const items = filterProducts(q).slice(0, 60);
-      $("#af-list", ov).innerHTML = items.length ? items.map((p) => productRow(p, "data-pick")).join("") : (state.products.length ? `<div class="empty"><b>Ничего не найдено</b>Добавьте продукт кнопкой ниже.</div>` : emptyProducts);
+      $("#af-list", ov).innerHTML = items.length ? items.map((p) => productRow(p, "data-pick")).join("") : (state.products.length ? `<div class="empty"><b>Ничего не найдено</b>Поищите в Open Food Facts или добавьте продукт вручную.</div>` : emptyProducts);
+      const term = q.trim();
+      $("#af-off", ov).innerHTML = term.length >= 3 ? `<button type="button" class="btn ghost full" id="af-off-btn" style="margin-top:12px">Искать «${esc(term)}» в Open Food Facts</button>` : "";
+      const ob = $("#af-off-btn", ov);
+      if (ob) ob.addEventListener("click", () => showOff(term));
     };
     draw();
     $("#af-q", ov).addEventListener("input", (e) => { q = e.target.value; draw(); });
-    $("#af-new", ov).addEventListener("click", () => openProductForm(null, (p) => showDetail(p), q));
+    $("#af-scan", ov).addEventListener("click", () => openScanner((code) => processBarcode(code, showDetail, showDetail)));
+    $("#af-new", ov).addEventListener("click", () => openProductForm(null, (p) => showDetail(p), { name: q.trim() }));
     $("#af-list", ov).addEventListener("click", (e) => {
       const b = e.target.closest("[data-pick]");
       if (!b) return;
       const p = state.products.find((x) => x.id === b.dataset.pick);
       if (p) showDetail(p);
     });
+  }
+
+  async function showOff(term) {
+    body.innerHTML = `<div class="empty"><b>Ищу в Open Food Facts…</b>Это может занять несколько секунд.</div>`;
+    const res = await searchOFF(term);
+    if (!ov.isConnected) return;
+    if (!res || !res.length) {
+      body.innerHTML = `<div class="empty"><b>${res ? "Ничего не найдено" : "Поиск сейчас недоступен"}</b>${res ? "Попробуйте другое название или добавьте продукт вручную." : "Попробуйте позже, отсканируйте штрих-код или добавьте продукт вручную."}</div>
+        <button type="button" class="btn ghost full" id="af-back2">Назад</button>`;
+      $("#af-back2", ov).addEventListener("click", showList);
+      return;
+    }
+    body.innerHTML = `<div class="plist">${res.map((d, i) => `
+      <button type="button" class="prow" data-off-i="${i}">
+        <span><span class="p-name">${esc(d.name)}</span><span class="p-sub">${d.brand ? `${esc(d.brand)}. ` : ""}Б ${fmt(d.protein || 0)}  Ж ${fmt(d.fat || 0)}  У ${fmt(d.carbs || 0)}</span></span>
+        <span class="p-kcal">${fmtInt(d.kcal)}<small>ккал / 100 г</small></span></button>`).join("")}</div>
+      <button type="button" class="btn ghost full" id="af-back2" style="margin-top:12px">Назад</button>`;
+    $("#af-back2", ov).addEventListener("click", showList);
+    body.querySelectorAll("[data-off-i]").forEach((b) => b.addEventListener("click", () => {
+      const d = res[Number(b.dataset.offI)];
+      openProductForm(null, showDetail, { ...d, note: OFF_NOTE });
+    }));
   }
 
   function showDetail(p) {
@@ -527,14 +729,17 @@ function openEditEntry(entry) {
 }
 
 /* ----- Форма продукта ----- */
-function openProductForm(product, onSaved, prefillName = "") {
-  const p = product || { name: prefillName, brand: "", barcode: "", kcal: "", protein: "", fat: "", carbs: "" };
+function openProductForm(product, onSaved, prefill = {}) {
+  const p = product || { name: "", brand: "", barcode: "", kcal: "", protein: "", fat: "", carbs: "", ...prefill };
+  const note = product ? "" : (prefill.note || "");
   const val = (v) => (v === "" || v == null ? "" : String(v).replace(".", ","));
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    ${note ? `<div class="note">${esc(note)}</div>` : ""}
     <label class="field"><span>Название</span><input id="pf-name" class="input" value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
     <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" value="${esc(p.brand || "")}" autocomplete="off"></label>
-    <label class="field"><span>Штрих-код (необязательно)</span><input id="pf-barcode" class="input" inputmode="numeric" value="${esc(p.barcode || "")}" autocomplete="off"></label>
+    <div class="field"><span>Штрих-код (необязательно)</span>
+      <div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div></div>
     <div class="field"><span>Значения на 100 г</span></div>
     <div class="field-grid">
       <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" value="${val(p.kcal)}" autocomplete="off"></label>
@@ -543,6 +748,26 @@ function openProductForm(product, onSaved, prefillName = "") {
       <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" value="${val(p.carbs)}" autocomplete="off"></label>
     </div>
     <div class="row">${product ? `<button type="button" class="btn danger" id="pf-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="pf-save">Сохранить</button></div>`);
+
+  $("#pf-scan", ov).addEventListener("click", () => openScanner(async (code) => {
+    $("#pf-barcode", ov).value = code;
+    const dup = state.products.find((x) => normBC(x.barcode) === normBC(code) && (!product || x.id !== product.id));
+    if (dup) { toast(`Этот штрих-код уже есть: ${dup.name}`); return; }
+    const empty = !$("#pf-name", ov).value.trim() && !$("#pf-kcal", ov).value.trim();
+    if (product || !empty) return;
+    toast("Ищу в Open Food Facts…");
+    const r = await fetchOFF(code);
+    if (!ov.isConnected) return;
+    if (r.state === "found") {
+      const d = r.data;
+      $("#pf-name", ov).value = d.name; $("#pf-brand", ov).value = d.brand;
+      $("#pf-kcal", ov).value = val(d.kcal); $("#pf-protein", ov).value = val(d.protein);
+      $("#pf-fat", ov).value = val(d.fat); $("#pf-carbs", ov).value = val(d.carbs);
+      toast("Данные найдены. Сверьте их с упаковкой.");
+    } else {
+      toast(r.state === "none" ? "В базе нет этого кода. Введите данные с упаковки." : "Не удалось связаться с Open Food Facts.");
+    }
+  }));
 
   $("#pf-save", ov).addEventListener("click", () => {
     const name = $("#pf-name", ov).value.trim();
@@ -591,6 +816,17 @@ const actions = {
   addFood(ds) { openAddFood(ds.meal); },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { openProductForm(null); },
+  scanProduct() { openScanner((code) => processBarcode(code, (p) => openProductForm(p), null)); },
+  importStarter() {
+    const items = starterMissing();
+    if (!items.length) { toast("Все базовые продукты уже добавлены"); return; }
+    if (!confirm(`Добавить ${items.length} базовых продуктов в ваш список?`)) return;
+    const batch = writeBatch(db);
+    items.forEach(([name, kcal, protein, fat, carbs]) => {
+      batch.set(doc(colRef("products")), { name, brand: "", barcode: "", kcal, protein, fat, carbs, source: "starter", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    });
+    batch.commit().then(() => toast(`Добавлено продуктов: ${items.length}`)).catch(writeFail);
+  },
   repDays(ds) { state.repDays = Number(ds.n) === 30 ? 30 : 7; render(); },
   saveGoal() {
     const g = num($("#goal-input").value);
