@@ -8,9 +8,10 @@ import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
+  getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=23";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=23";
+import { STARTER } from "./starter.js?v=25";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=25";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -68,14 +69,10 @@ function dayLabel(s) {
   return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${WD_SHORT[d.getDay()].toLowerCase()}`;
 }
 
-let toastTimer;
-function toast(msg) {
-  const t = $("#toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
-}
+// Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
+function toast() {}
+
+const APP_VERSION = 25;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -180,6 +177,10 @@ const state = {
   goal: 2000,
   repDays: 7,
   repCustom: null,
+  ai: { busy: false, error: "", detail: "", step: "" },
+  aiLast: null,
+  insOpen: false,
+  status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
   hist: { entries: [], water: [], activity: [], drinks: [] },
   histFrom: null,
@@ -291,12 +292,12 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.drinks = []; state.fav = []; state.obShown = false;
+  state.profile = {}; state.water = []; state.activity = []; state.drinks = []; state.fav = []; state.obShown = false; state.aiLast = null;
 }
 
 function markReady(name) {
   state.ready[name] = true;
-  if (Object.values(state.ready).every(Boolean)) { $("#loading").classList.add("hidden"); runPendingLink(); }
+  if (Object.values(state.ready).every(Boolean)) { $("#loading").classList.add("hidden"); runPendingLink(); checkStatus(false); }
 }
 
 function startData(uid) {
@@ -354,6 +355,17 @@ function startData(uid) {
     state.fav = snap.exists() && Array.isArray(snap.data().fav) ? snap.data().fav : [];
     render();
   }, (err) => console.warn("Избранные напитки:", err)));
+
+  // Последний ответ ИИ: хранится в аккаунте и на устройстве до следующего запуска анализа
+  state.aiLast = aiLoadLocal();
+  state.unsubs.push(onSnapshot(doc(db, "users", uid, "settings", "ai"), (snap) => {
+    const d = snap.exists() ? snap.data() : null;
+    if (d && d.text && (!state.aiLast || (d.ts || 0) >= (state.aiLast.ts || 0))) {
+      state.aiLast = d;
+      lsSet("ai_last", JSON.stringify(d));
+    }
+    render();
+  }, (err) => console.warn("Последний анализ ИИ:", err)));
 }
 
 // Старая история: читается один раз по запросу и хранится в памяти (в базе она остаётся навсегда)
@@ -784,9 +796,14 @@ const geminiKey = () => (lsGet(AI_KEY) || "").trim();
 const AI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 let aiModelsCache = null;
 
+async function fetchT(url, opts = {}, ms = 40000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(url, { ...opts, signal: ctl.signal }); } finally { clearTimeout(t); }
+}
 async function geminiModels(key) {
   if (aiModelsCache) return aiModelsCache;
-  const r = await fetch(`${AI_BASE}/models?pageSize=200&key=${encodeURIComponent(key)}`);
+  const r = await fetchT(`${AI_BASE}/models?pageSize=200&key=${encodeURIComponent(key)}`, {}, 20000);
   if (!r.ok) throw await geminiError(r);
   const j = await r.json();
   const ver = (n) => { const m = /gemini-(\d+(?:\.\d+)?)/.exec(n); return m ? parseFloat(m[1]) : 0; };
@@ -807,9 +824,10 @@ async function geminiError(r) {
   e.status = r.status;
   return e;
 }
-async function askGemini(prompt) {
+async function askGemini(prompt, step = () => {}) {
   const key = geminiKey();
   if (!key) throw new Error("no-key");
+  step("Подбираю модель Gemini…");
   const models = await geminiModels(key);
   let last = null;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -817,9 +835,10 @@ async function askGemini(prompt) {
   models.forEach((m, i) => { attempts.push(m); if (i < 2) attempts.push(m); }); // у первых двух моделей одна повторная попытка
   for (let k = 0; k < attempts.length; k++) {
     const model = attempts[k];
+    step(`Запрос к ${model.replace("models/", "")} (попытка ${k + 1} из ${attempts.length}). Обычно 10–30 секунд.`);
     if (k > 0 && attempts[k - 1] === model) await sleep(3000);
     try {
-      const r = await fetch(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+      const r = await fetchT(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 8192 } }),
@@ -909,25 +928,40 @@ function mdLite(text) {
   return out.join("");
 }
 
-const aiCacheKey = (days) => `ai:${days[0]}:${days[days.length - 1]}`;
-function aiCached(days) { try { return JSON.parse(lsGet(aiCacheKey(days)) || "null"); } catch { return null; } }
+// Последний ответ ИИ хранится до следующего запуска: на устройстве (localStorage) и в аккаунте (users/{uid}/settings/ai)
+function aiLoadLocal() { try { const o = JSON.parse(lsGet("ai_last") || "null"); return o && o.text ? o : null; } catch { return null; } }
+function aiSaveLast(rec) {
+  lsSet("ai_last", JSON.stringify(rec));
+  if (!state.user) return;
+  setDoc(docRef("settings", "ai"), rec).catch((e) => { console.warn("Анализ не сохранился в базе:", e); toast("Анализ получен, но в аккаунт сохранить не удалось"); });
+}
 
 function aiCardHtml(days) {
   const key = geminiKey();
-  const cached = aiCached(days);
-  const stamp = cached ? new Date(cached.ts).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "";
+  const last = state.aiLast;
+  const ai = state.ai;
+  const stamp = (t) => new Date(t).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  const lastHtml = last
+    ? `<div class="ai-text">${mdLite(last.text)}</div><p class="chart-note">Последний анализ: ${last.from && last.to ? `период ${esc(shortDate(last.from))} — ${esc(shortDate(last.to))}, ` : ""}получен ${esc(stamp(last.ts))}${last.model ? `, модель ${esc(last.model)}` : ""}. Хранится, пока вы не запустите новый. Это не медицинская рекомендация.</p>`
+    : "";
+  const errHtml = ai.error ? `<div class="banner" role="alert"><b>${esc(ai.error)}</b>${ai.detail ? `<br><small style="white-space:pre-wrap;word-break:break-word">${esc(ai.detail)}</small>` : ""}</div>` : "";
   if (!key) {
     return `<section class="card ai-card">
       <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
-      <p class="foot-note" style="margin:0 0 12px">Gemini прочитает все данные за выбранный период (еда, напитки, вода, кофеин, нагрузки) и напишет выводы: как вы питаетесь, что пьёте и какая у вас нагрузка. Один раз нужно подключить бесплатный ключ Google AI.</p>
+      <p class="foot-note" style="margin:0 0 12px">Gemini прочитает все данные за выбранный период (еда, напитки, вода, кофеин, нагрузки) и напишет выводы: как вы питаетесь, что пьёте и какая у вас нагрузка. Один раз нужно подключить бесплатный ключ Google AI. Ключ хранится на каждом устройстве отдельно.</p>
       <button type="button" class="btn primary full" data-act="aiSetup">Подключить Gemini</button>
+      ${lastHtml}
     </section>`;
   }
+  const status = ai.busy
+    ? `<p class="foot-note" style="margin:0 0 12px">${esc(ai.step || "Gemini читает ваши данные. Обычно это 10–30 секунд.")}</p>`
+    : errHtml || (last ? "" : `<p class="foot-note" style="margin:0 0 12px">Нажмите кнопку: ИИ изучит данные за период ${esc(periodText(days))} и напишет выводы. Сводка по дням без имени и почты отправляется в Google Gemini.</p>`);
   return `<section class="card ai-card">
     <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
-    <div id="ai-out">${cached ? `<div class="ai-text">${mdLite(cached.text)}</div><p class="chart-note">Анализ от ${esc(stamp)}${cached.model ? `, модель ${esc(cached.model)}` : ""}. Это не медицинская рекомендация.</p>` : `<p class="foot-note" style="margin:0 0 12px">Нажмите кнопку: ИИ изучит данные за период ${esc(periodText(days))} и напишет выводы. Сводка по дням без имени и почты отправляется в Google Gemini.</p>`}</div>
-    <button type="button" class="btn primary full" id="ai-run" data-act="aiRun">${cached ? "Обновить анализ" : "Проанализировать"}</button>
+    ${status}
+    <button type="button" class="btn primary full" id="ai-run" data-act="aiRun" ${ai.busy ? "disabled" : ""}>${ai.busy ? "Анализирую…" : last ? `Обновить анализ за ${esc(periodText(days))}` : "Проанализировать"}</button>
     <button type="button" class="btn ghost full" style="margin-top:8px" data-act="aiForgetKey">Сменить или удалить ключ</button>
+    ${lastHtml}
   </section>`;
 }
 
@@ -949,35 +983,40 @@ function openAiSetup() {
   });
 }
 
-let aiBusy = false;
+// Состояние запуска хранится в state.ai, а не в разметке: перерисовка из-за обновления базы его не стирает
 async function runAi() {
-  if (aiBusy) return;
+  if (state.ai.busy) return;
   const days = reportDays();
   const a = analyze(days);
-  if (a.L === 0 && a.actTotalMin === 0 && a.hydAvg === 0) { toast("За период нет данных для анализа"); return; }
-  aiBusy = true;
-  const btn = document.getElementById("ai-run");
-  const out = document.getElementById("ai-out");
-  if (btn) { btn.disabled = true; btn.textContent = "Анализирую…"; }
-  if (out) out.insertAdjacentHTML("afterbegin", `<p class="foot-note ai-wait" style="margin:0 0 12px">Gemini читает ваши данные. Обычно это 10–30 секунд.</p>`);
+  if (a.L === 0 && a.actTotalMin === 0 && a.hydAvg === 0) {
+    state.ai = { busy: false, error: "За выбранный период нет данных для анализа.", detail: "Выберите другой период или запишите еду, воду или нагрузку." };
+    render();
+    return;
+  }
+  const step = (s) => { state.ai.step = s; if (state.tab === "reports") render(); };
+  state.ai = { busy: true, error: "", detail: "", step: "Готовлю данные для Gemini…" };
+  render();
   try {
-    const r = await askGemini(aiPrompt(a));
-    try { localStorage.setItem(aiCacheKey(days), JSON.stringify({ text: r.text, ts: Date.now(), model: r.model })); } catch { /* ignore */ }
+    const r = await askGemini(aiPrompt(a), step);
+    const rec = { text: r.text, ts: Date.now(), model: r.model, from: days[0], to: days[days.length - 1] };
+    state.aiLast = rec;
+    aiSaveLast(rec);
+    state.ai = { busy: false, error: "", detail: "" };
   } catch (e) {
-    const m = String(e && e.message || "");
+    console.error("Gemini:", e);
+    const m = String((e && e.message) || "");
     const s = e && e.status;
-    toast(
+    const msg =
       s === 400 && /API key/i.test(m) ? "Ключ Gemini не подошёл. Проверьте его и вставьте заново."
-        : s === 403 ? "Доступ запрещён: проверьте ключ Gemini."
+        : s === 401 || s === 403 ? "Доступ запрещён: проверьте ключ Gemini."
           : s === 429 ? "Достигнут лимит запросов Gemini. Попробуйте позже."
             : (s === 503 || s === 500 || /high demand|overloaded|unavailable/i.test(m)) ? "Gemini сейчас перегружен (это на стороне Google). Подождите минуту и нажмите ещё раз."
-            : /Failed to fetch|NetworkError|Load failed/i.test(m) ? "Нет связи с Gemini. Проверьте интернет."
-              : `Gemini: ${m.slice(0, 120) || "ошибка"}`,
-    );
-  } finally {
-    aiBusy = false;
-    render();
+              : (e && e.name === "AbortError") || /Failed to fetch|NetworkError|Load failed/i.test(m) ? "Нет связи с Gemini или он не ответил вовремя. Проверьте интернет и нажмите ещё раз."
+                : "Не удалось получить анализ от Gemini.";
+    // Прежний ответ остаётся на экране: он заменится только новым успешным
+    state.ai = { busy: false, error: msg, detail: [s, m].filter(Boolean).join(" ").slice(0, 400) };
   }
+  render();
 }
 
 function openCustomPeriod() {
@@ -1059,7 +1098,7 @@ function viewReports() {
     ${aiCardHtml(days)}
     <section class="card">
       <h2 class="h2">Краткие выводы</h2>
-      ${insHtml}
+      ${state.insOpen ? `${insHtml}<button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleIns">Скрыть краткие выводы</button>` : `<button type="button" class="btn ghost full" data-act="toggleIns">Показать краткие выводы</button>`}
     </section>
     <section class="card">
       <h2 class="h2">Итоги периода</h2>
@@ -1111,6 +1150,57 @@ function viewReports() {
     <p class="foot-note" style="margin:6px 4px 0">Все записи хранятся в вашем аккаунте без ограничения по времени. Старые периоды подгружаются при выборе.</p>`;
 }
 
+/* ================= Состояние: сервер, правила, версия ================= */
+// Проверка идёт по запросу к серверу Firestore (не из кэша): так видно, есть ли связь и пускают ли правила
+async function checkStatus(force) {
+  if (!state.user || state.status.busy) return;
+  if (!force && state.status.ts && Date.now() - state.status.ts < 60000) return;
+  const st = { busy: true, ts: 0, server: "", rules: "", latest: 0 };
+  state.status = st;
+  if (state.tab === "me") render();
+  const uid = state.user.uid;
+  try {
+    await getDocFromServer(doc(db, "users", uid, "settings", "profile"));
+    st.server = "ok"; st.rules = "ok";
+  } catch (e) {
+    if (e && e.code === "permission-denied") { st.server = "ok"; st.rules = "denied"; } else st.server = "off";
+  }
+  if (st.server === "ok" && st.rules === "ok") {
+    try { await getDocsFromServer(query(collection(db, "products"), limit(1))); }
+    catch (e) { if (e && e.code === "permission-denied") st.rules = "denied"; }
+  }
+  try {
+    const r = await fetchT(`${baseUrl()}index.html`, { cache: "no-store" }, 8000);
+    const m = /app\.js\?v=(\d+)/.exec(await r.text());
+    st.latest = m ? Number(m[1]) : 0;
+  } catch { st.latest = 0; }
+  st.busy = false;
+  st.ts = Date.now();
+  if (state.status === st && state.tab === "me") render();
+}
+
+function statusHtml() {
+  const s = state.status;
+  const G = "#1B9D4B", R = "#D64545", Y = "#E0A800", N = "#98A39B";
+  const row = (name, c, text) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)"><span>${name}</span><b style="text-align:right"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};margin-right:8px"></i>${esc(text)}</b></div>`;
+  const wait = s.busy;
+  const server = wait ? [N, "Проверяю…"] : !s.server ? [N, "Не проверено"] : s.server === "ok" ? [G, "Подключён"] : [R, "Не подключён"];
+  const rules = wait ? [N, "Проверяю…"] : !s.rules ? [N, "Не проверено"] : s.rules === "ok" ? [G, "Работают, доступ есть"] : s.rules === "denied" ? [R, "Блокируют доступ"] : [N, "Не проверить без связи"];
+  const ver = s.latest > APP_VERSION ? [Y, `v${APP_VERSION}, на сервере уже v${s.latest}: закройте и откройте приложение`] : s.latest ? [G, `v${APP_VERSION}, актуальная`] : [N, `v${APP_VERSION}`];
+  const allReady = Object.values(state.ready).every(Boolean);
+  const sync = state.error ? [R, "Ошибка загрузки"] : allReady ? [G, "Данные загружены"] : [Y, "Загружаю…"];
+  return `<div style="margin-top:14px">
+    ${row("Вход", state.user ? G : R, state.user ? "Выполнен" : "Не выполнен")}
+    ${row("Интернет", navigator.onLine ? G : R, navigator.onLine ? "Есть" : "Нет")}
+    ${row("Сервер (Firestore)", server[0], server[1])}
+    ${row("Правила Firestore", rules[0], rules[1])}
+    ${row("Версия приложения", ver[0], ver[1])}
+    ${row("Синхронизация данных", sync[0], sync[1])}
+    ${row("Gemini (ключ)", geminiKey() ? G : N, geminiKey() ? "Подключён" : "Не подключён")}
+    <button type="button" class="btn ghost full" style="margin-top:10px" data-act="checkStatus" ${wait ? "disabled" : ""}>${wait ? "Проверяю…" : "Проверить снова"}</button>
+  </div>`;
+}
+
 /* ================= Я ================= */
 function viewMe() {
   const u = state.user || {};
@@ -1120,7 +1210,7 @@ function viewMe() {
     : `<div class="avatar">${initial}</div>`;
   return `
     ${pageHead("Профиль", "Я")}
-    <section class="card"><div class="me-head">${avatar}<div><div class="me-name">${esc(u.displayName || "Без имени")}</div><div class="me-mail">${esc(u.email || "")}</div></div></div></section>
+    <section class="card"><div class="me-head">${avatar}<div><div class="me-name">${esc(u.displayName || "Без имени")}</div><div class="me-mail">${esc(u.email || "")}</div></div></div>${statusHtml()}</section>
     ${planCardHtml()}
     <section class="card">
       <h2 class="h2">Дневная цель</h2>
@@ -2567,6 +2657,8 @@ const actions = {
   },
   repCustom() { openCustomPeriod(); },
   aiRun() { runAi(); },
+  toggleIns() { state.insOpen = !state.insOpen; render(); },
+  checkStatus() { checkStatus(true); },
   aiSetup() { openAiSetup(); },
   aiForgetKey() {
     if (!confirm("Удалить ключ Gemini с этого телефона?")) return;
@@ -2607,9 +2699,14 @@ $("#nav").addEventListener("click", (e) => {
   state.tab = b.dataset.tab;
   render();
   { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; }
+  if (state.tab === "me") checkStatus(true);
 });
 
 readLinkFromUrl();
+
+// Смена связи: перепроверяем состояние сервера
+window.addEventListener("online", () => { if (state.user) checkStatus(true); });
+window.addEventListener("offline", () => { if (state.tab === "me") render(); });
 
 // Опечатки в данных не должны ломать интерфейс молча
 window.addEventListener("unhandledrejection", (e) => console.error("Необработанная ошибка:", e.reason));
