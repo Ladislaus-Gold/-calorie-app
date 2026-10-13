@@ -45,7 +45,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
 }
-body.noscroll #app { overflow: hidden; }
+body.noscroll #app > main.view { overflow: hidden; }
 .hidden { display: none !important; }
 button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
 input, select { font: inherit; letter-spacing: inherit; }
@@ -55,10 +55,10 @@ b { font-weight: 600; }
 /* ---------- Каркас ---------- */
 /* Как в Accounting: документ не прокручивается, прокручивается только #app,
    сдвинутый вниз на строку состояния. Так iOS не рисует светлую подложку под часами. */
-#app { position: fixed; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top, 0px); overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
-.view { max-width: 480px; margin: 0 auto; }
+#app { position: fixed; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top, 0px); }
+#app > main.view { position: absolute; top: 0; right: 0; bottom: 0; left: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 .view {
-  padding: 10px 14px calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 30px);
+  padding: 10px max(14px, calc((100% - 480px) / 2 + 14px)) calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 30px);
 }
 .nav {
   position: fixed; left: 50%; transform: translateX(-50%);
@@ -396,10 +396,3 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .overlay { padding-top: env(safe-area-inset-top, 0px); }
 .sheet { max-height: 90vh; }
 
-/* Чёткая граница под строкой состояния (как .topbar в Accounting):
-   сплошная полоса цвета фона, содержимое под часами не просвечивает.
-   z-index ниже окон (50) — при открытом окне полоса затемняется вместе со всем. */
-html::before {
-  content: ""; position: fixed; left: 0; right: 0; top: 0; z-index: 30; pointer-events: none;
-  height: env(safe-area-inset-top, 0px); background: var(--bg);
-}

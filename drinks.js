@@ -21,7 +21,7 @@ const RAW = [
   ["lemonade", "Лимонад", 90, 0, "sugar"],
   ["oatmilk", "Овсяное Молоко", 89, 0, "milk"],
   ["yogurt", "Йогурт", 70, 0, "milk"],
-  ["soup", "Суп", 60, 0, "other"],
+  ["soup", "Суп", 80, 0, "other"],
   ["protein", "Протеин", 80, 0, "active"],
   ["soda", "Газировка", 80, 0, "sugar"],
   ["dietsoda", "Диетическая Газировка", 83, 0, "sugar"],
@@ -115,7 +115,41 @@ const RAW = [
   ["espressomartini", "Эспрессо Мартини", -90, 63, "alc", "Слабый алкоголь"],
   ["applespritzer", "Яблочный Шпритцер", 90, 0, "mock"],
   ["barleytea", "Ячменный Чай", 95, 0, "tea"],
+  ["borscht", "Борщ", 85, 0, "other"],
+  ["shchi", "Щи", 88, 0, "other"],
+  ["chickensoup", "Куриный суп", 88, 0, "other"],
+  ["creamsoup", "Крем-суп", 75, 0, "other"],
 ];
 
-export const DRINKS = RAW.map(([id, n, h, c, cat, a]) => ({ id, n, h, c, cat, a: a || "" }));
+
+// Приблизительная калорийность на 100 мл: [ккал, белки, жиры, углеводы].
+// Молочные напитки: цельное молоко, без сахара. Сладкие: типичные магазинные значения.
+// Алкоголь: калории считаются от спирта и сахара (7 ккал на 1 г спирта). Значения усреднённые.
+// Всё ниже 10 ккал на 100 мл (чай, чёрный кофе, вода) записано как 0, чтобы не засорять дневник.
+const NUTR = {
+  cappuccino: [38, 2.0, 2.0, 3.2], cocoa: [73, 3.2, 2.5, 9.5], lemonade: [40, 0, 0, 10], oatmilk: [44, 1.0, 1.5, 6.5],
+  yogurt: [59, 3.0, 2.5, 6], soup: [34, 1.5, 1.5, 3.5], protein: [45, 8, 0.8, 1.5], soda: [42, 0, 0, 10.5],
+  energy: [45, 0, 0, 11], ayran: [30, 1.6, 1.5, 2.5], plantcappuccino: [24, 0.8, 1.2, 2.5], latte: [46, 2.4, 2.4, 3.8],
+  macchiato: [19, 1.0, 1.0, 1.5], mocha: [73, 2.5, 3.0, 9], milk: [60, 3.0, 3.2, 4.7], skimmilk: [34, 3.4, 0.1, 4.9],
+  smoothie: [57, 1.0, 0.5, 12], soymilk: [31, 3.3, 1.8, 0.5], sport: [24, 0, 0, 6], flatwhite: [52, 2.8, 2.8, 3.8],
+  icedtea: [30, 0, 0, 7.5], amazake: [76, 1.7, 0.1, 17], arnoldpalmer: [25, 0, 0, 6.3], bubbletea: [70, 1.0, 1.5, 13],
+  juice: [46, 0.5, 0.1, 10.5], mockbloodymary: [20, 0.8, 0.1, 4], mockmargarita: [44, 0, 0, 11], mockpinacolada: [85, 0.5, 2.5, 15],
+  mockmojito: [34, 0, 0, 8.5], nawine: [25, 0, 0, 6], rootbeer: [41, 0, 0, 10.5], royalmilktea: [58, 1.5, 1.8, 9],
+  bonebroth: [15, 3, 0.3, 0], plantlatte: [30, 1.0, 1.5, 3], almondmilk: [24, 0.6, 1.1, 3], milkshake: [97, 3.0, 3.2, 14],
+  aloe: [35, 0, 0, 8.7], herbaljelly: [30, 0, 0, 7.5], nabeer: [25, 0, 0, 5.5], royrogers: [45, 0, 0, 11],
+  sikhye: [57, 0.2, 0, 14], suanmeitang: [40, 0, 0, 10], chailatte: [53, 1.8, 1.5, 8], shirleytemple: [45, 0, 0, 11],
+  applespritzer: [28, 0, 0, 6.5],
+  // алкоголь
+  baijiu: [290, 0, 0, 0], whitewine: [82, 0.1, 0, 2.6], redwine: [85, 0.1, 0, 2.6], gimlet: [120, 0, 0, 6], vermouth: [140, 0, 0, 15],
+  whisky: [250, 0, 0, 0], whiskysour: [130, 0, 0, 8], vodka: [231, 0, 0, 0], cognac: [240, 0, 0, 0], cosmopolitan: [125, 0, 0, 8],
+  strong: [235, 0, 0, 0], bloodymary: [70, 1, 0, 4], bloodycaesar: [75, 1, 0, 5], long: [70, 0, 0, 7], longisland: [140, 0, 0, 10],
+  maitai: [150, 0, 0, 12], makgeolli: [50, 0.8, 0, 3], manhattan: [190, 0, 0, 3], margarita: [150, 0, 0, 10], mimosa: [70, 0, 0, 6],
+  mojito: [75, 0, 0, 8], negroni: [160, 0, 0, 5], oldfashioned: [170, 0, 0, 4], beer: [43, 0.5, 0, 3.6], pinacolada: [140, 0.3, 2, 15],
+  radler: [38, 0.2, 0, 6], ryeginger: [90, 0, 0, 7], raki: [250, 0, 0, 0], rum: [231, 0, 0, 0], sake: [134, 0.5, 0, 5],
+  sangria: [70, 0, 0, 9], sexonbeach: [110, 0, 0, 14], cider: [45, 0, 0, 5], soju: [140, 0, 0, 7], tequila: [231, 0, 0, 0],
+  hardseltzer: [33, 0, 0, 1], hugo: [70, 0, 0, 8], champagne: [76, 0.2, 0, 1.5], schnapps: [260, 0, 0, 18], shot: [231, 0, 0, 0],
+  espressomartini: [150, 0, 0, 12],
+  borscht: [50, 2.4, 2.7, 4.2], shchi: [35, 2.0, 1.6, 3.2], chickensoup: [41, 3.0, 1.5, 4.0], creamsoup: [70, 1.8, 4.5, 5.5],
+};
+export const DRINKS = RAW.map(([id, n, h, c, cat, a]) => { const x = NUTR[id] || [0, 0, 0, 0]; return { id, n, h, c, cat, a: a || "", k: x[0], p: x[1], f: x[2], cb: x[3] }; });
 export const DRINK_BY_ID = Object.fromEntries(DRINKS.map((d) => [d.id, d]));
