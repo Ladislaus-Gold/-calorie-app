@@ -1281,7 +1281,7 @@ function openProductForm(product, onSaved, prefill = {}) {
   const drinkBlock = `
     <label class="check"><input type="checkbox" id="pf-drink" ${p.drink ? "checked" : ""} ${dis}><span>Это напиток: считать жидкость и кофеин</span></label>
     <div id="pf-drink-box" class="${p.drink ? "" : "hidden"}">
-      <label class="field"><span>Похож на (подставит значения)</span><select id="pf-like" class="input" ${dis}><option value="">Выбрать из списка</option>${DRINKS.slice().sort((a, b) => a.n.localeCompare(b.n, "ru")).map((d) => `<option value="${d.id}">${esc(d.n)}</option>`).join("")}</select></label>
+      <div class="field combo"><span>Похож на (начните печатать или выберите)</span><input id="pf-like" class="input" ${dis} autocomplete="off" placeholder="Например: кола, кофе, айран…"><div id="pf-like-list" class="combo-list hidden"></div></div>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><input id="pf-hyd" class="input" inputmode="decimal" ${dis} value="${p.drink ? val(p.hydrationPct) : ""}" autocomplete="off"></label>
         <label class="field"><span>Кофеин, мг на 100 мл</span><input id="pf-caf" class="input" inputmode="decimal" ${dis} value="${p.drink ? val(p.caffeineMg100) : ""}" autocomplete="off"></label>
@@ -1309,12 +1309,34 @@ function openProductForm(product, onSaved, prefill = {}) {
   if (ro) return;
 
   $("#pf-drink", ov).addEventListener("change", (e) => $("#pf-drink-box", ov).classList.toggle("hidden", !e.target.checked));
-  $("#pf-like", ov).addEventListener("change", (e) => {
-    const d = DRINK_BY_ID[e.target.value];
-    if (!d) return;
-    $("#pf-hyd", ov).value = String(d.h).replace(".", ",");
-    $("#pf-caf", ov).value = String(r1((d.c / 240) * 100)).replace(".", ",");
-  });
+  {
+    const inp = $("#pf-like", ov), list = $("#pf-like-list", ov);
+    const all = DRINKS.slice().sort((a, b) => a.n.localeCompare(b.n, "ru"));
+    const render = () => {
+      const q = fold(inp.value.trim());
+      const hit = all.filter((d) => !q || fold(d.n).includes(q));
+      list.innerHTML = hit.length
+        ? hit.map((d) => `<button type="button" class="combo-item" data-id="${d.id}"><span>${esc(d.n)}</span><small>${d.h}% · ${d.c} мг</small></button>`).join("")
+        : `<div class="combo-empty">Ничего не найдено — введите значения ниже вручную</div>`;
+      list.classList.remove("hidden");
+    };
+    inp.addEventListener("focus", render);
+    inp.addEventListener("input", render);
+    // pointerdown + preventDefault: список не закрывается до выбора
+    list.addEventListener("pointerdown", (e) => e.preventDefault());
+    list.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-id]");
+      if (!b) return;
+      const d = DRINK_BY_ID[b.dataset.id];
+      if (!d) return;
+      inp.value = d.n;
+      $("#pf-hyd", ov).value = String(d.h).replace(".", ",");
+      $("#pf-caf", ov).value = String(r1((d.c / 240) * 100)).replace(".", ",");
+      list.classList.add("hidden");
+      inp.blur();
+    });
+    inp.addEventListener("blur", () => setTimeout(() => list.classList.add("hidden"), 120));
+  }
 
   $("#pf-scan", ov).addEventListener("click", () => openScanner(async (code) => {
     $("#pf-barcode", ov).value = code;
