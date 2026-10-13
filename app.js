@@ -10,8 +10,8 @@ import {
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
   getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=25";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=25";
+import { STARTER } from "./starter.js?v=26";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=26";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 25;
+const APP_VERSION = 26;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -508,6 +508,27 @@ function pageHead(overline, title, actions = "") {
   return `<header class="head"><div><div class="overline">${overline}</div><h1 class="title">${title}</h1></div>${actions ? `<div class="head-actions">${actions}</div>` : ""}</header>`;
 }
 
+// Распределение дневной цели по приёмам пищи (в процентах, сумма всегда 100). Хранится в settings/profile.mealSplit
+const MEAL_SPLIT_DEFAULT = { breakfast: 30, lunch: 35, dinner: 25, snack: 10 };
+function normalizeSplit(raw) {
+  const ids = MEALS.map((m) => m.id);
+  const vals = ids.map((id) => Math.max(0, Number(raw && raw[id]) || 0));
+  const sum = vals.reduce((a, b) => a + b, 0);
+  if (!(sum > 0)) return { ...MEAL_SPLIT_DEFAULT };
+  const pct = vals.map((v) => Math.round((v / sum) * 100));
+  const diff = 100 - pct.reduce((a, b) => a + b, 0);
+  if (diff) pct[pct.indexOf(Math.max(...pct))] += diff;
+  return Object.fromEntries(ids.map((id, i) => [id, pct[i]]));
+}
+const mealSplit = () => normalizeSplit(state.profile.mealSplit || MEAL_SPLIT_DEFAULT);
+const mealTarget = (id) => Math.round((state.goal * mealSplit()[id]) / 100);
+
+function splitFieldsHtml() {
+  const sp = mealSplit();
+  return `<p class="foot-note" style="margin:4px 0 10px">Распределение калорий по приёмам пищи, %. Если сумма не равна 100, при сохранении она приведётся к 100.</p>
+    <div class="field-grid">${MEALS.map((m) => `<label class="field"><span>${m.name}, % · ${fmtInt(mealTarget(m.id))} ккал</span><input id="split-${m.id}" class="input" inputmode="numeric" value="${sp[m.id]}" autocomplete="off"></label>`).join("")}</div>`;
+}
+
 function viewDiary() {
   const day = state.date;
   const list = entriesOn(day);
@@ -545,6 +566,8 @@ function viewDiary() {
   const mealsHtml = MEALS.map((m) => {
     const items = list.filter((e) => e.meal === m.id).sort((a, b) => createdMs(a) - createdMs(b));
     const mt = sumEntries(items);
+    const target = mealTarget(m.id);
+    const mp = target > 0 ? Math.min(100, (mt.kcal / target) * 100) : 0;
     const rows = items.map((e) => `
       <button type="button" class="entry" data-act="editEntry" data-id="${esc(e.id)}">
         <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
@@ -554,10 +577,11 @@ function viewDiary() {
       <div class="meal-head">
         <span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span>
         <div class="meal-name">${m.name}</div>
-        <div class="meal-kcal">${fmtInt(mt.kcal)}<small>ккал</small></div>
+        <div class="meal-kcal">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
         <button type="button" class="add-btn" data-act="addFood" data-meal="${m.id}" aria-label="Добавить в «${m.name}»">+</button>
         <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs)}</div>
       </div>
+      <div class="meal-plan"><div class="track ${mt.kcal > target ? "over" : ""}"><i style="width:${mp}%"></i></div></div>
       ${rows ? `<div class="entries">${rows}</div>` : ""}
     </section>`;
   }).join("");
@@ -1215,6 +1239,7 @@ function viewMe() {
     <section class="card">
       <h2 class="h2">Дневная цель</h2>
       <label class="field"><span>Калории в день</span><input id="goal-input" class="input" inputmode="numeric" value="${state.goal}" autocomplete="off"></label>
+      ${splitFieldsHtml()}
       <button type="button" class="btn primary full" data-act="saveGoal">Сохранить цель</button>
     </section>
     ${quickCardHtml()}
@@ -2669,7 +2694,9 @@ const actions = {
   saveGoal() {
     const g = num($("#goal-input").value);
     if (!(g >= 500 && g <= 10000)) { toast("Введите цель от 500 до 10 000 ккал"); return; }
-    setDoc(docRef("settings", "profile"), { goalKcal: Math.round(g) }, { merge: true }).catch(writeFail);
+    const raw = {};
+    MEALS.forEach((m) => { const v = num($(`#split-${m.id}`).value); raw[m.id] = Number.isFinite(v) ? v : 0; });
+    setDoc(docRef("settings", "profile"), { goalKcal: Math.round(g), mealSplit: normalizeSplit(raw) }, { merge: true }).catch(writeFail);
     toast("Цель сохранена");
   },
   logout() { signOut(auth); },

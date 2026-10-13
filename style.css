@@ -376,6 +376,9 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .pill.over { background: var(--red-soft); color: var(--red); }
 .track.caf > i { background: linear-gradient(90deg, #E0A94B, #C98A1A); }
 .track.caf.over > i { background: linear-gradient(90deg, var(--red), #F08A8A); }
+.track.over > i { background: linear-gradient(90deg, var(--red), #F08A8A); }
+.meal-plan { margin: 2px 10px 8px; }
+.meal-plan .track { margin-top: 0; height: 7px; }
 .chart .b.caf { background: linear-gradient(180deg, #E8B95E, #C98A1A); }
 .mini-sub.caf { font-weight: 600; }
 .mini-sub.caf.warn { color: #8A5A00; }
