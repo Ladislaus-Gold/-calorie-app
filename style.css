@@ -395,3 +395,11 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 /* окна как в Accounting: подложка начинается под строкой состояния, лист не выше 90% */
 .overlay { padding-top: env(safe-area-inset-top, 0px); }
 .sheet { max-height: 90vh; }
+
+/* Чёткая граница под строкой состояния (как .topbar в Accounting):
+   сплошная полоса цвета фона, содержимое под часами не просвечивает.
+   z-index ниже окон (50) — при открытом окне полоса затемняется вместе со всем. */
+html::before {
+  content: ""; position: fixed; left: 0; right: 0; top: 0; z-index: 30; pointer-events: none;
+  height: env(safe-area-inset-top, 0px); background: var(--bg);
+}
