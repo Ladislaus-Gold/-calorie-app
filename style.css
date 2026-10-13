@@ -344,3 +344,36 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .seg.full { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; margin-bottom: 0; }
 .seg.full button { padding: 0 4px; font-size: 12.5px; white-space: nowrap; }
 .field-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 10px; }
+
+/* ---------- Быстрые действия ---------- */
+.quick-list { display: grid; margin: 0 0 12px; }
+.quick-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line-2); }
+.quick-row:last-child { border-bottom: 0; }
+.quick-row span { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.steps { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.steps li { margin-bottom: 5px; }
+
+/* ---------- Напитки: жидкость и кофеин ---------- */
+.drow { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; border-bottom: 1px solid var(--line-2); }
+.drow:last-child { border-bottom: 0; }
+.d-main { text-align: left; padding: 11px 2px; min-width: 0; }
+.d-pct { font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.d-pct.neg { color: var(--red); }
+.star { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: var(--muted-2); }
+.star svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.star.on { color: var(--amber); }
+.star.on svg { fill: currentColor; }
+.chip.sel { background: var(--accent); color: #fff; }
+.chips.cats { margin: 0 0 8px; }
+.check { display: flex; align-items: center; gap: 10px; margin: 2px 0 12px; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.check input { width: 22px; height: 22px; accent-color: var(--accent); flex: 0 0 auto; }
+.warn.over { background: var(--red-soft); color: #9B2C30; }
+.pill.warn { background: var(--amber-soft); color: #8A5A00; }
+.pill.over { background: var(--red-soft); color: var(--red); }
+.track.caf > i { background: linear-gradient(90deg, #E0A94B, #C98A1A); }
+.track.caf.over > i { background: linear-gradient(90deg, var(--red), #F08A8A); }
+.chart .b.caf { background: linear-gradient(180deg, #E8B95E, #C98A1A); }
+.mini-sub.caf { font-weight: 600; }
+.mini-sub.caf.warn { color: #8A5A00; }
+.mini-sub.caf.over { color: var(--red); }
+.pv-kcal.neg { color: var(--red); }

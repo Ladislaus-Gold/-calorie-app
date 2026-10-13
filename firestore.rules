@@ -5,7 +5,8 @@ service cloud.firestore {
     // Проверка продукта общей базы: набор полей, типы и разумные пределы
     function validProduct(d) {
       return d.keys().hasOnly(['name', 'brand', 'barcode', 'kcal', 'protein', 'fat', 'carbs',
-                               'source', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'])
+                               'source', 'createdBy', 'createdByName', 'createdAt', 'updatedAt',
+                               'drink', 'hydrationPct', 'caffeineMg100'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 120
         && d.brand is string && d.brand.size() <= 80
         && d.barcode is string && d.barcode.size() <= 20
@@ -14,7 +15,10 @@ service cloud.firestore {
         && d.fat is number && d.fat >= 0 && d.fat <= 100
         && d.carbs is number && d.carbs >= 0 && d.carbs <= 100
         && d.source is string
-        && d.createdByName is string && d.createdByName.size() <= 60;
+        && d.createdByName is string && d.createdByName.size() <= 60
+        && (!('drink' in d) || d.drink is bool)
+        && (!('hydrationPct' in d) || (d.hydrationPct is number && d.hydrationPct >= -400 && d.hydrationPct <= 200))
+        && (!('caffeineMg100' in d) || (d.caffeineMg100 is number && d.caffeineMg100 >= 0 && d.caffeineMg100 <= 1000));
     }
 
     // Личные данные (дневник, цель): видит и меняет только владелец

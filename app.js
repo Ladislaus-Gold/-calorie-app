@@ -9,7 +9,8 @@ import {
   collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=6";
+import { STARTER } from "./starter.js?v=9";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=9";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -182,8 +183,10 @@ const state = {
   profile: {},
   water: [],
   activity: [],
+  drinks: [],
+  fav: [],
   obShown: false,
-  ready: { products: false, entries: false, settings: false, water: false, activity: false },
+  ready: { products: false, entries: false, settings: false, water: false, activity: false, drinks: false },
   unsubs: [],
 };
 
@@ -264,13 +267,13 @@ function stopData() {
   state.unsubs.forEach((u) => { try { u(); } catch { /* ignore */ } });
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
-  state.ready = { products: false, entries: false, settings: false, water: false, activity: false };
-  state.profile = {}; state.water = []; state.activity = []; state.obShown = false;
+  state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
+  state.profile = {}; state.water = []; state.activity = []; state.drinks = []; state.fav = []; state.obShown = false;
 }
 
 function markReady(name) {
   state.ready[name] = true;
-  if (Object.values(state.ready).every(Boolean)) $("#loading").classList.add("hidden");
+  if (Object.values(state.ready).every(Boolean)) { $("#loading").classList.add("hidden"); runPendingLink(); }
 }
 
 function startData(uid) {
@@ -292,6 +295,7 @@ function startData(uid) {
     state.error = "";
     markReady("products"); render();
     migratePersonal(uid);
+    upgradeStarterDrinks();
   }, fail));
 
   const from = minDate();
@@ -316,6 +320,16 @@ function startData(uid) {
     state.activity = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     markReady("activity"); render();
   }, fail));
+
+  state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "drinks"), where("date", ">=", from)), (snap) => {
+    state.drinks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    markReady("drinks"); render();
+  }, fail));
+
+  state.unsubs.push(onSnapshot(doc(db, "users", uid, "settings", "drinks"), (snap) => {
+    state.fav = snap.exists() && Array.isArray(snap.data().fav) ? snap.data().fav : [];
+    render();
+  }, (err) => console.warn("Избранные напитки:", err)));
 }
 
 const prodCol = () => collection(db, "products");
@@ -366,6 +380,23 @@ async function migratePersonal(uid) {
     console.error("Перенос продуктов:", e);
     toast("Не удалось перенести прежние продукты в общую базу. Проверьте правила Firestore.");
   }
+}
+// Напитки из базового набора, добавленные раньше, получают гидратацию и кофеин (один раз, только свои)
+async function upgradeStarterDrinks() {
+  const uid = state.user && state.user.uid;
+  if (!uid || state.upgradedFor === uid) return;
+  state.upgradedFor = uid;
+  try {
+    const batch = writeBatch(db);
+    let n = 0;
+    for (const row of STARTER) {
+      const meta = row[5];
+      if (!meta) continue;
+      const p = state.products.find((x) => fold(x.name) === fold(row[0]) && x.createdBy === uid && x.drink === undefined);
+      if (p) { batch.update(prodDoc(p.id), { drink: true, hydrationPct: meta[0], caffeineMg100: meta[1], updatedAt: serverTimestamp() }); n++; }
+    }
+    if (n) await batch.commit();
+  } catch (e) { console.warn("Обновление напитков базового набора:", e); }
 }
 const colRef = (name) => collection(db, "users", state.user.uid, name);
 const docRef = (name, id) => doc(db, "users", state.user.uid, name, id);
@@ -448,7 +479,7 @@ function viewDiary() {
     const mt = sumEntries(items);
     const rows = items.map((e) => `
       <button type="button" class="entry" data-act="editEntry" data-id="${esc(e.id)}">
-        <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} г${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
+        <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
         <span class="e-kcal">${fmtInt(e.kcal)}<small>ккал</small></span>
       </button>`).join("");
     return `<section class="card meal">
@@ -564,7 +595,8 @@ function viewReports() {
       <div class="chart-labels">${labels}</div>
       <p class="chart-note">Пунктир: ваша цель ${fmtInt(state.goal)} ккал. Красным отмечены дни с перебором.</p>
     </section>
-    ${barsCard("Вода по дням", days, waterOn, waterTarget, "мл", "water")}
+    ${barsCard("Жидкость по дням", days, hydrationOn, waterTarget, "мл", "water")}
+    ${barsCard("Кофеин по дням", days, (d) => Math.round(caffeineOn(d)), cafLimit, "мг", "caf", true)}
     ${barsCard("Нагрузки по дням", days, actMinutes, null, "мин", "")}
     <section class="card">
       <h2 class="h2">В среднем за день</h2>
@@ -594,6 +626,7 @@ function viewMe() {
       <label class="field"><span>Калории в день</span><input id="goal-input" class="input" inputmode="numeric" value="${state.goal}" autocomplete="off"></label>
       <button type="button" class="btn primary full" data-act="saveGoal">Сохранить цель</button>
     </section>
+    ${quickCardHtml()}
     <section class="card">
       <h2 class="h2">Общая база продуктов</h2>
       <p class="foot-note" style="margin:0">Всего продуктов: <b>${state.products.length}</b>. Добавили вы: <b>${state.products.filter((p) => p.createdBy === u.uid).length}</b>. Дневник и цель видите только вы.</p>
@@ -608,6 +641,45 @@ const NEW_BC_NOTE = "Этого продукта нет в общей базе. 
 const OFF_FAIL_NOTE = "Не удалось связаться с Open Food Facts. Введите данные с упаковки вручную.";
 const offNum = (v) => { if (v === undefined || v === null || v === "") return ""; const n = Number(v); return Number.isFinite(n) ? r1(n) : ""; };
 
+const DRINK_TAG = /en:beverages|en:drinks|en:waters|en:carbonated-drinks|en:energy-drinks|en:sodas|en:juices|en:fruit-juices|en:nectars|en:alcoholic-beverages|plant-based-beverages|en:iced-teas|en:lemonades/;
+
+// Напиток ли это, какая у него гидратация и есть ли кофеин. Всё проверяется человеком в форме продукта.
+function guessDrink(p) {
+  const tags = (p.categories_tags || []).join(" ").toLowerCase();
+  const ing = `${(p.ingredients_tags || []).join(" ")} ${p.ingredients_text || ""}`.toLowerCase();
+  const n = p.nutriments || {};
+  const liquidQty = /\d\s*(ml|мл|cl|l|л)\b/i.test(String(p.quantity || ""));
+  if (!(DRINK_TAG.test(tags) || liquidQty)) return {};
+  const has = (re) => re.test(tags);
+  let like = "";
+  if (has(/energy-drink/)) like = "energy";
+  else if (has(/iced-tea/)) like = "icedtea";
+  else if (has(/lemonade/)) like = "lemonade";
+  else if (has(/\bsodas?\b|carbonated-drinks|\bcolas?\b/)) like = has(/diet|light|zero|no-sugar|sweetened/) ? "dietsoda" : "soda";
+  else if (has(/juice|nectar/)) like = "juice";
+  else if (has(/\bwaters?\b|mineral-water|spring-water/)) like = "mineral";
+  else if (has(/\bbeers?\b/)) like = "beer";
+  else if (has(/\bwines?\b/)) like = "redwine";
+  else if (has(/spirit|liquor|vodka|whisk|brandy|\brum\b|\bgin\b|tequila/)) like = "strong";
+  else if (has(/decaf/)) like = has(/coffee/) ? "decaf" : "decaftea";
+  else if (has(/herbal|infusion|fruit-tea|rooibos/)) like = "herbaltea";
+  else if (has(/\bcoffees?\b/)) like = "coffee";
+  else if (has(/\bteas?\b/)) like = "blacktea";
+  else if (has(/\bmilks?\b|dairy-drinks|kefir/)) like = "milk";
+  else if (has(/plant-based-beverage|soy|oat-drink|almond/)) like = "soymilk";
+  const base = like ? DRINK_BY_ID[like] : null;
+  const labelCaf = n.caffeine_100g !== undefined && n.caffeine_100g !== null && n.caffeine_100g !== "" && Number.isFinite(Number(n.caffeine_100g));
+  const mention = /caffeine|кофеин|кофеїн|guarana|гуарана/.test(ing);
+  let caf = 0, cafGuess = false;
+  if (labelCaf) caf = r1(Number(n.caffeine_100g) * 1000);   // на упаковке указано граммами на 100 мл
+  else if (base && base.c > 0) { caf = r1((base.c / 240) * 100); cafGuess = true; }
+  else if (mention) { caf = 10; cafGuess = true; }          // кофеин в составе есть, а количество не указано
+  return { drink: true, hydrationPct: base ? base.h : 90, caffeineMg100: caf, cafGuess };
+}
+const drinkNote = (d) => (d && d.drink
+  ? ` Определили, что это напиток: проверьте гидратацию и кофеин ниже.${d.cafGuess ? " Количество кофеина оценено по виду напитка: сверьте с упаковкой." : ""}`
+  : "");
+
 function normOFF(p, code) {
   const n = p.nutriments || {};
   let kcal = offNum(n["energy-kcal_100g"]);
@@ -618,6 +690,7 @@ function normOFF(p, code) {
     brand: String(p.brands || "").split(",")[0].trim(),
     barcode: String(code || p.code || ""),
     kcal, protein: offNum(n.proteins_100g), fat: offNum(n.fat_100g), carbs: offNum(n.carbohydrates_100g),
+    ...guessDrink(p),
   };
 }
 
@@ -637,7 +710,7 @@ async function fetchJson(url, ms = 9000) {
   }
 }
 
-const OFF_FIELDS = "code,product_name,product_name_ru,brands,nutriments";
+const OFF_FIELDS = "code,product_name,product_name_ru,brands,nutriments,categories_tags,ingredients_tags,ingredients_text,quantity";
 
 async function fetchOFF(code) {
   const r = await fetchJson(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=${OFF_FIELDS}`);
@@ -863,7 +936,7 @@ async function processBarcode(code, onOwn, onSaved) {
   if (own) { onOwn(own); return; }
   toast("Ищу в Open Food Facts…");
   const r = await fetchOFF(code);
-  if (r.state === "found") openProductForm(null, onSaved, { ...r.data, source: "off", note: OFF_NOTE });
+  if (r.state === "found") openProductForm(null, onSaved, { ...r.data, source: "off", note: OFF_NOTE + drinkNote(r.data) });
   else if (r.state === "none") openProductForm(null, onSaved, { barcode: code, note: NEW_BC_NOTE });
   else openProductForm(null, onSaved, { barcode: code, note: OFF_FAIL_NOTE });
 }
@@ -892,11 +965,14 @@ function openSheet(html) {
 
 const mealOptions = (sel) => MEALS.map((m) => `<option value="${m.id}" ${m.id === sel ? "selected" : ""}>${m.name}</option>`).join("");
 
-function previewHtml(per100, grams) {
-  if (!(grams > 0)) return `<div class="pv-kcal">0<small>ккал</small></div><div class="pv-macros"><div><b>0</b>белки, г</div><div><b>0</b>жиры, г</div><div><b>0</b>углеводы, г</div></div>`;
-  const c = calc(per100, grams);
-  return `<div class="pv-kcal">${fmtInt(c.kcal)}<small>ккал</small></div>
-    <div class="pv-macros"><div><b>${fmt(c.protein)}</b>белки, г</div><div><b>${fmt(c.fat)}</b>жиры, г</div><div><b>${fmt(c.carbs)}</b>углеводы, г</div></div>`;
+function previewHtml(per100, grams, info, replaceMg = 0) {
+  const zero = `<div class="pv-kcal">0<small>ккал</small></div><div class="pv-macros"><div><b>0</b>белки, г</div><div><b>0</b>жиры, г</div><div><b>0</b>углеводы, г</div></div>`;
+  const c = grams > 0 ? calc(per100, grams) : null;
+  const base = c ? `<div class="pv-kcal">${fmtInt(c.kcal)}<small>ккал</small></div>
+    <div class="pv-macros"><div><b>${fmt(c.protein)}</b>белки, г</div><div><b>${fmt(c.fat)}</b>жиры, г</div><div><b>${fmt(c.carbs)}</b>углеводы, г</div></div>` : zero;
+  if (!info) return base;
+  const ml = grams > 0 ? grams : 0, eff = (ml * info.pct) / 100, caf = (ml * info.caf100) / 100;
+  return `${base}<p class="foot-note" style="margin:10px 0 0">Жидкость: <b>${signed(Math.round(eff))} мл</b> засчитано${caf > 0 ? `. Кофеин: <b>${fmtInt(caf)} мг</b>` : ""}.</p>${caf > 0 ? cafWarnHtml(caf, replaceMg) : ""}`;
 }
 
 /* ----- Добавление еды в дневник ----- */
@@ -953,21 +1029,23 @@ function openAddFood(mealId, presetProduct) {
     $("#af-back2", ov).addEventListener("click", showList);
     body.querySelectorAll("[data-off-i]").forEach((b) => b.addEventListener("click", () => {
       const d = res[Number(b.dataset.offI)];
-      openProductForm(null, showDetail, { ...d, source: "off", note: OFF_NOTE });
+      openProductForm(null, showDetail, { ...d, source: "off", note: OFF_NOTE + drinkNote(d) });
     }));
   }
 
   function showDetail(p) {
-    const last = Number(lsGet(`g:${p.id}`)) || 100;
+    const info = p.drink ? { pct: Number(p.hydrationPct) || 0, caf100: Number(p.caffeineMg100) || 0 } : null;
+    const last = Number(lsGet(`g:${p.id}`)) || (info ? 250 : 100);
     body.innerHTML = `
       <div class="picked"><div class="p-name">${esc(p.name)}</div><div class="p-sub">${esc(per100Text(p))}</div></div>
-      <label class="field"><span>Вес, г</span><input id="af-g" class="input big" inputmode="decimal" value="${last}" autocomplete="off"></label>
-      <div class="chips">${[50, 100, 150, 200, 250].map((n) => `<button type="button" class="chip" data-g="${n}">${n}</button>`).join("")}</div>
+      ${info ? `<div class="note">Напиток: засчитается и как еда, и как жидкость${info.caf100 > 0 ? " с кофеином" : ""}. Повторно вносить не нужно.</div>` : ""}
+      <label class="field"><span>${info ? "Объём, мл" : "Вес, г"}</span><input id="af-g" class="input big" inputmode="decimal" value="${last}" autocomplete="off"></label>
+      <div class="chips">${(info ? [150, 250, 330, 500, 1000] : [50, 100, 150, 200, 250]).map((n) => `<button type="button" class="chip" data-g="${n}">${n}</button>`).join("")}</div>
       <div class="preview" id="af-prev"></div>
       <div class="row"><button type="button" class="btn ghost" id="af-back">Назад</button><button type="button" class="btn primary grow" id="af-add">Добавить</button></div>`;
     const input = $("#af-g", ov);
     const p100 = per100Of(p);
-    const upd = () => { $("#af-prev", ov).innerHTML = previewHtml(p100, num(input.value)); };
+    const upd = () => { $("#af-prev", ov).innerHTML = previewHtml(p100, num(input.value), info); };
     upd();
     input.addEventListener("input", upd);
     input.focus(); input.select();
@@ -975,15 +1053,16 @@ function openAddFood(mealId, presetProduct) {
     $("#af-back", ov).addEventListener("click", showList);
     $("#af-add", ov).addEventListener("click", () => {
       const grams = num(input.value);
-      if (!(grams > 0)) { toast("Введите вес в граммах"); return; }
+      if (!(grams > 0)) { toast(info ? "Введите объём в миллилитрах" : "Введите вес в граммах"); return; }
       lsSet(`g:${p.id}`, String(grams));
       const meal = $("#af-meal", ov).value;
+      const warn = info ? cafToast((grams * info.caf100) / 100) : "";
       addDoc(colRef("entries"), {
         date: state.date, meal, productId: p.id, name: p.name, brand: p.brand || "",
-        grams, per100: p100, ...calc(p100, grams), createdAt: serverTimestamp(),
+        grams, per100: p100, ...calc(p100, grams), ...(info ? { drink: info } : {}), createdAt: serverTimestamp(),
       }).catch(writeFail);
       ov.close();
-      toast("Добавлено");
+      toast(warn || "Добавлено");
     });
   }
 
@@ -1000,11 +1079,12 @@ function openEditEntry(entry) {
     <div class="sheet-head"><h2>Запись</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="picked"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>
     <label class="field"><span>Приём пищи</span><select id="ee-meal" class="input">${mealOptions(entry.meal)}</select></label>
-    <label class="field"><span>Вес, г</span><input id="ee-g" class="input big" inputmode="decimal" value="${String(entry.grams).replace(".", ",")}" autocomplete="off"></label>
+    <label class="field"><span>${entry.drink ? "Объём, мл" : "Вес, г"}</span><input id="ee-g" class="input big" inputmode="decimal" value="${String(entry.grams).replace(".", ",")}" autocomplete="off"></label>
     <div class="preview" id="ee-prev"></div>
     <div class="row"><button type="button" class="btn danger" id="ee-del">Удалить</button><button type="button" class="btn primary grow" id="ee-save">Сохранить</button></div>`);
   const input = $("#ee-g", ov);
-  const upd = () => { $("#ee-prev", ov).innerHTML = previewHtml(p100, num(input.value)); };
+  const oldCaf = entry.drink ? (Number(entry.grams) * Number(entry.drink.caf100)) / 100 : 0;
+  const upd = () => { $("#ee-prev", ov).innerHTML = previewHtml(p100, num(input.value), entry.drink || null, oldCaf); };
   upd();
   input.addEventListener("input", upd);
   $("#ee-save", ov).addEventListener("click", () => {
@@ -1034,6 +1114,16 @@ function openProductForm(product, onSaved, prefill = {}) {
   const barcodeField = ro
     ? `<input id="pf-barcode" class="input" value="${esc(p.barcode || "")}" disabled>`
     : `<div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" maxlength="20" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>`;
+  const drinkBlock = `
+    <label class="check"><input type="checkbox" id="pf-drink" ${p.drink ? "checked" : ""} ${dis}><span>Это напиток: считать жидкость и кофеин</span></label>
+    <div id="pf-drink-box" class="${p.drink ? "" : "hidden"}">
+      <label class="field"><span>Похож на (подставит значения)</span><select id="pf-like" class="input" ${dis}><option value="">Выбрать из списка</option>${DRINKS.slice().sort((a, b) => a.n.localeCompare(b.n, "ru")).map((d) => `<option value="${d.id}">${esc(d.n)}</option>`).join("")}</select></label>
+      <div class="field-grid">
+        <label class="field"><span>Гидратация, %</span><input id="pf-hyd" class="input" inputmode="decimal" ${dis} value="${p.drink ? val(p.hydrationPct) : ""}" autocomplete="off"></label>
+        <label class="field"><span>Кофеин, мг на 100 мл</span><input id="pf-caf" class="input" inputmode="decimal" ${dis} value="${p.drink ? val(p.caffeineMg100) : ""}" autocomplete="off"></label>
+      </div>
+      <p class="foot-note" style="margin:-4px 2px 12px">Такой продукт, добавленный в дневник, сам засчитается и как еда, и как жидкость с кофеином. Повторно вносить его не нужно.</p>
+    </div>`;
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
@@ -1047,11 +1137,20 @@ function openProductForm(product, onSaved, prefill = {}) {
       <label class="field"><span>Жиры, г</span><input id="pf-fat" class="input" inputmode="decimal" ${dis} value="${val(p.fat)}" autocomplete="off"></label>
       <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" ${dis} value="${val(p.carbs)}" autocomplete="off"></label>
     </div>
+    ${drinkBlock}
     <div class="row">${ro
       ? `<button type="button" class="btn ghost full" data-close>Закрыть</button>`
       : `${product ? `<button type="button" class="btn danger" id="pf-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="pf-save">Сохранить</button>`}</div>`);
 
   if (ro) return;
+
+  $("#pf-drink", ov).addEventListener("change", (e) => $("#pf-drink-box", ov).classList.toggle("hidden", !e.target.checked));
+  $("#pf-like", ov).addEventListener("change", (e) => {
+    const d = DRINK_BY_ID[e.target.value];
+    if (!d) return;
+    $("#pf-hyd", ov).value = String(d.h).replace(".", ",");
+    $("#pf-caf", ov).value = String(r1((d.c / 240) * 100)).replace(".", ",");
+  });
 
   $("#pf-scan", ov).addEventListener("click", () => openScanner(async (code) => {
     $("#pf-barcode", ov).value = code;
@@ -1089,7 +1188,17 @@ function openProductForm(product, onSaved, prefill = {}) {
       const dup = state.products.find((x) => normBC(x.barcode) === normBC(barcode) && (!product || x.id !== product.id));
       if (dup) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
     }
-    const data = { name, brand, barcode, kcal, protein, fat, carbs, updatedAt: serverTimestamp() };
+    const isDrink = $("#pf-drink", ov).checked;
+    let drinkData = { drink: false, hydrationPct: 0, caffeineMg100: 0 };
+    if (isDrink) {
+      const hyd = numS($("#pf-hyd", ov).value);
+      const cafRaw = $("#pf-caf", ov).value.trim();
+      const caf = cafRaw === "" ? 0 : num(cafRaw);
+      if (!Number.isFinite(hyd) || hyd < -400 || hyd > 200) { toast("Гидратация: число от −400 до 200 процентов"); return; }
+      if (!Number.isFinite(caf) || caf > 1000) { toast("Кофеин: от 0 до 1000 мг на 100 мл"); return; }
+      drinkData = { drink: true, hydrationPct: hyd, caffeineMg100: caf };
+    }
+    const data = { name, brand, barcode, kcal, protein, fat, carbs, ...drinkData, updatedAt: serverTimestamp() };
     if (product) {
       updateDoc(prodDoc(product.id), data).catch(writeFail);
       ov.close();
@@ -1128,6 +1237,59 @@ const waterTarget = (d) => Math.round((waterBase() + actMinutes(d) * 8) / 50) * 
 const userWeight = () => (Number(state.profile.weightKg) > 0 ? Number(state.profile.weightKg) : 70);
 const weekDays = (s) => Array.from({ length: 7 }, (_, i) => addDays(weekStart(s), i));
 
+/* ----- Жидкость и кофеин: напитки из списка и напитки, добавленные как еда ----- */
+const numS = (v) => { const n = parseFloat(String(v).trim().replace(",", ".")); return Number.isFinite(n) ? n : NaN; };
+const signed = (n) => `${n < 0 ? "−" : "+"}${fmtInt(Math.abs(n))}`;
+// Нормы EFSA для здоровых взрослых: до 5,7 мг/кг в сутки (не больше 400 мг) и до 3 мг/кг за раз (не больше 200 мг)
+const cafLimit = () => Math.round(Math.min(400, 5.7 * userWeight()));
+const cafDose = () => Math.round(Math.min(200, 3 * userWeight()));
+
+function fluidItems(day) {
+  const items = [];
+  state.drinks.filter((x) => x.date === day).forEach((x) => items.push({
+    kind: "drink", id: x.id, name: x.name, ml: Number(x.ml) || 0, pct: Number(x.pct) || 0, caf100: Number(x.caf100) || 0, ts: createdMs(x),
+  }));
+  entriesOn(day).filter((e) => e.drink).forEach((e) => items.push({
+    kind: "food", id: e.id, name: e.name, ml: Number(e.grams) || 0, pct: Number(e.drink.pct) || 0, caf100: Number(e.drink.caf100) || 0, ts: createdMs(e),
+  }));
+  return items.sort((a, b) => a.ts - b.ts);
+}
+const itemHyd = (i) => (i.ml * i.pct) / 100;
+const itemCaf = (i) => (i.ml * i.caf100) / 100;
+const hydrationOn = (d) => Math.round(waterOn(d) + fluidItems(d).reduce((sum, i) => sum + itemHyd(i), 0));
+const caffeineOn = (d) => fluidItems(d).reduce((sum, i) => sum + itemCaf(i), 0);
+
+function caffeineStatus(day) {
+  const mg = Math.round(caffeineOn(day)), limit = cafLimit(), ratio = limit ? mg / limit : 0;
+  const items = fluidItems(day).filter((i) => itemCaf(i) > 0);
+  const msgs = [];
+  if (ratio >= 1) msgs.push({ lv: "over", t: `Превышена суточная норма кофеина: ${mg} из ${limit} мг.` });
+  else if (ratio >= 0.8) msgs.push({ lv: "warn", t: `Вы близки к суточной норме кофеина: ${mg} из ${limit} мг.` });
+  items.filter((i) => itemCaf(i) > cafDose()).forEach((i) => msgs.push({ lv: "warn", t: `${i.name}: ${fmtInt(itemCaf(i))} мг кофеина в одной порции, это больше разовой нормы ${cafDose()} мг.` }));
+  if (day === todayStr() && items.some((i) => new Date(i.ts).getHours() >= 16)) msgs.push({ lv: "info", t: "Кофеин после 16:00 может ухудшить сон: старайтесь не пить его за 6 часов до сна." });
+  return { mg, limit, ratio, level: ratio >= 1 ? "over" : ratio >= 0.8 ? "warn" : "ok", msgs };
+}
+
+// Предупреждения для напитка, который вот-вот добавят (replaceMg: кофеин записи, которую заменяют при правке)
+function cafWarnings(addMg, replaceMg = 0) {
+  const total = caffeineOn(state.date) - replaceMg + addMg, limit = cafLimit(), out = [];
+  if (addMg > cafDose()) out.push({ lv: "warn", t: `В порции ${fmtInt(addMg)} мг кофеина: это больше разовой нормы ${cafDose()} мг.` });
+  if (total >= limit) out.push({ lv: "over", t: `С этим напитком будет ${fmtInt(total)} мг: выше суточной нормы ${limit} мг.` });
+  else if (total >= limit * 0.8) out.push({ lv: "warn", t: `С этим напитком будет ${fmtInt(total)} из ${limit} мг: вы близки к суточной норме.` });
+  if (addMg > 0 && state.date === todayStr() && new Date().getHours() >= 16) out.push({ lv: "info", t: "Кофеин вечером может ухудшить сон." });
+  return out;
+}
+const cafWarnHtml = (addMg, replaceMg = 0) => cafWarnings(addMg, replaceMg).map((w) => `<div class="warn ${w.lv === "over" ? "over" : ""}">${esc(w.t)}</div>`).join("");
+const cafToast = (addMg, replaceMg = 0) => { const w = cafWarnings(addMg, replaceMg).filter((x) => x.lv !== "info"); return w.length ? w[0].t : ""; };
+
+function favDrinks() {
+  const counts = {};
+  state.drinks.forEach((x) => { if (x.drinkId && x.drinkId !== "custom" && DRINK_BY_ID[x.drinkId]) counts[x.drinkId] = (counts[x.drinkId] || 0) + 1; });
+  const freq = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  return [...state.fav, ...freq.filter((id) => !state.fav.includes(id))].slice(0, 8).map((id) => DRINK_BY_ID[id]).filter(Boolean);
+}
+
+
 const dayNavButtons = (day) => `
   <button type="button" class="iconbtn" data-act="prevDay" aria-label="Предыдущий день" ${day <= minDate() ? "disabled" : ""}>${CHEV_L}</button>
   <button type="button" class="chip-btn" data-act="today">${dateShort(day)}</button>
@@ -1139,18 +1301,21 @@ const fillProfilePrompt = `<section class="card">
   <button type="button" class="btn primary full" data-act="openProfile">Заполнить данные</button>
 </section>`;
 
-// Две плитки в дневнике: вода и нагрузка за выбранный день
+// Две плитки в дневнике: жидкость (с кофеином) и нагрузка за выбранный день
 function miniTiles(day) {
-  const ml = waterOn(day), tg = waterTarget(day);
+  const ml = hydrationOn(day), tg = waterTarget(day);
   const mins = actMinutes(day), burned = actBurned(day);
   const plan = currentPlan();
   const dayGoal = plan ? Math.ceil(plan.weekly.minutes / 7) : 30;
+  const caf = caffeineStatus(day);
+  const banner = caf.level !== "ok" ? `<div class="warn ${caf.level === "over" ? "over" : ""}" style="margin:0 0 12px">${esc(caf.msgs[0].t)}</div>` : "";
   return `<div class="mini-row">
     <button type="button" class="mini water" data-act="goTab" data-tab="health">
-      <span class="mini-top"><span class="mini-ic">${DROP_SVG}</span><span class="mini-label">Вода</span></span>
+      <span class="mini-top"><span class="mini-ic">${DROP_SVG}</span><span class="mini-label">Жидкость</span></span>
       <span class="mini-val">${fmtInt(ml)}<small>мл</small></span>
       <span class="mini-sub">норма ${fmtInt(tg)} мл</span>
-      <span class="mini-bar"><i style="width:${Math.min(100, (ml / tg) * 100)}%"></i></span>
+      ${caf.mg > 0 ? `<span class="mini-sub caf ${caf.level}">кофеин ${caf.mg} из ${caf.limit} мг</span>` : ""}
+      <span class="mini-bar"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></span>
     </button>
     <button type="button" class="mini act" data-act="goTab" data-tab="health">
       <span class="mini-top"><span class="mini-ic">${PULSE_SVG}</span><span class="mini-label">Нагрузка</span></span>
@@ -1158,39 +1323,63 @@ function miniTiles(day) {
       <span class="mini-sub">сожжено ${fmtInt(burned)} ккал</span>
       <span class="mini-bar"><i style="width:${Math.min(100, (mins / dayGoal) * 100)}%"></i></span>
     </button>
-  </div>`;
+  </div>${banner}`;
 }
 
 function viewHealth() {
   const day = state.date;
   const plan = currentPlan();
-  const ml = waterOn(day), tg = waterTarget(day);
+  const ml = hydrationOn(day), tg = waterTarget(day);
   const extra = actMinutes(day) * 8;
   const left = tg - ml;
+  const items = fluidItems(day);
+  const wMl = waterOn(day);
+  const dHyd = items.filter((i) => i.kind === "drink").reduce((sum, i) => sum + itemHyd(i), 0);
+  const fHyd = items.filter((i) => i.kind === "food").reduce((sum, i) => sum + itemHyd(i), 0);
+  const parts = [];
+  if (wMl) parts.push(`вода ${fmtInt(wMl)} мл`);
+  if (Math.round(dHyd)) parts.push(`напитки ${signed(Math.round(dHyd))} мл`);
+  if (Math.round(fHyd)) parts.push(`напитки из дневника питания ${signed(Math.round(fHyd))} мл`);
+  const caf = caffeineStatus(day);
   const acts = actOn(day).sort((a, b) => createdMs(a) - createdMs(b));
   const mins = actMinutes(day), burned = actBurned(day);
   const wk = weekDays(day);
   const wkMin = wk.reduce((sum, d) => sum + actMinutes(d), 0);
   const wkStr = wk.reduce((sum, d) => sum + actOn(d).filter((a) => a.type === "strength").length, 0);
   const wt = plan ? plan.weekly : { minutes: 150, strength: 2, text: WEEKLY.maintain.text };
+  const favs = favDrinks();
   const actRows = acts.map((a) => `
     <button type="button" class="entry" data-act="editActivity" data-id="${esc(a.id)}">
       <span class="e-main"><span class="e-name">${esc(a.name)}</span><span class="e-sub">${fmt(a.minutes)} мин</span></span>
       <span class="e-kcal">${fmtInt(a.kcal)}<small>ккал</small></span>
     </button>`).join("");
+  const fluidRows = items.map((i) => `
+    <button type="button" class="entry" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
+      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${fmt(i.ml)} мл, засчитано ${signed(Math.round(itemHyd(i)))} мл${i.kind === "food" ? ", из дневника питания" : ""}</span></span>
+      <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
+    </button>`).join("");
   return `
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
     ${plan ? "" : fillProfilePrompt}
     <section class="card">
-      <div class="card-top"><h2 class="h2">Вода</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
-      <div class="big-line">${fmtInt(ml)}<small>мл</small></div>
-      <div class="track water"><i style="width:${Math.min(100, (ml / tg) * 100)}%"></i></div>
-      <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось выпить ${fmtInt(left)} мл.` : "Норма на сегодня выполнена."}${extra ? ` В норму добавлено ${fmtInt(Math.round(extra / 50) * 50)} мл за нагрузку.` : ""}</p>
+      <div class="card-top"><h2 class="h2">Жидкость</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
+      <div class="big-line">${fmtInt(ml)}<small>мл засчитано</small></div>
+      <div class="track water"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></div>
+      <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось ${fmtInt(left)} мл.` : "Норма на сегодня выполнена."}${extra ? ` В норму добавлено ${fmtInt(Math.round(extra / 50) * 50)} мл за нагрузку.` : ""}${parts.length ? ` Засчитано: ${parts.join(", ")}.` : ""}</p>
       <div class="chips">
         ${[150, 250, 330, 500].map((n) => `<button type="button" class="chip water" data-act="addWater" data-ml="${n}">+${n}</button>`).join("")}
         <button type="button" class="chip" data-act="waterCustom">Другое</button>
         <button type="button" class="chip muted" data-act="addWater" data-ml="-250">−250</button>
       </div>
+      <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
+      ${favs.length ? `<p class="foot-note" style="margin:14px 2px 8px">Избранное и частые напитки</p><div class="chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
+      ${fluidRows ? `<div class="entries flat">${fluidRows}</div>` : ""}
+    </section>
+    <section class="card">
+      <div class="card-top"><h2 class="h2">Кофеин</h2><span class="pill ${caf.level === "ok" ? "" : caf.level}">${caf.mg} из ${caf.limit} мг</span></div>
+      <div class="track caf ${caf.level}"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
+      ${caf.msgs.map((m) => `<div class="warn ${m.lv === "over" ? "over" : ""}">${esc(m.t)}</div>`).join("")}
+      <p class="foot-note" style="margin:12px 0 0">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>
     </section>
     <section class="card">
       <div class="card-top"><h2 class="h2">Нагрузки</h2><button type="button" class="btn ghost sm" data-act="addActivity">+ Добавить</button></div>
@@ -1215,17 +1404,20 @@ function chartLabels(days) {
   }).join("");
 }
 
-function barsCard(title, days, valFn, goalFn, unit, cls) {
+function barsCard(title, days, valFn, goalFn, unit, cls, overLimit) {
   const vals = days.map(valFn);
-  const goal = goalFn ? Math.max(...days.map(goalFn)) : 0;
+  const goal = goalFn ? Math.max(...days.map((d) => goalFn(d))) : 0;
   const max = Math.max(goal * 1.15, ...vals, 1);
-  const bars = vals.map((v) => `<div class="col"><div class="b ${v > 0 ? cls : "zero"}" style="height:${v > 0 ? Math.max(2, (v / max) * 100) : 2}%"></div></div>`).join("");
+  const bars = vals.map((v, i) => {
+    const over = overLimit && goalFn && v > goalFn(days[i]);
+    return `<div class="col"><div class="b ${v > 0 ? (over ? "over" : cls) : "zero"}" style="height:${v > 0 ? Math.max(2, (v / max) * 100) : 2}%"></div></div>`;
+  }).join("");
   const withData = vals.filter((v) => v > 0);
   const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
   return `<section class="card"><h2 class="h2">${title}</h2>
     <div class="chart">${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
     <div class="chart-labels">${chartLabels(days)}</div>
-    <p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${fmtInt(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${fmtInt(goal)} ${unit}).` : ""}</p></section>`;
+    <p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${fmtInt(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${fmtInt(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p></section>`;
 }
 
 function planCardHtml() {
@@ -1396,6 +1588,213 @@ function openActivitySheet(entry) {
   }
 }
 
+/* ================= Быстрые действия: ссылки для «Команд» iPhone ================= */
+const QUICK = [
+  { t: "Выпить 250 мл воды", q: "add=water&ml=250" },
+  { t: "Выпить 500 мл воды", q: "add=water&ml=500" },
+  { t: "Добавить еду (приём пищи по времени суток)", q: "open=food" },
+  { t: "Сканировать штрих-код", q: "open=scan" },
+  { t: "Добавить напиток", q: "open=drink" },
+  { t: "Добавить нагрузку", q: "open=activity" },
+  { t: "Открыть «Здоровье»", q: "tab=health" },
+];
+const TAB_IDS = ["diary", "products", "health", "reports", "me"];
+const baseUrl = () => location.origin + location.pathname.replace(/index\.html$/, "");
+const mealByTime = () => { const h = new Date().getHours(); return h >= 5 && h < 11 ? "breakfast" : h >= 11 && h < 16 ? "lunch" : h >= 16 && h < 21 ? "dinner" : "snack"; };
+
+// Читаем параметры из адреса один раз и сразу убираем их, чтобы обновление страницы не повторило действие
+function readLinkFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const link = {};
+  ["add", "open", "meal", "tab", "ml"].forEach((k) => { if (p.get(k)) link[k] = p.get(k); });
+  if (!Object.keys(link).length) return;
+  try { sessionStorage.setItem("pendingLink", JSON.stringify(link)); } catch { /* ignore */ }
+  history.replaceState(null, "", location.pathname + location.hash);
+}
+
+function runPendingLink() {
+  let link = null;
+  try { link = JSON.parse(sessionStorage.getItem("pendingLink") || "null"); sessionStorage.removeItem("pendingLink"); } catch { /* ignore */ }
+  if (!link) return;
+  state.obShown = true; // с быстрыми действиями окно знакомства не показываем
+  state.date = todayStr();
+  const meal = MEALS.some((m) => m.id === link.meal) ? link.meal : mealByTime();
+  if (TAB_IDS.includes(link.tab)) { state.tab = link.tab; render(); }
+  if (link.add === "water") {
+    const ml = Math.round(Number(link.ml) || 250);
+    if (ml > 0 && ml <= 3000) changeWater(ml);
+    state.tab = "health"; render();
+  }
+  if (link.open === "food") openAddFood(meal);
+  if (link.open === "scan") { openAddFood(meal); setTimeout(() => { const b = document.querySelector("#af-scan"); if (b) b.click(); }, 200); }
+  if (link.open === "activity") { state.tab = "health"; render(); openActivitySheet(null); }
+  if (link.open === "water") { state.tab = "health"; render(); openWaterSheet(); }
+  if (link.open === "drink") { state.tab = "health"; render(); openDrinkSheet(); }
+}
+
+function quickCardHtml() {
+  return `<section class="card">
+    <h2 class="h2">Быстрые действия для iPhone</h2>
+    <p class="foot-note" style="margin:0 0 6px">Скопируйте нужную ссылку и сделайте из неё команду: она станет виджетом или иконкой на экране «Домой» и добавит воду или откроет нужное окно в одно касание.</p>
+    <div class="quick-list">${QUICK.map((x) => `<div class="quick-row"><span>${esc(x.t)}</span><button type="button" class="btn ghost sm" data-act="copyLink" data-q="${esc(x.q)}">Копировать</button></div>`).join("")}</div>
+    <ol class="steps">
+      <li>Откройте приложение «Команды», нажмите «+» и добавьте действие «Открыть URL».</li>
+      <li>Вставьте скопированную ссылку и назовите команду, например «Вода 250».</li>
+      <li>Чтобы сделать виджет: на экране «Домой» нажмите и удерживайте пустое место, «+», выберите «Команды» и вашу команду. Отдельная иконка: в команде нажмите «i», затем «На экран «Домой»».</li>
+      <li>Команда откроет сайт в Safari. Один раз войдите там через Google, дальше всё добавляется сразу.</li>
+    </ol>
+  </section>`;
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* запасной способ ниже */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch { return false; }
+}
+
+/* ================= Напитки: окно выбора ================= */
+const STAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z"/></svg>';
+const SWEET_CATS = ["sugar", "fruit", "active"];
+
+function toggleFav(id) {
+  const next = state.fav.includes(id) ? state.fav.filter((x) => x !== id) : [...state.fav, id];
+  state.fav = next;
+  setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { fav: next }, { merge: true }).catch(writeFail);
+}
+
+// entry: запись, которую правим; presetId: сразу открыть напиток (из избранного)
+function openDrinkSheet(entry, presetId) {
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div id="dk-body"></div>`);
+  const body = $("#dk-body", ov);
+  const st = { q: "", cat: "all" };
+
+  const rowHtml = (d) => {
+    const sub = [d.c > 0 ? `${d.c} мг кофеина` : "", d.a].filter(Boolean).join(", ");
+    return `<div class="drow">
+      <button type="button" class="d-main" data-did="${d.id}"><span class="p-name">${esc(d.n)}</span>${sub ? `<span class="p-sub">${esc(sub)}</span>` : ""}</button>
+      <span class="d-pct ${d.h < 0 ? "neg" : ""}">${d.h}%</span>
+      <button type="button" class="star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>
+    </div>`;
+  };
+
+  function showList() {
+    const favs = favDrinks();
+    body.innerHTML = `
+      <input id="dk-q" class="input search" type="search" placeholder="Найти напиток" value="${esc(st.q)}" autocomplete="off">
+      ${favs.length ? `<p class="foot-note" style="margin:0 2px 8px">Избранное и частые</p><div class="chips">${favs.map((d) => `<button type="button" class="chip" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
+      <div class="chips cats" id="dk-cats">${DRINK_CATS.map((c) => `<button type="button" class="chip ${st.cat === c.id ? "sel" : ""}" data-cat="${c.id}">${c.t}</button>`).join("")}</div>
+      <div id="dk-list" class="plist"></div>
+      <p class="foot-note" style="margin:10px 2px 12px">Кофеин указан на 240 мл (стакан) и пересчитывается на ваш объём. Гидратация показывает, сколько мл жидкости засчитывается на каждые 100 мл напитка. У алкоголя значение отрицательное: он уменьшает баланс жидкости.</p>
+      <div class="note">Сок, газировка или энергетик с калориями? Добавьте их как еду по штрих-коду: калории, жидкость и кофеин посчитаются сразу, повторно вносить не нужно.</div>
+      <div class="row"><button type="button" class="btn ghost grow" id="dk-scan">Сканировать код</button><button type="button" class="btn ghost grow" id="dk-custom">+ Свой напиток</button></div>`;
+    draw();
+    $("#dk-q", ov).addEventListener("input", (e) => { st.q = e.target.value; draw(); });
+    $("#dk-scan", ov).addEventListener("click", () => {
+      ov.close();
+      openAddFood(mealByTime());
+      setTimeout(() => { const b = document.querySelector("#af-scan"); if (b) b.click(); }, 250);
+    });
+    $("#dk-custom", ov).addEventListener("click", () => showDetail({ id: "custom", n: "", h: 90, c: 0, a: "", cat: "other" }));
+  }
+
+  function draw() {
+    const words = fold(st.q).split(/\s+/).filter(Boolean);
+    const list = DRINKS.filter((d) => (st.cat === "all" || d.cat === st.cat) && words.every((w) => fold(d.n).includes(w)))
+      .sort((a, b) => (a.id === "water" ? -1 : b.id === "water" ? 1 : a.n.localeCompare(b.n, "ru")));
+    $("#dk-list", ov).innerHTML = list.length ? list.map(rowHtml).join("") : `<div class="empty"><b>Ничего не найдено</b>Добавьте свой напиток кнопкой ниже.</div>`;
+  }
+
+  body.addEventListener("click", (e) => {
+    const cat = e.target.closest("[data-cat]");
+    if (cat) {
+      st.cat = cat.dataset.cat;
+      body.querySelectorAll("#dk-cats .chip").forEach((c) => c.classList.toggle("sel", c.dataset.cat === st.cat));
+      draw();
+      return;
+    }
+    const star = e.target.closest("[data-star]");
+    if (star) { toggleFav(star.dataset.star); star.classList.toggle("on", state.fav.includes(star.dataset.star)); return; }
+    const pick = e.target.closest("[data-did]");
+    if (pick && DRINK_BY_ID[pick.dataset.did]) showDetail(DRINK_BY_ID[pick.dataset.did]);
+  });
+
+  function showDetail(d, existing) {
+    const isCustom = d.id === "custom";
+    const isWater = d.id === "water" && !existing;
+    const oldCaf = existing ? (Number(existing.ml) * Number(existing.caf100)) / 100 : 0;
+    const lastMl = existing ? existing.ml : (Number(lsGet(`dml:${d.id}`)) || 250);
+    body.innerHTML = `
+      <div class="picked"><div class="p-name">${isCustom ? "Свой напиток" : esc(d.n)}</div>${isCustom ? "" : `<div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div>`}</div>
+      ${isCustom ? `<label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
+        <div class="field-grid">
+          <label class="field"><span>Гидратация, %</span><input id="dk-pct" class="input" inputmode="decimal" value="${String(d.h).replace(".", ",")}" autocomplete="off"></label>
+          <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dk-caf" class="input" inputmode="decimal" value="${existing ? String(existing.caf100).replace(".", ",") : "0"}" autocomplete="off"></label>
+        </div>` : ""}
+      <label class="field"><span>Объём, мл</span><input id="dk-ml" class="input big" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"></label>
+      <div class="chips">${[100, 150, 200, 250, 330, 500].map((n) => `<button type="button" class="chip" data-n="${n}">${n}</button>`).join("")}</div>
+      <div class="preview" id="dk-prev"></div>
+      ${SWEET_CATS.includes(d.cat) && !existing ? `<div class="note">Калории здесь не считаются. Если в напитке есть сахар, добавьте его как еду по штрих-коду: калории, жидкость и кофеин посчитаются вместе, повторно вносить не нужно.</div>` : ""}
+      <div class="row">${existing ? `<button type="button" class="btn danger" id="dk-del">Удалить</button>` : `<button type="button" class="btn ghost" id="dk-back">Назад</button>`}<button type="button" class="btn primary grow" id="dk-save">${existing ? "Сохранить" : "Добавить"}</button></div>`;
+
+    const read = () => {
+      const ml = num($("#dk-ml", ov).value);
+      if (isCustom) return { ml, pct: numS($("#dk-pct", ov).value), caf100: num($("#dk-caf", ov).value), name: $("#dk-name", ov).value.trim() || "Свой напиток" };
+      return { ml, pct: d.h, caf100: r1((d.c / 240) * 100), name: d.n };
+    };
+    const upd = () => {
+      const r = read();
+      const eff = r.ml > 0 && Number.isFinite(r.pct) ? (r.ml * r.pct) / 100 : 0;
+      const caf = r.ml > 0 && Number.isFinite(r.caf100) ? (r.ml * r.caf100) / 100 : 0;
+      $("#dk-prev", ov).innerHTML = `
+        <div class="pv-kcal ${eff < 0 ? "neg" : ""}">${signed(Math.round(eff))}<small>мл жидкости засчитано</small></div>
+        <div class="pv-macros"><div><b>${fmt(r.ml > 0 ? r.ml : 0)}</b>выпито, мл</div><div><b>${Number.isFinite(r.pct) ? fmt(r.pct) : 0}%</b>гидратация</div><div><b>${fmtInt(caf)}</b>кофеин, мг</div></div>
+        ${isWater ? "" : cafWarnHtml(caf, oldCaf)}`;
+    };
+    upd();
+    body.addEventListener("input", upd);
+    body.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { $("#dk-ml", ov).value = c.dataset.n; upd(); }));
+    if (!existing) $("#dk-back", ov).addEventListener("click", showList);
+    $("#dk-save", ov).addEventListener("click", () => {
+      const r = read();
+      if (!(r.ml > 0 && r.ml <= 5000)) { toast("Введите объём от 1 до 5000 мл"); return; }
+      if (!Number.isFinite(r.pct) || r.pct < -400 || r.pct > 200) { toast("Гидратация: от −400 до 200 процентов"); return; }
+      if (!Number.isFinite(r.caf100) || r.caf100 > 1000) { toast("Кофеин: от 0 до 1000 мг на 100 мл"); return; }
+      lsSet(`dml:${d.id}`, String(r.ml));
+      if (isWater) { changeWater(Math.round(r.ml)); ov.close(); return; }
+      const data = { drinkId: existing ? existing.drinkId : d.id, name: r.name, ml: r.ml, pct: r.pct, caf100: r.caf100, alc: existing ? existing.alc || "" : d.a };
+      if (existing) updateDoc(docRef("drinks", existing.id), data).catch(writeFail);
+      else addDoc(colRef("drinks"), { ...data, date: state.date, createdAt: serverTimestamp() }).catch(writeFail);
+      const warn = cafToast((r.ml * r.caf100) / 100, oldCaf);
+      ov.close();
+      toast(warn || "Напиток сохранён");
+    });
+    if (existing) {
+      $("#dk-del", ov).addEventListener("click", () => {
+        if (!confirm(`Удалить «${existing.name}»?`)) return;
+        deleteDoc(docRef("drinks", existing.id)).catch(writeFail);
+        ov.close();
+        toast("Удалено");
+      });
+    }
+  }
+
+  if (entry) {
+    const base = DRINK_BY_ID[entry.drinkId];
+    showDetail(entry.drinkId === "custom" || !base
+      ? { id: "custom", n: entry.name, h: Number(entry.pct), c: 0, a: "", cat: "other" }
+      : { id: base.id, n: entry.name, h: Number(entry.pct), c: (Number(entry.caf100) * 240) / 100, a: entry.alc || "", cat: base.cat }, entry);
+  } else if (presetId && DRINK_BY_ID[presetId]) showDetail(DRINK_BY_ID[presetId]);
+  else showList();
+}
+
 /* ================= Обработчики ================= */
 const actions = {
   prevDay() { if (state.date > minDate()) { state.date = addDays(state.date, -1); render(); } },
@@ -1407,18 +1806,32 @@ const actions = {
   newProduct() { openProductForm(null); },
   goTab(ds) { state.tab = ds.tab; render(); window.scrollTo(0, 0); },
   addWater(ds) { changeWater(Number(ds.ml)); },
+  addDrink() { openDrinkSheet(); },
+  quickDrink(ds) { openDrinkSheet(null, ds.did); },
+  editFluid(ds) {
+    if (ds.kind === "food") { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); }
+    else { const x = state.drinks.find((y) => y.id === ds.id); if (x) openDrinkSheet(x); }
+  },
   waterCustom() { openWaterSheet(); },
   addActivity() { openActivitySheet(null); },
   editActivity(ds) { const a = state.activity.find((x) => x.id === ds.id); if (a) openActivitySheet(a); },
   openProfile() { openProfile(false); },
+  async copyLink(ds) {
+    const url = `${baseUrl()}?${ds.q}`;
+    toast((await copyText(url)) ? "Ссылка скопирована" : "Не удалось скопировать ссылку");
+  },
   scanProduct() { openScanner((code) => processBarcode(code, (p) => openProductForm(p), null)); },
   importStarter() {
     const items = starterMissing();
     if (!items.length) { toast("Все базовые продукты уже добавлены"); return; }
     if (!confirm(`Добавить ${items.length} базовых продуктов в общую базу? Их увидят все пользователи.`)) return;
     const batch = writeBatch(db);
-    items.forEach(([name, kcal, protein, fat, carbs]) => {
-      batch.set(prodDoc(`s_${fnv(fold(name))}`), { name, brand: "", barcode: "", kcal, protein, fat, carbs, source: "starter", ...authorFields(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    items.forEach(([name, kcal, protein, fat, carbs, meta]) => {
+      batch.set(prodDoc(`s_${fnv(fold(name))}`), {
+        name, brand: "", barcode: "", kcal, protein, fat, carbs,
+        drink: !!meta, hydrationPct: meta ? meta[0] : 0, caffeineMg100: meta ? meta[1] : 0,
+        source: "starter", ...authorFields(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
     });
     batch.commit().then(() => toast(`Добавлено продуктов: ${items.length}`)).catch(writeFail);
   },
@@ -1457,6 +1870,8 @@ $("#nav").addEventListener("click", (e) => {
   render();
   window.scrollTo(0, 0);
 });
+
+readLinkFromUrl();
 
 // Опечатки в данных не должны ломать интерфейс молча
 window.addEventListener("unhandledrejection", (e) => console.error("Необработанная ошибка:", e.reason));
