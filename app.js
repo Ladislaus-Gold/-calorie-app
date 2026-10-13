@@ -9,8 +9,8 @@ import {
   collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=20";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=20";
+import { STARTER } from "./starter.js?v=21";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=21";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -931,7 +931,7 @@ function openAiSetup() {
     <button type="button" class="btn primary full" id="ai-save">Сохранить ключ</button>`);
   $("#ai-save", ov).addEventListener("click", () => {
     const v = $("#ai-key", ov).value.trim();
-    if (!/^[\w-]{20,}$/.test(v)) { toast("Ключ выглядит неверно: скопируйте его целиком"); return; }
+    if (!/^[\w.~-]{20,}$/.test(v)) { toast("Ключ выглядит неверно: скопируйте его целиком"); return; }
     try { localStorage.setItem(AI_KEY, v); } catch { toast("Не удалось сохранить ключ на этом устройстве"); return; }
     aiModelsCache = null;
     ov.close();
