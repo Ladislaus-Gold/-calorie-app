@@ -5,10 +5,11 @@ import {
   signInWithPopup, signInWithRedirect, getRedirectResult, signOut,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 import {
-  getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc,
+  getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, query, where, serverTimestamp, writeBatch,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=4";
+import { STARTER } from "./starter.js?v=5";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -21,7 +22,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+// Локальный кэш: быстрее открывается и экономит бесплатные чтения общей базы
+let db;
+try {
+  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch (e) {
+  console.warn("Кэш Firestore недоступен, работаем без него:", e);
+  db = getFirestore(app);
+}
 
 /* ================= Утилиты ================= */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -38,6 +46,13 @@ const fmt = (n) => String(r1(n)).replace(".", ",");
 const fmtInt = (n) => Math.round(n).toLocaleString("ru-RU");
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
+
+const firstName = (u) => {
+  const raw = String((u && (u.displayName || u.email)) || "").trim();
+  return (raw.split(/[\s@]/)[0] || "Пользователь").slice(0, 40);
+};
+const fnv = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+const clampNum = (v, max) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : 0; };
 
 const MONTHS = ["янв.", "февр.", "мар.", "апр.", "мая", "июн.", "июл.", "авг.", "сент.", "окт.", "нояб.", "дек."];
 const WD_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
@@ -76,6 +91,8 @@ const ICONS = {
   apple: '<path d="M12 8c-2-2-7-1-7 5 0 4 3 8 5 8 1 0 1.5-.5 2-.5s1 .5 2 .5c2 0 5-4 5-8 0-6-5-7-7-5z"/><path d="M12 8c0-2 1-3 3-4"/>',
 };
 const svgIcon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
+const CHEV_L = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+const CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
 const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const SCAN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 8v8M11 8v8M14 8v8M17 8v8"/></svg>';
 
@@ -190,11 +207,13 @@ function startData(uid) {
     render();
   };
 
-  state.unsubs.push(onSnapshot(collection(db, "users", uid, "products"), (snap) => {
+  // Общая база: продукты видят и добавляют все пользователи
+  state.unsubs.push(onSnapshot(collection(db, "products"), (snap) => {
     state.products = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
     state.error = "";
     markReady("products"); render();
+    migratePersonal(uid);
   }, fail));
 
   const from = minDate();
@@ -210,6 +229,55 @@ function startData(uid) {
   }, fail));
 }
 
+const prodCol = () => collection(db, "products");
+const prodDoc = (id) => doc(db, "products", id);
+const productIdFor = (d) => {
+  const bc = normBC(d.barcode);
+  if (bc) return `bc_${bc}`;
+  if (d.source === "starter") return `s_${fnv(fold(d.name))}`;
+  return null;
+};
+const authorFields = () => ({ createdBy: state.user.uid, createdByName: firstName(state.user) });
+
+// Один раз переносит личные продукты (старая версия) в общую базу
+async function migratePersonal(uid) {
+  if (state.migratedFor === uid) return;
+  state.migratedFor = uid;
+  try {
+    const old = await getDocs(collection(db, "users", uid, "products"));
+    if (old.empty) return;
+    let added = 0;
+    const known = state.products.slice();
+    for (let i = 0; i < old.docs.length; i += 150) {
+      const batch = writeBatch(db);
+      for (const d of old.docs.slice(i, i + 150)) {
+        const o = d.data();
+        const name = String(o.name || "").trim().slice(0, 120);
+        if (name) {
+          const data = {
+            name, brand: String(o.brand || "").slice(0, 80), barcode: String(o.barcode || "").replace(/\D/g, "").slice(0, 20),
+            kcal: clampNum(o.kcal, 1000), protein: clampNum(o.protein, 100), fat: clampNum(o.fat, 100), carbs: clampNum(o.carbs, 100),
+            source: String(o.source || "user"),
+          };
+          const dup = known.some((p) => fold(p.name) === fold(name) || (data.barcode && normBC(p.barcode) === normBC(data.barcode)));
+          if (!dup) {
+            const id = productIdFor(data);
+            const ref = id ? prodDoc(id) : doc(prodCol());
+            batch.set(ref, { ...data, ...authorFields(), createdAt: o.createdAt || serverTimestamp(), updatedAt: serverTimestamp() });
+            known.push({ id: ref.id, ...data });
+            added++;
+          }
+        }
+        batch.delete(d.ref);
+      }
+      await batch.commit();
+    }
+    if (added) toast(`Ваши продукты перенесены в общую базу: ${added}`);
+  } catch (e) {
+    console.error("Перенос продуктов:", e);
+    toast("Не удалось перенести прежние продукты в общую базу. Проверьте правила Firestore.");
+  }
+}
 const colRef = (name) => collection(db, "users", state.user.uid, name);
 const docRef = (name, id) => doc(db, "users", state.user.uid, name, id);
 const writeFail = (err) => { console.error(err); toast("Не удалось сохранить. Проверьте соединение."); };
@@ -242,6 +310,16 @@ function donut(t) {
 }
 
 /* ================= Дневник ================= */
+function dateShort(s) { const d = parseD(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
+
+function macrosHtml(p, f, c) {
+  return `<span class="mx"><i style="background:var(--protein)"></i>Б ${fmt(p)}</span><span class="mx"><i style="background:var(--fat)"></i>Ж ${fmt(f)}</span><span class="mx"><i style="background:var(--carbs)"></i>У ${fmt(c)}</span>`;
+}
+
+function pageHead(overline, title, actions = "") {
+  return `<header class="head"><div><div class="overline">${overline}</div><h1 class="title">${title}</h1></div>${actions ? `<div class="head-actions">${actions}</div>` : ""}</header>`;
+}
+
 function viewDiary() {
   const day = state.date;
   const list = entriesOn(day);
@@ -266,12 +344,13 @@ function viewDiary() {
   const kP = t.protein * 4, kC = t.carbs * 4, kF = t.fat * 9, sum = kP + kC + kF;
   const pct = (k) => (sum > 0 ? Math.round((k / sum) * 100) : 0);
   const left = state.goal - t.kcal;
+  const over = left < 0;
   const barPct = Math.min(100, (t.kcal / state.goal) * 100);
   const legend = [
     ["Белки", "var(--protein)", t.protein, pct(kP)],
     ["Углеводы", "var(--carbs)", t.carbs, pct(kC)],
     ["Жиры", "var(--fat)", t.fat, pct(kF)],
-  ].map(([n, c, g, p]) => `<div class="lg-row"><span class="lg-dot" style="background:${c}"></span><span>${n}</span><span class="lg-val">${fmt(g)} г<small>${p}%</small></span></div>`).join("");
+  ].map(([n, c, g, p]) => `<div class="lg-row"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}</span><span class="lg-val">${fmt(g)} г<small>${p}%</small></span></div>`).join("");
 
   // приёмы пищи
   const mealsHtml = MEALS.map((m) => {
@@ -279,13 +358,13 @@ function viewDiary() {
     const mt = sumEntries(items);
     const rows = items.map((e) => `
       <button type="button" class="entry" data-act="editEntry" data-id="${esc(e.id)}">
-        <span><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} г${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
+        <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} г${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
         <span class="e-kcal">${fmtInt(e.kcal)}<small>ккал</small></span>
       </button>`).join("");
     return `<section class="card meal">
       <div class="meal-head">
         <span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span>
-        <div><div class="meal-name">${m.name}</div><div class="meal-macros">Б ${fmt(mt.protein)}  Ж ${fmt(mt.fat)}  У ${fmt(mt.carbs)}</div></div>
+        <div class="meal-info"><div class="meal-name">${m.name}</div><div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs)}</div></div>
         <div class="meal-kcal">${fmtInt(mt.kcal)}<small>ккал</small></div>
         <button type="button" class="add-btn" data-act="addFood" data-meal="${m.id}" aria-label="Добавить в «${m.name}»">+</button>
       </div>
@@ -294,20 +373,20 @@ function viewDiary() {
   }).join("");
 
   return `
-    <header class="topbar">
-      <button type="button" class="icon-btn" data-act="prevDay" aria-label="Предыдущий день" ${day <= min ? "disabled" : ""}>
-        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <button type="button" class="day-title" data-act="today">${dayLabel(day)}</button>
-      <button type="button" class="icon-btn" data-act="nextDay" aria-label="Следующий день">
-        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
-    </header>
-    <section class="card"><div class="week-row">${weekHtml}</div><p class="streak">${streakText}</p></section>
+    ${pageHead("Дневник", dayLabel(day), `
+      <button type="button" class="iconbtn" data-act="prevDay" aria-label="Предыдущий день" ${day <= min ? "disabled" : ""}>${CHEV_L}</button>
+      <button type="button" class="chip-btn" data-act="today">${dateShort(day)}</button>
+      <button type="button" class="iconbtn" data-act="nextDay" aria-label="Следующий день">${CHEV_R}</button>`)}
+    <section class="card week"><div class="week-row">${weekHtml}</div><p class="streak">${streakText}</p></section>
+    <section class="hero ${over ? "over" : ""}">
+      <div class="hero-head"><span>${over ? "Перебор" : "Осталось"}</span><span class="hero-stamp">цель ${fmtInt(state.goal)} ккал</span></div>
+      <div class="hero-value">${fmtInt(Math.abs(left))}<small>ккал</small></div>
+      <div class="hero-caption">Съедено ${fmtInt(t.kcal)} ккал</div>
+      <div class="hero-track"><i style="width:${barPct}%"></i></div>
+    </section>
     <section class="card">
+      <h2 class="h2">Баланс БЖУ</h2>
       <div class="sum-grid">${donut(t)}<div class="legend">${legend}</div></div>
-      <div class="progress">
-        <div class="progress-top"><span>${left >= 0 ? `Осталось <b>${fmtInt(left)}</b> ккал` : `Перебор <b>${fmtInt(-left)}</b> ккал`}</span><span>цель ${fmtInt(state.goal)}</span></div>
-        <div class="bar ${left < 0 ? "over" : ""}"><i style="width:${barPct}%"></i></div>
-      </div>
     </section>
     ${mealsHtml}`;
 }
@@ -318,15 +397,17 @@ function filterProducts(q) {
   const words = fold(q).split(/\s+/).filter(Boolean);
   if (!words.length) return state.products;
   return state.products.filter((p) => {
-    const hay = fold(`${p.name} ${p.brand || ""} ${p.barcode || ""}`);
+    const hay = fold(`${p.name} ${p.brand || ""} ${p.barcode || ""} ${p.createdByName || ""}`);
     return words.every((w) => hay.includes(w)); // все слова запроса должны встретиться: «куриная жарен»
   });
 }
 
 function productRow(p, attr) {
-  const sub = [p.brand, p.barcode].filter(Boolean).map(esc).join(", ");
+  const mine = !!state.user && p.createdBy === state.user.uid;
+  const by = !mine && p.createdByName ? `Добавил(а): ${esc(p.createdByName)}` : "";
+  const meta = [p.brand ? esc(p.brand) : "", p.barcode ? esc(p.barcode) : "", by].filter(Boolean).join(", ");
   return `<button type="button" class="prow" ${attr}="${esc(p.id)}">
-    <span><span class="p-name">${esc(p.name)}</span><span class="p-sub">${sub ? `${sub}. ` : ""}Б ${fmt(p.protein)}  Ж ${fmt(p.fat)}  У ${fmt(p.carbs)}</span></span>
+    <span class="p-main"><span class="p-name">${esc(p.name)}</span><span class="p-macros">${macrosHtml(p.protein, p.fat, p.carbs)}</span>${meta ? `<span class="p-sub">${meta}</span>` : ""}</span>
     <span class="p-kcal">${fmtInt(p.kcal)}<small>ккал / 100 г</small></span></button>`;
 }
 
@@ -340,18 +421,18 @@ function productListHtml() {
 }
 
 function viewProducts() {
+  const missing = starterMissing().length;
   return `
-    <header class="topbar simple"><h1>Мои продукты</h1>
-      <div class="row" style="gap:8px">
-        <button type="button" class="icon-btn" data-act="scanProduct" aria-label="Сканировать штрих-код">${SCAN_SVG}</button>
-        <button type="button" class="btn primary" style="height:42px" data-act="newProduct">+ Новый</button>
-      </div></header>
-    <input id="prod-search" class="input search" type="search" placeholder="Название или штрих-код" value="${esc(state.prodSearch)}" autocomplete="off">
-    <section class="card" style="padding:6px 14px"><div id="plist" class="plist">${productListHtml()}</div></section>
-    ${starterMissing().length ? `<section class="card">
+    ${pageHead("Общая база", "Продукты", `
+      <button type="button" class="iconbtn" data-act="scanProduct" aria-label="Сканировать штрих-код">${SCAN_SVG}</button>
+      <button type="button" class="round-btn" data-act="newProduct" aria-label="Новый продукт">+</button>`)}
+    <input id="prod-search" class="input search" type="search" placeholder="Название, штрих-код или автор" value="${esc(state.prodSearch)}" autocomplete="off">
+    <section class="card list-card"><div id="plist" class="plist">${productListHtml()}</div></section>
+    <p class="foot-note">Продукты видят все пользователи. Править или удалять продукт может только тот, кто его добавил.</p>
+    ${missing ? `<section class="card">
       <h2 class="h2">Базовые продукты</h2>
-      <p class="chart-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${starterMissing().length} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный. У жареных значения ориентировочные и уже включают типичное количество масла.</p>
-      <button type="button" class="btn ghost full" data-act="importStarter">Добавить в мой список</button>
+      <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный. У жареных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
+      <button type="button" class="btn ghost full" data-act="importStarter">Добавить в общую базу</button>
     </section>` : ""}`;
 }
 
@@ -380,7 +461,7 @@ function viewReports() {
   const avg = withData.reduce((a, x) => ({ kcal: a.kcal + x.t.kcal, protein: a.protein + x.t.protein, fat: a.fat + x.t.fat, carbs: a.carbs + x.t.carbs }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
 
   return `
-    <header class="topbar simple"><h1>Отчёты</h1></header>
+    ${pageHead("Статистика", "Отчёты")}
     <div class="seg" role="group" aria-label="Период">
       <button type="button" data-act="repDays" data-n="7" class="${n === 7 ? "on" : ""}">7 дней</button>
       <button type="button" data-act="repDays" data-n="30" class="${n === 30 ? "on" : ""}">30 дней</button>
@@ -411,12 +492,16 @@ function viewMe() {
     ? `<img class="avatar" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">`
     : `<div class="avatar">${initial}</div>`;
   return `
-    <header class="topbar simple"><h1>Я</h1></header>
+    ${pageHead("Профиль", "Я")}
     <section class="card"><div class="me-head">${avatar}<div><div class="me-name">${esc(u.displayName || "Без имени")}</div><div class="me-mail">${esc(u.email || "")}</div></div></div></section>
     <section class="card">
       <h2 class="h2">Дневная цель</h2>
       <label class="field"><span>Калории в день</span><input id="goal-input" class="input" inputmode="numeric" value="${state.goal}" autocomplete="off"></label>
       <button type="button" class="btn primary full" data-act="saveGoal">Сохранить цель</button>
+    </section>
+    <section class="card">
+      <h2 class="h2">Общая база продуктов</h2>
+      <p class="foot-note" style="margin:0">Всего продуктов: <b>${state.products.length}</b>. Добавили вы: <b>${state.products.filter((p) => p.createdBy === u.uid).length}</b>. Дневник и цель видите только вы.</p>
     </section>
     <section class="card"><button type="button" class="btn danger full" data-act="logout">Выйти из аккаунта</button></section>`;
 }
@@ -683,14 +768,14 @@ async function processBarcode(code, onOwn, onSaved) {
   if (own) { onOwn(own); return; }
   toast("Ищу в Open Food Facts…");
   const r = await fetchOFF(code);
-  if (r.state === "found") openProductForm(null, onSaved, { ...r.data, note: OFF_NOTE });
+  if (r.state === "found") openProductForm(null, onSaved, { ...r.data, source: "off", note: OFF_NOTE });
   else if (r.state === "none") openProductForm(null, onSaved, { barcode: code, note: NEW_BC_NOTE });
   else openProductForm(null, onSaved, { barcode: code, note: OFF_FAIL_NOTE });
 }
 
 const starterMissing = () => {
-  const have = new Set(state.products.map((p) => String(p.name).trim().toLowerCase()));
-  return STARTER.filter((x) => !have.has(x[0].toLowerCase()));
+  const have = new Set(state.products.map((p) => fold(p.name)));
+  return STARTER.filter((x) => !have.has(fold(x[0])));
 };
 
 /* ================= Окна снизу ================= */
@@ -731,7 +816,7 @@ function openAddFood(mealId, presetProduct) {
   function showList() {
     body.innerHTML = `
       <button type="button" class="btn primary full scan-cta" id="af-scan">${SCAN_SVG}<span>Сканировать штрих-код</span></button>
-      <input id="af-q" class="input search" type="search" placeholder="Найти в моих продуктах" value="${esc(q)}" autocomplete="off">
+      <input id="af-q" class="input search" type="search" placeholder="Найти в общей базе" value="${esc(q)}" autocomplete="off">
       <div id="af-list" class="plist"></div>
       <div id="af-off"></div>
       <button type="button" class="btn ghost full" id="af-new" style="margin-top:12px">+ Новый продукт</button>`;
@@ -773,7 +858,7 @@ function openAddFood(mealId, presetProduct) {
     $("#af-back2", ov).addEventListener("click", showList);
     body.querySelectorAll("[data-off-i]").forEach((b) => b.addEventListener("click", () => {
       const d = res[Number(b.dataset.offI)];
-      openProductForm(null, showDetail, { ...d, note: OFF_NOTE });
+      openProductForm(null, showDetail, { ...d, source: "off", note: OFF_NOTE });
     }));
   }
 
@@ -843,29 +928,40 @@ function openEditEntry(entry) {
 
 /* ----- Форма продукта ----- */
 function openProductForm(product, onSaved, prefill = {}) {
+  const uid = state.user.uid;
+  const ro = !!product && product.createdBy !== uid; // чужой продукт: только просмотр
   const p = product || { name: "", brand: "", barcode: "", kcal: "", protein: "", fat: "", carbs: "", ...prefill };
-  const note = product ? "" : (prefill.note || "");
+  const note = ro
+    ? `Добавил(а): ${product.createdByName || "другой пользователь"}. Править и удалять продукт может только автор.`
+    : (product ? "" : (prefill.note || ""));
   const val = (v) => (v === "" || v == null ? "" : String(v).replace(".", ","));
+  const dis = ro ? "disabled" : "";
+  const barcodeField = ro
+    ? `<input id="pf-barcode" class="input" value="${esc(p.barcode || "")}" disabled>`
+    : `<div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" maxlength="20" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>`;
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
-    <label class="field"><span>Название</span><input id="pf-name" class="input" value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
-    <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" value="${esc(p.brand || "")}" autocomplete="off"></label>
-    <div class="field"><span>Штрих-код (необязательно)</span>
-      <div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div></div>
+    <label class="field"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
+    <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
+    <div class="field"><span>Штрих-код (необязательно)</span>${barcodeField}</div>
     <div class="field"><span>Значения на 100 г</span></div>
     <div class="field-grid">
-      <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" value="${val(p.kcal)}" autocomplete="off"></label>
-      <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" value="${val(p.protein)}" autocomplete="off"></label>
-      <label class="field"><span>Жиры, г</span><input id="pf-fat" class="input" inputmode="decimal" value="${val(p.fat)}" autocomplete="off"></label>
-      <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" value="${val(p.carbs)}" autocomplete="off"></label>
+      <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
+      <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" ${dis} value="${val(p.protein)}" autocomplete="off"></label>
+      <label class="field"><span>Жиры, г</span><input id="pf-fat" class="input" inputmode="decimal" ${dis} value="${val(p.fat)}" autocomplete="off"></label>
+      <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" ${dis} value="${val(p.carbs)}" autocomplete="off"></label>
     </div>
-    <div class="row">${product ? `<button type="button" class="btn danger" id="pf-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="pf-save">Сохранить</button></div>`);
+    <div class="row">${ro
+      ? `<button type="button" class="btn ghost full" data-close>Закрыть</button>`
+      : `${product ? `<button type="button" class="btn danger" id="pf-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="pf-save">Сохранить</button>`}</div>`);
+
+  if (ro) return;
 
   $("#pf-scan", ov).addEventListener("click", () => openScanner(async (code) => {
     $("#pf-barcode", ov).value = code;
     const dup = state.products.find((x) => normBC(x.barcode) === normBC(code) && (!product || x.id !== product.id));
-    if (dup) { toast(`Этот штрих-код уже есть: ${dup.name}`); return; }
+    if (dup) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
     const empty = !$("#pf-name", ov).value.trim() && !$("#pf-kcal", ov).value.trim();
     if (product || !empty) return;
     toast("Ищу в Open Food Facts…");
@@ -885,35 +981,40 @@ function openProductForm(product, onSaved, prefill = {}) {
   $("#pf-save", ov).addEventListener("click", () => {
     const name = $("#pf-name", ov).value.trim();
     const brand = $("#pf-brand", ov).value.trim();
-    const barcode = $("#pf-barcode", ov).value.replace(/\s+/g, "");
+    const barcode = $("#pf-barcode", ov).value.replace(/\D/g, "");
     const kcal = num($("#pf-kcal", ov).value);
     const opt = (id) => { const v = $(id, ov).value.trim(); return v === "" ? 0 : num(v); };
     const protein = opt("#pf-protein"), fat = opt("#pf-fat"), carbs = opt("#pf-carbs");
     if (!name) { toast("Введите название"); return; }
     if (!Number.isFinite(kcal)) { toast("Введите калории на 100 г"); return; }
     if ([protein, fat, carbs].some((x) => !Number.isFinite(x))) { toast("Белки, жиры и углеводы: введите число"); return; }
+    if (kcal > 1000) { toast("Калории на 100 г: не больше 1000"); return; }
+    if ([protein, fat, carbs].some((x) => x > 100)) { toast("Белки, жиры и углеводы на 100 г: не больше 100"); return; }
     if (barcode) {
-      const dup = state.products.find((x) => x.barcode === barcode && (!product || x.id !== product.id));
-      if (dup) { toast(`Этот штрих-код уже есть: ${dup.name}`); return; }
+      const dup = state.products.find((x) => normBC(x.barcode) === normBC(barcode) && (!product || x.id !== product.id));
+      if (dup) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
     }
     const data = { name, brand, barcode, kcal, protein, fat, carbs, updatedAt: serverTimestamp() };
     if (product) {
-      updateDoc(docRef("products", product.id), data).catch(writeFail);
+      updateDoc(prodDoc(product.id), data).catch(writeFail);
       ov.close();
-      if (onSaved) onSaved({ id: product.id, ...data });
+      if (onSaved) onSaved({ ...product, ...data });
     } else {
-      const ref = doc(colRef("products"));
-      setDoc(ref, { ...data, createdAt: serverTimestamp() }).catch(writeFail);
+      const source = prefill.source || "user";
+      const id = productIdFor({ barcode, source, name });
+      const ref = id ? prodDoc(id) : doc(prodCol());
+      const full = { ...data, source, ...authorFields(), createdAt: serverTimestamp() };
+      setDoc(ref, full).catch(writeFail);
       ov.close();
-      toast("Продукт сохранён");
-      if (onSaved) onSaved({ id: ref.id, ...data });
+      toast("Продукт сохранён в общую базу");
+      if (onSaved) onSaved({ id: ref.id, ...full });
     }
   });
 
   if (product) {
     $("#pf-del", ov).addEventListener("click", () => {
-      if (!confirm(`Удалить продукт «${product.name}»? Записи в дневнике останутся.`)) return;
-      deleteDoc(docRef("products", product.id)).catch(writeFail);
+      if (!confirm(`Удалить продукт «${product.name}» из общей базы? Записи в дневниках останутся.`)) return;
+      deleteDoc(prodDoc(product.id)).catch(writeFail);
       ov.close();
       toast("Продукт удалён");
     });
@@ -933,10 +1034,10 @@ const actions = {
   importStarter() {
     const items = starterMissing();
     if (!items.length) { toast("Все базовые продукты уже добавлены"); return; }
-    if (!confirm(`Добавить ${items.length} базовых продуктов в ваш список?`)) return;
+    if (!confirm(`Добавить ${items.length} базовых продуктов в общую базу? Их увидят все пользователи.`)) return;
     const batch = writeBatch(db);
     items.forEach(([name, kcal, protein, fat, carbs]) => {
-      batch.set(doc(colRef("products")), { name, brand: "", barcode: "", kcal, protein, fat, carbs, source: "starter", createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      batch.set(prodDoc(`s_${fnv(fold(name))}`), { name, brand: "", barcode: "", kcal, protein, fat, carbs, source: "starter", ...authorFields(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     });
     batch.commit().then(() => toast(`Добавлено продуктов: ${items.length}`)).catch(writeFail);
   },
