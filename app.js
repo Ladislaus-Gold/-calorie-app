@@ -9,8 +9,8 @@ import {
   collection, doc, setDoc, addDoc, updateDoc, deleteDoc, getDocs,
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=18";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=18";
+import { STARTER } from "./starter.js?v=20";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=20";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -78,7 +78,8 @@ function toast(msg) {
 }
 
 /* ================= Состояние ================= */
-const HISTORY_DAYS = 60; // сколько дней истории держим в приложении
+const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
+const FLOOR_DATE = "2020-01-01"; // нижняя граница для календарей
 const MEALS = [
   { id: "breakfast", name: "Завтрак", icon: "sunrise" },
   { id: "lunch", name: "Обед", icon: "sun" },
@@ -178,6 +179,11 @@ const state = {
   entries: [],
   goal: 2000,
   repDays: 7,
+  repCustom: null,
+  hist: { entries: [], water: [], activity: [], drinks: [] },
+  histFrom: null,
+  liveFrom: null,
+  histBusy: false,
   prodSearch: "",
   error: "",
   profile: {},
@@ -191,7 +197,23 @@ const state = {
 };
 
 const minDate = () => addDays(todayStr(), -HISTORY_DAYS);
-const entriesOn = (d) => state.entries.filter((e) => e.date === d);
+// Индексы по дате: пересобираются только когда меняется сам массив данных
+const byDateIndex = (() => {
+  const cache = new Map();
+  return (key) => {
+    const arr = state[key];
+    let c = cache.get(key);
+    if (!c || c.arr !== arr) {
+      const m = new Map();
+      for (const x of arr) { const l = m.get(x.date); if (l) l.push(x); else m.set(x.date, [x]); }
+      c = { arr, m };
+      cache.set(key, c);
+    }
+    return c.m;
+  };
+})();
+const EMPTY = [];
+const entriesOn = (d) => byDateIndex("entries").get(d) || EMPTY;
 const sumEntries = (list) => list.reduce(
   (a, e) => ({ kcal: a.kcal + (e.kcal || 0), protein: a.protein + (e.protein || 0), fat: a.fat + (e.fat || 0), carbs: a.carbs + (e.carbs || 0) }),
   { kcal: 0, protein: 0, fat: 0, carbs: 0 },
@@ -299,8 +321,9 @@ function startData(uid) {
   }, fail));
 
   const from = minDate();
+  state.liveFrom = from;
   state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "entries"), where("date", ">=", from)), (snap) => {
-    state.entries = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    state.entries = snap.docs.map((d) => ({ id: d.id, ...d.data() })).concat(state.hist.entries);
     markReady("entries"); render();
   }, fail));
 
@@ -312,17 +335,17 @@ function startData(uid) {
   }, fail));
 
   state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "water"), where("date", ">=", from)), (snap) => {
-    state.water = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    state.water = snap.docs.map((d) => ({ id: d.id, ...d.data() })).concat(state.hist.water);
     markReady("water"); render();
   }, fail));
 
   state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "activity"), where("date", ">=", from)), (snap) => {
-    state.activity = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    state.activity = snap.docs.map((d) => ({ id: d.id, ...d.data() })).concat(state.hist.activity);
     markReady("activity"); render();
   }, fail));
 
   state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "drinks"), where("date", ">=", from)), (snap) => {
-    state.drinks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    state.drinks = snap.docs.map((d) => ({ id: d.id, ...d.data() })).concat(state.hist.drinks);
     markReady("drinks"); render();
   }, fail));
 
@@ -331,6 +354,38 @@ function startData(uid) {
     render();
   }, (err) => console.warn("Избранные напитки:", err)));
 }
+
+// Старая история: читается один раз по запросу и хранится в памяти (в базе она остаётся навсегда)
+let histPromise = Promise.resolve();
+function loadHistory(from) {
+  histPromise = histPromise.then(async () => {
+    const live = state.liveFrom;
+    if (!live || !state.user || from >= live) return;
+    if (state.histFrom && from >= state.histFrom) return;
+    const upper = state.histFrom || live;
+    state.histBusy = true; render();
+    try {
+      const uid = state.user.uid;
+      const names = ["entries", "water", "activity", "drinks"];
+      const res = await Promise.all(names.map((n) => getDocs(query(collection(db, "users", uid, n), where("date", ">=", from), where("date", "<", upper)))));
+      names.forEach((n, i) => {
+        const rows = res[i].docs.map((d) => ({ id: d.id, ...d.data() }));
+        state.hist[n] = state.hist[n].concat(rows);
+        state[n] = state[n].concat(rows);
+      });
+      state.histFrom = from;
+    } catch (e) {
+      console.warn("История не загрузилась:", e);
+      toast("Не удалось загрузить старую историю. Проверьте интернет.");
+    } finally { state.histBusy = false; render(); }
+  });
+  return histPromise;
+}
+const earliestDate = () => {
+  let m = todayStr();
+  for (const k of ["entries", "water", "activity", "drinks"]) for (const x of state[k]) if (x.date && x.date < m) m = x.date;
+  return m;
+};
 
 const prodCol = () => collection(db, "products");
 const prodDoc = (id) => doc(db, "products", id);
@@ -444,7 +499,7 @@ function viewDiary() {
   const day = state.date;
   const list = entriesOn(day);
   const t = sumEntries(list);
-  const min = minDate();
+  const min = FLOOR_DATE;
 
   // неделя
   const ws = weekStart(day);
@@ -560,54 +615,490 @@ function viewProducts() {
 }
 
 /* ================= Отчёты ================= */
-function viewReports() {
-  const n = state.repDays;
-  const today = todayStr();
-  const days = [];
-  for (let i = n - 1; i >= 0; i--) days.push(addDays(today, -i));
-  const per = days.map((d) => ({ d, t: sumEntries(entriesOn(d)), has: entriesOn(d).length > 0 }));
-  const max = Math.max(state.goal * 1.15, ...per.map((x) => x.t.kcal), 1);
-  const bars = per.map((x) => {
-    const h = x.has ? Math.max(2, (x.t.kcal / max) * 100) : 0;
-    const cls = !x.has ? "b zero" : x.t.kcal > state.goal ? "b over" : "b";
-    return `<div class="col"><div class="${cls}" style="height:${x.has ? h : 2}%" title="${dayLabel(x.d)}: ${x.t.kcal} ккал"></div></div>`;
-  }).join("");
-  const labels = per.map((x, i) => {
-    const d = parseD(x.d);
-    const text = n === 7 ? WD_SHORT[d.getDay()] : (i % 5 === 0 ? d.getDate() : "");
-    return `<span>${text}</span>`;
-  }).join("");
-  const goalBottom = (state.goal / max) * 100;
+/* ================= Аналитика: период, итоги, выводы, анализ через Gemini ================= */
+const REP_PRESETS = [7, 14, 30, 90, 365, 0]; // 0 = за всё время
+const presetLabel = (v) => (v === 0 ? "Всё" : v === 365 ? "Год" : `${v} дн.`);
+const MEAL_NAME = Object.fromEntries(MEALS.map((m) => [m.id, m.name]));
 
-  const withData = per.filter((x) => x.has);
-  const k = withData.length || 1;
-  const avg = withData.reduce((a, x) => ({ kcal: a.kcal + x.t.kcal, protein: a.protein + x.t.protein, fat: a.fat + x.t.fat, carbs: a.carbs + x.t.carbs }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
+function reportDays() {
+  const today = todayStr();
+  const span = (from, to) => {
+    const out = [];
+    let d = from;
+    while (d <= to && out.length < 5000) { out.push(d); d = addDays(d, 1); }
+    return out.length ? out : [today];
+  };
+  if (state.repCustom) return span(state.repCustom.from, state.repCustom.to);
+  if (state.repDays === 0) return span(earliestDate(), today);
+  return span(addDays(today, -(state.repDays - 1)), today);
+}
+const shortDate = (s) => { const d = parseD(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : ""}`; };
+const periodText = (days) => (days.length === 1 ? dayLabel(days[0]) : `${shortDate(days[0])} — ${shortDate(days[days.length - 1])}`);
+
+// Все показатели за период считаются один раз
+function analyze(days) {
+  const plan = currentPlan();
+  const goal = state.goal;
+  const byDay = {};
+  state.entries.forEach((e) => { (byDay[e.date] = byDay[e.date] || []).push(e); });
+  const per = days.map((d) => {
+    const list = byDay[d] || [];
+    const t = sumEntries(list);
+    const items = fluidItems(d);
+    const drinkKcal = list.filter((e) => e.drink).reduce((s, e) => s + (e.kcal || 0), 0);
+    return {
+      d, has: list.length > 0, list, ...t, drinkKcal,
+      water: waterOn(d), hyd: hydrationOn(d), target: waterTarget(d), caf: caffeineOn(d),
+      actMin: actMinutes(d), burned: actBurned(d), items,
+    };
+  });
+  const logged = per.filter((x) => x.has);
+  const L = logged.length;
+  const sum = (arr, f) => arr.reduce((s, x) => s + f(x), 0);
+  const avg = (f) => (L ? sum(logged, f) / L : 0);
+  const kcalAvg = avg((x) => x.kcal), pAvg = avg((x) => x.protein), fAvg = avg((x) => x.fat), cAvg = avg((x) => x.carbs);
+  const macroKcal = pAvg * 4 + fAvg * 9 + cAvg * 4 || 1;
+  const share = { protein: (pAvg * 4) / macroKcal, fat: (fAvg * 9) / macroKcal, carbs: (cAvg * 4) / macroKcal };
+
+  const mealKcal = {};
+  MEALS.forEach((m) => { mealKcal[m.id] = 0; });
+  logged.forEach((x) => x.list.forEach((e) => { mealKcal[e.meal] = (mealKcal[e.meal] || 0) + (e.kcal || 0); }));
+  const mealTotal = sum(Object.values(mealKcal), (v) => v) || 1;
+
+  const wd = Array.from({ length: 7 }, () => ({ s: 0, n: 0 }));
+  logged.forEach((x) => { const i = (parseD(x.d).getDay() + 6) % 7; wd[i].s += x.kcal; wd[i].n++; });
+
+  const foods = {};
+  logged.forEach((x) => x.list.forEach((e) => {
+    const f = foods[e.name] = foods[e.name] || { name: e.name, n: 0, kcal: 0, qty: 0, drink: !!e.drink };
+    f.n++; f.kcal += e.kcal || 0; f.qty += e.grams || 0;
+  }));
+  const topFoods = Object.values(foods).sort((a, b) => b.kcal - a.kcal).slice(0, 8);
+
+  const drinks = {};
+  let plainWater = 0, alcMl = 0, cafTotal = 0, drinkKcalTotal = 0;
+  per.forEach((x) => {
+    plainWater += x.water;
+    drinkKcalTotal += x.drinkKcal;
+    x.items.forEach((i) => {
+      const r = drinks[i.name] = drinks[i.name] || { name: i.name, n: 0, ml: 0, eff: 0, caf: 0, kcal: 0 };
+      r.n++; r.ml += i.ml; r.eff += itemHyd(i); r.caf += itemCaf(i);
+      if (i.kind === "food") r.kcal += i.kcal || 0;
+      if (i.pct < 0) alcMl += i.ml;
+      cafTotal += itemCaf(i);
+    });
+  });
+  const drinkList = Object.values(drinks).sort((a, b) => b.ml - a.ml);
+  const hydDays = per.filter((x) => x.hyd > 0);
+  const hydAvg = hydDays.length ? sum(hydDays, (x) => x.hyd) / hydDays.length : 0;
+  const targetAvg = per.length ? sum(per, (x) => x.target) / per.length : 0;
+  const normDays = per.filter((x) => x.hyd >= x.target * 0.9).length;
+  const cafDays = per.filter((x) => x.caf > 0);
+  const cafLim = cafLimit();
+  const cafOver = per.filter((x) => x.caf > cafLim).length;
+
+  const actDays = per.filter((x) => x.actMin > 0);
+  const actTotalMin = sum(per, (x) => x.actMin), actTotalKcal = sum(per, (x) => x.burned);
+  const weeks = Math.max(1, per.length / 7);
+  const types = {};
+  state.activity.filter((a) => a.date >= days[0] && a.date <= days[days.length - 1]).forEach((a) => {
+    const t = types[a.name || a.type] = types[a.name || a.type] || { name: a.name || a.type, n: 0, min: 0, kcal: 0, strength: a.type === "strength" };
+    t.n++; t.min += Number(a.minutes) || 0; t.kcal += Number(a.kcal) || 0;
+  });
+  const actTypes = Object.values(types).sort((a, b) => b.min - a.min);
+  const strengthSessions = actTypes.filter((t) => t.strength).reduce((s, t) => s + t.n, 0);
+
+  const overDays = logged.filter((x) => x.kcal > goal * 1.1).length;
+  const underDays = logged.filter((x) => x.kcal < goal * 0.7).length;
+  return {
+    days, per, logged, L, plan, goal, kcalAvg, pAvg, fAvg, cAvg, share, mealKcal, mealTotal, wd, topFoods,
+    drinkList, plainWater, alcMl, cafTotal, drinkKcalTotal, hydAvg, hydDays: hydDays.length, targetAvg, normDays,
+    cafAvg: cafDays.length ? cafTotal / cafDays.length : 0, cafDays: cafDays.length, cafLim, cafOver,
+    actDays: actDays.length, actTotalMin, actTotalKcal, weeks, actTypes, strengthSessions, overDays, underDays,
+    burnedAvg: per.length ? actTotalKcal / per.length : 0,
+  };
+}
+
+// Выводы без ИИ: простые правила по данным периода
+function localInsights(a) {
+  const out = [];
+  const n = a.days.length;
+  const add = (kind, text) => out.push({ kind, text });
+  if (a.L === 0) { add("info", "За выбранный период нет записей о еде. Ведите дневник хотя бы несколько дней, и здесь появятся выводы."); return out; }
+  if (a.L < n * 0.7) add("info", `Еда записана в ${a.L} днях из ${n}. Чем полнее дневник, тем точнее выводы: пропущенные дни не учитываются.`);
+  const dev = (a.kcalAvg - a.goal) / a.goal;
+  if (Math.abs(dev) <= 0.1) add("good", `Калории в среднем ${fmtInt(a.kcalAvg)} ккал в день: это в пределах 10% от вашей цели (${fmtInt(a.goal)}).`);
+  else if (dev > 0) add("warn", `В среднем вы едите ${fmtInt(a.kcalAvg)} ккал в день, это на ${fmtInt(a.kcalAvg - a.goal)} больше цели (${fmtInt(a.goal)}). Дней с перебором более 10%: ${a.overDays}.`);
+  else add("info", `В среднем ${fmtInt(a.kcalAvg)} ккал в день, это на ${fmtInt(a.goal - a.kcalAvg)} меньше цели. Дней, когда съедено меньше 70% цели: ${a.underDays}.`);
+  if (a.plan) {
+    const pr = a.pAvg / a.plan.protein;
+    if (pr < 0.85) add("warn", `Белка мало: в среднем ${fmt(a.pAvg)} г при ориентире ${a.plan.protein} г. Белок помогает сохранять мышцы и дольше держит сытость.`);
+    else add("good", `Белок в норме: ${fmt(a.pAvg)} г в день при ориентире ${a.plan.protein} г.`);
+  }
+  const pct = (v) => Math.round(v * 100);
+  add("info", `Структура калорий: белки ${pct(a.share.protein)}%, жиры ${pct(a.share.fat)}%, углеводы ${pct(a.share.carbs)}%.`);
+  if (a.share.fat > 0.38) add("warn", `Жиров много: ${pct(a.share.fat)}% калорий. Обычный ориентир до 30–35%.`);
+  const meals = MEALS.map((m) => ({ m, s: a.mealKcal[m.id] / a.mealTotal })).sort((x, y) => y.s - x.s);
+  if (meals[0].s > 0.45) add("info", `Больше всего калорий приходится на «${meals[0].m.name.toLowerCase()}»: ${pct(meals[0].s)}%.`);
+  const snack = a.mealKcal.snack / a.mealTotal;
+  if (snack > 0.3) add("warn", `Перекусы дают ${pct(snack)}% калорий. Проверьте, не уходят ли туда сладкое и напитки.`);
+  const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
+  const withWd = wdAvg.map((v, i) => ({ v, i })).filter((x) => a.wd[x.i].n >= 2);
+  if (withWd.length >= 4) {
+    const hi = withWd.reduce((p, c) => (c.v > p.v ? c : p)), lo = withWd.reduce((p, c) => (c.v < p.v ? c : p));
+    if (hi.v > lo.v * 1.25) add("info", `Дни недели различаются: больше всего вы едите в ${["понедельник", "вторник", "среду", "четверг", "пятницу", "субботу", "воскресенье"][hi.i]} (${fmtInt(hi.v)} ккал), меньше всего в ${["понедельник", "вторник", "среду", "четверг", "пятницу", "субботу", "воскресенье"][lo.i]} (${fmtInt(lo.v)}).`);
+  }
+  if (a.hydDays) {
+    const r = a.hydAvg / a.targetAvg;
+    if (r < 0.8) add("warn", `Жидкости не хватает: в среднем ${fmtInt(a.hydAvg)} мл при норме около ${fmtInt(a.targetAvg)} мл. Норма выполнена в ${a.normDays} днях из ${a.days.length}.`);
+    else add("good", `Жидкость в порядке: в среднем ${fmtInt(a.hydAvg)} мл при норме около ${fmtInt(a.targetAvg)} мл. Норма выполнена в ${a.normDays} днях из ${a.days.length}.`);
+  } else add("info", "Жидкость не записывалась. Добавляйте воду и напитки, чтобы видеть баланс.");
+  if (a.drinkKcalTotal > 0 && a.L) {
+    const dk = a.drinkKcalTotal / a.L;
+    if (dk > a.kcalAvg * 0.1) add("warn", `С напитками вы получаете в среднем ${fmtInt(dk)} ккал в день (${pct(dk / a.kcalAvg)}% рациона). Это легко сократить.`);
+    else add("info", `Калории из напитков: в среднем ${fmtInt(dk)} ккал в день.`);
+  }
+  if (a.alcMl > 0) add("warn", `За период записан алкоголь: ${fmtInt(a.alcMl)} мл. Он обезвоживает и добавляет калории.`);
+  if (a.cafTotal > 0) {
+    if (a.cafOver) add("warn", `Кофеина больше нормы (${a.cafLim} мг) в ${a.cafOver} днях. В среднем ${fmtInt(a.cafAvg)} мг в день с кофеином.`);
+    else add("good", `Кофеин в пределах нормы: в среднем ${fmtInt(a.cafAvg)} мг в день при допустимых ${a.cafLim} мг.`);
+  }
+  if (a.actTotalMin === 0) add("warn", "Нагрузок за период нет. Даже ежедневная быстрая ходьба 20–30 минут заметно меняет самочувствие и расход калорий.");
+  else {
+    const perWeek = a.actTotalMin / a.weeks;
+    const t = a.plan ? a.plan.weekly : null;
+    if (t) add(perWeek >= t.minutes ? "good" : "warn", `Нагрузка: ${fmtInt(perWeek)} мин в неделю при ориентире ${t.minutes} мин. Активных дней: ${a.actDays} из ${a.days.length}.`);
+    else add("info", `Нагрузка: ${fmtInt(perWeek)} мин в неделю, активных дней ${a.actDays} из ${a.days.length}.`);
+    if (t) {
+      const sw = a.strengthSessions / a.weeks;
+      if (sw < t.strength * 0.7) add("info", `Силовых тренировок ${fmt(sw)} в неделю при ориентире ${t.strength}.`);
+    }
+  }
+  return out;
+}
+
+// ---- Gemini ----
+const AI_KEY = "gemini_api_key";
+const geminiKey = () => (lsGet(AI_KEY) || "").trim();
+const AI_BASE = "https://generativelanguage.googleapis.com/v1beta";
+let aiModelsCache = null;
+
+async function geminiModels(key) {
+  if (aiModelsCache) return aiModelsCache;
+  const r = await fetch(`${AI_BASE}/models?pageSize=200&key=${encodeURIComponent(key)}`);
+  if (!r.ok) throw await geminiError(r);
+  const j = await r.json();
+  const ver = (n) => { const m = /gemini-(\d+(?:\.\d+)?)/.exec(n); return m ? parseFloat(m[1]) : 0; };
+  const list = (j.models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+    .map((m) => m.name)
+    .filter((n) => /gemini-[\d.]+-flash/.test(n) && !/lite|image|live|tts|audio|thinking|exp|robotics|computer|embedding|learnlm|customtools/.test(n));
+  list.sort((a, b) => (/preview/.test(a) - /preview/.test(b)) || (ver(b) - ver(a)) || a.length - b.length); // сначала стабильные, внутри — новее
+  aiModelsCache = list.length ? list.slice(0, 3) : ["models/gemini-flash-latest"];
+  return aiModelsCache;
+}
+async function geminiError(r) {
+  let msg = "";
+  try { const j = await r.json(); msg = (j.error && j.error.message) || ""; } catch { /* ignore */ }
+  const e = new Error(msg || `Ошибка ${r.status}`);
+  e.status = r.status;
+  return e;
+}
+async function askGemini(prompt) {
+  const key = geminiKey();
+  if (!key) throw new Error("no-key");
+  const models = await geminiModels(key);
+  let last = null;
+  for (const model of models) {
+    try {
+      const r = await fetch(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 8192 } }),
+      });
+      if (!r.ok) throw await geminiError(r);
+      const j = await r.json();
+      const parts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+      const text = parts.map((p) => p.text || "").join("").trim();
+      if (!text) throw new Error((j.promptFeedback && j.promptFeedback.blockReason) ? `Запрос отклонён: ${j.promptFeedback.blockReason}` : "Пустой ответ");
+      return { text, model: model.replace("models/", "") };
+    } catch (e) {
+      last = e;
+      if (e.status === 400 || e.status === 401 || e.status === 403 || e.status === 429) break; // ключ или лимит: другая модель не поможет
+    }
+  }
+  aiModelsCache = null;
+  throw last || new Error("Не удалось получить ответ");
+}
+
+function aiPayload(a) {
+  const pr = state.profile, plan = a.plan;
+  const r = (x) => Math.round(x);
+  return {
+    период: { с: a.days[0], по: a.days[a.days.length - 1], дней: a.days.length, дней_с_записями_еды: a.L },
+    профиль: pr && plan ? { пол: pr.sex === "male" ? "мужской" : "женский", возраст: pr.age, рост_см: pr.heightCm, вес_кг: pr.weightKg, цель: GOAL_NAME[pr.goal], ИМТ: plan.bmi } : "не заполнен",
+    план: plan ? { ккал: plan.kcal, белки_г: plan.protein, жиры_г: plan.fat, углеводы_г: plan.carbs, вода_мл: plan.water, нагрузка_мин_в_неделю: plan.weekly.minutes, силовых_в_неделю: plan.weekly.strength } : { ккал: a.goal },
+    среднее_за_день_с_записями: { ккал: r(a.kcalAvg), белки_г: r(a.pAvg), жиры_г: r(a.fAvg), углеводы_г: r(a.cAvg), доли_калорий_БЖУ_проц: [Math.round(a.share.protein * 100), Math.round(a.share.fat * 100), Math.round(a.share.carbs * 100)] },
+    дней_с_перебором_более_10проц: a.overDays, дней_менее_70проц_цели: a.underDays,
+    калории_по_приёмам_проц: Object.fromEntries(MEALS.map((m) => [m.name, Math.round((a.mealKcal[m.id] / a.mealTotal) * 100)])),
+    ккал_по_дням_недели: Object.fromEntries(WD_WEEK.map((n, i) => [n, a.wd[i].n ? r(a.wd[i].s / a.wd[i].n) : null])),
+    чаще_всего_в_рационе: a.topFoods.map((f) => ({ продукт: f.name, раз: f.n, ккал_всего: r(f.kcal) })),
+    жидкость: {
+      среднее_засчитанное_мл_в_день: r(a.hydAvg), средняя_норма_мл: r(a.targetAvg), дней_норма_выполнена: a.normDays,
+      чистая_вода_мл_всего: r(a.plainWater), алкоголь_мл_всего: r(a.alcMl), ккал_из_напитков_всего: r(a.drinkKcalTotal),
+      напитки: a.drinkList.slice(0, 12).map((d) => ({ напиток: d.name, раз: d.n, мл: r(d.ml), кофеин_мг: r(d.caf) })),
+    },
+    кофеин: { среднее_мг_в_день_с_кофеином: r(a.cafAvg), допустимо_мг_в_день: a.cafLim, дней_выше_нормы: a.cafOver },
+    нагрузка: {
+      минут_всего: a.actTotalMin, активных_дней: a.actDays, минут_в_неделю: r(a.actTotalMin / a.weeks), сожжено_ккал_всего: r(a.actTotalKcal),
+      виды: a.actTypes.map((t) => ({ вид: t.name, раз: t.n, мин: t.min, ккал: t.kcal })),
+    },
+    ...(a.days.length > 120
+      ? {
+        по_неделям: Array.from({ length: Math.ceil(a.per.length / 7) }, (_, w) => {
+          const seg = a.per.slice(w * 7, w * 7 + 7), lg = seg.filter((x) => x.has), hy = seg.filter((x) => x.hyd > 0);
+          const av = (arr, f) => (arr.length ? r(arr.reduce((t, x) => t + f(x), 0) / arr.length) : null);
+          return [seg[0].d, av(lg, (x) => x.kcal), av(lg, (x) => x.protein), av(hy, (x) => x.hyd), r(seg.reduce((t, x) => t + x.caf, 0) / seg.length), seg.reduce((t, x) => t + x.actMin, 0)];
+        }),
+        формат_по_неделям: "[дата начала недели, среднее ккал за дни с записями, средние белки г, средняя жидкость мл, средний кофеин мг в день, нагрузка мин за неделю]; null значит записей нет",
+      }
+      : {
+        по_дням: a.per.map((x) => [x.d.slice(5), x.has ? r(x.kcal) : null, x.has ? r(x.protein) : null, x.hyd ? r(x.hyd) : null, r(x.caf), x.actMin]),
+        формат_по_дням: "[дата ММ-ДД, ккал, белки г, жидкость мл, кофеин мг, нагрузка мин]; null значит записей нет",
+      }),
+  };
+}
+function aiPrompt(a) {
+  return `Ты внимательный аналитик питания и образа жизни. Ниже данные из личного дневника здоровья пользователя за период. Напиши по-русски понятные, конкретные выводы: что и как он ест, сколько и что пьёт, сколько кофеина, какая у него нагрузка и как это соотносится с целью.
+
+Требования:
+- Опирайся только на данные ниже, называй конкретные числа. Если записей мало или есть пропущенные дни, прямо скажи, что выводы приблизительные.
+- Не ставь диагнозы и не назначай лечение. Ты не заменяешь врача. Если в данных видно что-то тревожное (очень низкие калории, много алкоголя, кофеина выше нормы), мягко посоветуй обсудить это со специалистом.
+- Пиши простым языком, без воды и без общих фраз про здоровый образ жизни.
+- Формат: заголовки второго уровня («## Общая картина», «## Питание», «## Жидкость и напитки», «## Кофеин», «## Нагрузка», «## Что получается хорошо», «## На что обратить внимание», «## План на ближайшую неделю»). Внутри разделов короткие абзацы и списки через «- ». Таблицы не используй. «План на ближайшую неделю»: 3–5 конкретных, выполнимых шагов.
+- Раздел «Кофеин» пропусти, если кофеина нет.
+
+Данные (JSON):
+${JSON.stringify(aiPayload(a))}`;
+}
+
+// Минимальный разбор разметки ответа: заголовки, списки, жирный текст
+function mdLite(text) {
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,;:!?]|$)/g, "$1<i>$2</i>");
+  const out = [];
+  let list = false;
+  const closeList = () => { if (list) { out.push("</ul>"); list = false; } };
+  String(text).split(/\r?\n/).forEach((raw) => {
+    const line = raw.trim();
+    if (!line) { closeList(); return; }
+    let m;
+    if ((m = /^#{1,4}\s+(.*)$/.exec(line))) { closeList(); out.push(`<h3>${inline(m[1])}</h3>`); }
+    else if ((m = /^[-*•]\s+(.*)$/.exec(line))) { if (!list) { out.push("<ul>"); list = true; } out.push(`<li>${inline(m[1])}</li>`); }
+    else { closeList(); out.push(`<p>${inline(line)}</p>`); }
+  });
+  closeList();
+  return out.join("");
+}
+
+const aiCacheKey = (days) => `ai:${days[0]}:${days[days.length - 1]}`;
+function aiCached(days) { try { return JSON.parse(lsGet(aiCacheKey(days)) || "null"); } catch { return null; } }
+
+function aiCardHtml(days) {
+  const key = geminiKey();
+  const cached = aiCached(days);
+  const stamp = cached ? new Date(cached.ts).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "";
+  if (!key) {
+    return `<section class="card ai-card">
+      <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
+      <p class="foot-note" style="margin:0 0 12px">Gemini прочитает все данные за выбранный период (еда, напитки, вода, кофеин, нагрузки) и напишет выводы: как вы питаетесь, что пьёте и какая у вас нагрузка. Один раз нужно подключить бесплатный ключ Google AI.</p>
+      <button type="button" class="btn primary full" data-act="aiSetup">Подключить Gemini</button>
+    </section>`;
+  }
+  return `<section class="card ai-card">
+    <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
+    <div id="ai-out">${cached ? `<div class="ai-text">${mdLite(cached.text)}</div><p class="chart-note">Анализ от ${esc(stamp)}${cached.model ? `, модель ${esc(cached.model)}` : ""}. Это не медицинская рекомендация.</p>` : `<p class="foot-note" style="margin:0 0 12px">Нажмите кнопку: ИИ изучит данные за период ${esc(periodText(days))} и напишет выводы. Сводка по дням без имени и почты отправляется в Google Gemini.</p>`}</div>
+    <button type="button" class="btn primary full" id="ai-run" data-act="aiRun">${cached ? "Обновить анализ" : "Проанализировать"}</button>
+    <button type="button" class="btn ghost full" style="margin-top:8px" data-act="aiForgetKey">Сменить или удалить ключ</button>
+  </section>`;
+}
+
+function openAiSetup() {
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Подключить Gemini</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="note">1. Откройте <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> и войдите в Google.<br>2. Нажмите «Create API key» и скопируйте ключ.<br>3. Вставьте его ниже.</div>
+    <label class="field"><span>Ключ Gemini API</span><input id="ai-key" class="input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza…"></label>
+    <p class="foot-note" style="margin:0 2px 14px">Ключ хранится только на этом телефоне. Для анализа в Google Gemini отправляется сводка по дням за выбранный период (без имени и почты).</p>
+    <button type="button" class="btn primary full" id="ai-save">Сохранить ключ</button>`);
+  $("#ai-save", ov).addEventListener("click", () => {
+    const v = $("#ai-key", ov).value.trim();
+    if (!/^[\w-]{20,}$/.test(v)) { toast("Ключ выглядит неверно: скопируйте его целиком"); return; }
+    try { localStorage.setItem(AI_KEY, v); } catch { toast("Не удалось сохранить ключ на этом устройстве"); return; }
+    aiModelsCache = null;
+    ov.close();
+    toast("Ключ сохранён");
+    render();
+  });
+}
+
+let aiBusy = false;
+async function runAi() {
+  if (aiBusy) return;
+  const days = reportDays();
+  const a = analyze(days);
+  if (a.L === 0 && a.actTotalMin === 0 && a.hydAvg === 0) { toast("За период нет данных для анализа"); return; }
+  aiBusy = true;
+  const btn = document.getElementById("ai-run");
+  const out = document.getElementById("ai-out");
+  if (btn) { btn.disabled = true; btn.textContent = "Анализирую…"; }
+  if (out) out.insertAdjacentHTML("afterbegin", `<p class="foot-note ai-wait" style="margin:0 0 12px">Gemini читает ваши данные. Обычно это 10–30 секунд.</p>`);
+  try {
+    const r = await askGemini(aiPrompt(a));
+    try { localStorage.setItem(aiCacheKey(days), JSON.stringify({ text: r.text, ts: Date.now(), model: r.model })); } catch { /* ignore */ }
+  } catch (e) {
+    const m = String(e && e.message || "");
+    const s = e && e.status;
+    toast(
+      s === 400 && /API key/i.test(m) ? "Ключ Gemini не подошёл. Проверьте его и вставьте заново."
+        : s === 403 ? "Доступ запрещён: проверьте ключ Gemini."
+          : s === 429 ? "Достигнут лимит запросов Gemini. Попробуйте позже."
+            : /Failed to fetch|NetworkError|Load failed/i.test(m) ? "Нет связи с Gemini. Проверьте интернет."
+              : `Gemini: ${m.slice(0, 120) || "ошибка"}`,
+    );
+  } finally {
+    aiBusy = false;
+    render();
+  }
+}
+
+function openCustomPeriod() {
+  const today = todayStr();
+  const cur = state.repCustom || { from: addDays(today, -29), to: today };
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Свой период</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="field-grid">
+      <label class="field"><span>С</span><input id="rp-from" class="input" type="date" min="${FLOOR_DATE}" max="${today}" value="${cur.from}"></label>
+      <label class="field"><span>По</span><input id="rp-to" class="input" type="date" min="${FLOOR_DATE}" max="${today}" value="${cur.to}"></label>
+    </div>
+    <p class="foot-note" style="margin:0 2px 14px">Можно выбрать любые даты: вся история хранится в аккаунте.</p>
+    <button type="button" class="btn primary full" id="rp-ok">Показать</button>`);
+  $("#rp-ok", ov).addEventListener("click", () => {
+    let from = $("#rp-from", ov).value, to = $("#rp-to", ov).value;
+    if (!from || !to) { toast("Выберите обе даты"); return; }
+    if (from > to) [from, to] = [to, from];
+    if (from < FLOOR_DATE) from = FLOOR_DATE;
+    if (to > today) to = today;
+    state.repCustom = { from, to };
+    ov.close();
+    render();
+    loadHistory(from);
+  });
+}
+
+const kv = (label, value, sub) => `<div class="stat"><b>${value}</b><span>${label}${sub ? `<br>${sub}` : ""}</span></div>`;
+function rankRows(rows) {
+  const max = Math.max(...rows.map((r) => r.v), 1);
+  return `<div class="rank">${rows.map((r) => `<div class="rk"><div class="rk-top"><span class="rk-n">${esc(r.name)}</span><span class="rk-v">${r.text}</span></div><div class="rk-bar"><i class="${r.cls || ""}" style="width:${Math.max(2, (r.v / max) * 100)}%"></i></div></div>`).join("")}</div>`;
+}
+
+function viewReports() {
+  const days = reportDays();
+  const n = days.length;
+  const a = analyze(days);
+  // Длинные периоды на графиках показываются по неделям (среднее за неделю), иначе столбики слишком мелкие
+  const grouped = n > 120;
+  const gIdx = grouped ? Array.from({ length: Math.ceil(n / 7) }, (_, i) => i * 7) : null;
+  const chartKeys = grouped ? gIdx.map((i) => days[i]) : days;
+  const gmap = {};
+  if (grouped) gIdx.forEach((i) => { gmap[days[i]] = days.slice(i, i + 7); });
+  const gfn = (fn) => (grouped ? (k) => { const v = gmap[k].map(fn).filter((x) => x > 0); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : 0; } : fn);
+  const ggoal = (fn) => (!fn || !grouped ? fn : (k) => Math.max(...gmap[k].map(fn)));
+  const kper = grouped ? gIdx.map((i) => { const seg = a.per.slice(i, i + 7).filter((x) => x.has); return { d: days[i], has: seg.length > 0, kcal: seg.length ? seg.reduce((t, x) => t + x.kcal, 0) / seg.length : 0 }; }) : a.per;
+  const by = grouped ? "по неделям (среднее)" : "по дням";
+  const active = (v) => (!state.repCustom && state.repDays === v ? "on" : "");
+  const goalMax = Math.max(state.goal * 1.15, ...kper.map((x) => x.kcal), 1);
+  const bars = kper.map((x) => {
+    const h = x.has ? Math.max(2, (x.kcal / goalMax) * 100) : 0;
+    const cls = !x.has ? "b zero" : x.kcal > state.goal ? "b over" : "b";
+    return `<div class="col"><div class="${cls}" style="height:${x.has ? h : 2}%" title="${dayLabel(x.d)}: ${fmtInt(x.kcal)} ккал"></div></div>`;
+  }).join("");
+  const goalBottom = (state.goal / goalMax) * 100;
+
+  const ins = localInsights(a);
+  const insHtml = `<div class="ins">${ins.map((i) => `<div class="in ${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`;
+  const plan = a.plan;
+  const macroRow = (name, avg, target, cls) => `<div class="rk"><div class="rk-top"><span class="rk-n">${name}</span><span class="rk-v">${fmt(avg)} г${target ? ` из ${target} г` : ""}</span></div><div class="rk-bar"><i class="${cls}" style="width:${target ? Math.min(100, (avg / target) * 100) : Math.min(100, avg)}%"></i></div></div>`;
+  const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
+  const wdMax = Math.max(...wdAvg, state.goal, 1);
+  const wdBars = wdAvg.map((v, i) => `<div class="wd"><div class="wd-col"><div class="b ${v > state.goal * 1.1 ? "over" : v > 0 ? "" : "zero"}" style="height:${v > 0 ? Math.max(3, (v / wdMax) * 100) : 2}%"></div></div><span>${WD_WEEK[i]}</span><small>${v ? fmtInt(v) : "–"}</small></div>`).join("");
+
+  const mealRows = MEALS.map((m) => ({ name: m.name, v: a.mealKcal[m.id], text: `${fmtInt(a.mealKcal[m.id])} ккал · ${Math.round((a.mealKcal[m.id] / a.mealTotal) * 100)}%` }));
+  const foodRows = a.topFoods.map((f) => ({ name: f.name, v: f.kcal, text: `${fmtInt(f.kcal)} ккал · ${f.n} раз` }));
+  const drinkRows = [];
+  if (a.plainWater > 0) drinkRows.push({ name: "Вода", v: a.plainWater, text: `${fmtInt(a.plainWater)} мл`, cls: "water" });
+  a.drinkList.slice(0, 8).forEach((d) => drinkRows.push({ name: d.name, v: d.ml, text: `${fmtInt(d.ml)} мл · ${d.n} раз${d.caf > 0 ? ` · ${fmtInt(d.caf)} мг кофеина` : ""}${d.kcal > 0 ? ` · ${fmtInt(d.kcal)} ккал` : ""}`, cls: d.eff < 0 ? "bad" : "water" }));
+  drinkRows.sort((x, y) => y.v - x.v);
+  const actRows = a.actTypes.map((t) => ({ name: t.name, v: t.min, text: `${fmtInt(t.min)} мин · ${t.n} раз · ${fmtInt(t.kcal)} ккал` }));
 
   return `
     ${pageHead("Статистика", "Отчёты")}
-    <div class="seg" role="group" aria-label="Период">
-      <button type="button" data-act="repDays" data-n="7" class="${n === 7 ? "on" : ""}">7 дней</button>
-      <button type="button" data-act="repDays" data-n="30" class="${n === 30 ? "on" : ""}">30 дней</button>
+    <div class="seg scroll" role="group" aria-label="Период">
+      ${REP_PRESETS.map((v) => `<button type="button" data-act="repDays" data-n="${v}" class="${active(v)}">${presetLabel(v)}</button>`).join("")}
+      <button type="button" data-act="repCustom" class="${state.repCustom ? "on" : ""}">Свой</button>
     </div>
+    <p class="foot-note rp-range">${esc(periodText(days))} · ${n} дн. · еда записана в ${a.L}${state.histBusy ? " · загружаю историю…" : ""}</p>
+    ${aiCardHtml(days)}
     <section class="card">
-      <h2 class="h2">Калории по дням</h2>
+      <h2 class="h2">Краткие выводы</h2>
+      ${insHtml}
+    </section>
+    <section class="card">
+      <h2 class="h2">Итоги периода</h2>
+      ${a.L || a.hydDays || a.actTotalMin ? `<div class="stat-grid">
+        ${kv("ккал в день", fmtInt(a.kcalAvg), `цель ${fmtInt(a.goal)}`)}
+        ${kv("дней с перебором", String(a.overDays), "более 10% к цели")}
+        ${kv("жидкость в день", `${fmtInt(a.hydAvg)} мл`, `норма ${fmtInt(a.targetAvg)} мл`)}
+        ${kv("дней с нормой воды", `${a.normDays} из ${n}`)}
+        ${kv("кофеин в день", `${fmtInt(a.cafAvg)} мг`, `допустимо ${a.cafLim} мг`)}
+        ${kv("дней выше нормы кофеина", String(a.cafOver))}
+        ${kv("нагрузка в неделю", `${fmtInt(a.actTotalMin / a.weeks)} мин`, plan ? `ориентир ${plan.weekly.minutes}` : "")}
+        ${kv("сожжено нагрузкой", `${fmtInt(a.actTotalKcal)} ккал`, `активных дней ${a.actDays}`)}
+      </div>` : `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`}
+    </section>
+    <section class="card">
+      <h2 class="h2">Калории ${by}</h2>
       <div class="chart">${bars}<div class="goal" style="bottom:${goalBottom}%"></div></div>
-      <div class="chart-labels">${labels}</div>
+      <div class="chart-labels">${chartLabels(chartKeys)}</div>
       <p class="chart-note">Пунктир: ваша цель ${fmtInt(state.goal)} ккал. Красным отмечены дни с перебором.</p>
     </section>
-    ${barsCard("Жидкость по дням", days, hydrationOn, waterTarget, "мл", "water")}
-    ${barsCard("Кофеин по дням", days, (d) => Math.round(caffeineOn(d)), cafLimit, "мг", "caf", true)}
-    ${barsCard("Нагрузки по дням", days, actMinutes, null, "мин", "")}
+    ${a.L ? `<section class="card">
+      <h2 class="h2">Белки, жиры, углеводы в день</h2>
+      <div class="rank">
+        ${macroRow("Белки", a.pAvg, plan && plan.protein, "")}
+        ${macroRow("Жиры", a.fAvg, plan && plan.fat, "fat")}
+        ${macroRow("Углеводы", a.cAvg, plan && plan.carbs, "carb")}
+      </div>
+      <p class="chart-note">В среднем за день с записями. Доли калорий: белки ${Math.round(a.share.protein * 100)}%, жиры ${Math.round(a.share.fat * 100)}%, углеводы ${Math.round(a.share.carbs * 100)}%.${plan ? "" : " Заполните профиль, чтобы увидеть ориентиры."}</p>
+    </section>
     <section class="card">
-      <h2 class="h2">В среднем за день</h2>
-      ${withData.length ? `<div class="stat-grid">
-        <div class="stat"><b>${fmtInt(avg.kcal / k)}</b><span>ккал</span></div>
-        <div class="stat"><b>${fmt(avg.protein / k)} г</b><span>белки</span></div>
-        <div class="stat"><b>${fmt(avg.fat / k)} г</b><span>жиры</span></div>
-        <div class="stat"><b>${fmt(avg.carbs / k)} г</b><span>углеводы</span></div>
-      </div><p class="chart-note">Считается по дням, в которые есть записи: ${withData.length} из ${n}.</p>`
-      : `<div class="empty"><b>Пока нет данных</b>Запишите еду в дневнике, и здесь появится статистика.</div>`}
-    </section>`;
+      <h2 class="h2">По приёмам пищи</h2>
+      ${rankRows(mealRows)}
+    </section>
+    <section class="card">
+      <h2 class="h2">По дням недели</h2>
+      <div class="wd-grid">${wdBars}</div>
+      <p class="chart-note">Средние калории по дням недели (только дни с записями).</p>
+    </section>
+    <section class="card">
+      <h2 class="h2">Что я ем чаще всего</h2>
+      ${rankRows(foodRows)}
+      <p class="chart-note">Продукты и блюда с наибольшим вкладом в калории.</p>
+    </section>` : ""}
+    ${barsCard(`Жидкость ${by}`, chartKeys, gfn(hydrationOn), ggoal(waterTarget), "мл", "water")}
+    ${drinkRows.length ? `<section class="card"><h2 class="h2">Что я пью</h2>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
+    ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true)}
+    ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "")}
+    ${actRows.length ? `<section class="card"><h2 class="h2">Нагрузки по видам</h2>${rankRows(actRows)}</section>` : ""}
+    <p class="foot-note" style="margin:6px 4px 0">Все записи хранятся в вашем аккаунте без ограничения по времени. Старые периоды подгружаются при выборе.</p>`;
 }
 
 /* ================= Я ================= */
@@ -1415,8 +1906,8 @@ function openProductForm(product, onSaved, prefill = {}) {
 
 /* ================= Здоровье: вода, нагрузки, профиль ================= */
 const currentPlan = () => computePlan(state.profile);
-const waterOn = (d) => { const x = state.water.find((w) => w.date === d); return x ? Number(x.ml) || 0 : 0; };
-const actOn = (d) => state.activity.filter((a) => a.date === d);
+const waterOn = (d) => (byDateIndex("water").get(d) || EMPTY).reduce((sum, x) => sum + (Number(x.ml) || 0), 0);
+const actOn = (d) => byDateIndex("activity").get(d) || EMPTY;
 const actMinutes = (d) => actOn(d).reduce((sum, a) => sum + (Number(a.minutes) || 0), 0);
 const actBurned = (d) => actOn(d).reduce((sum, a) => sum + (Number(a.kcal) || 0), 0);
 const waterBase = () => (Number(state.profile.waterBaseMl) > 0 ? Number(state.profile.waterBaseMl) : 2000);
@@ -1434,11 +1925,11 @@ const cafDose = () => Math.round(Math.min(200, 3 * userWeight()));
 
 function fluidItems(day) {
   const items = [];
-  state.drinks.filter((x) => x.date === day).forEach((x) => items.push({
+  (byDateIndex("drinks").get(day) || EMPTY).forEach((x) => items.push({
     kind: "drink", id: x.id, name: x.name, ml: Number(x.ml) || 0, pct: Number(x.pct) || 0, caf100: Number(x.caf100) || 0, ts: createdMs(x),
   }));
   entriesOn(day).filter((e) => e.drink).forEach((e) => items.push({
-    kind: "food", id: e.id, name: e.name, ml: Number(e.grams) || 0, pct: Number(e.drink.pct) || 0, caf100: Number(e.drink.caf100) || 0, ts: createdMs(e),
+    kind: "food", id: e.id, name: e.name, ml: Number(e.grams) || 0, pct: Number(e.drink.pct) || 0, caf100: Number(e.drink.caf100) || 0, kcal: Number(e.kcal) || 0, ts: createdMs(e),
   }));
   return items.sort((a, b) => a.ts - b.ts);
 }
@@ -1479,7 +1970,7 @@ function favDrinks() {
 
 
 const dayNavButtons = (day) => `
-  <button type="button" class="iconbtn" data-act="prevDay" aria-label="Предыдущий день" ${day <= minDate() ? "disabled" : ""}>${CHEV_L}</button>
+  <button type="button" class="iconbtn" data-act="prevDay" aria-label="Предыдущий день" ${day <= FLOOR_DATE ? "disabled" : ""}>${CHEV_L}</button>
   <button type="button" class="chip-btn" data-act="today">${dateShort(day)}</button>
   <button type="button" class="iconbtn" data-act="nextDay" aria-label="Следующий день">${CHEV_R}</button>`;
 
@@ -1585,9 +2076,10 @@ function viewHealth() {
 }
 
 function chartLabels(days) {
+  const step = days.length <= 7 ? 1 : Math.ceil(days.length / 7);
   return days.map((d, i) => {
     const dt = parseD(d);
-    const t = state.repDays === 7 ? WD_SHORT[dt.getDay()] : (i % 5 === 0 ? dt.getDate() : "");
+    const t = days.length <= 7 ? WD_SHORT[dt.getDay()] : (i % step === 0 ? `${dt.getDate()}.${String(dt.getMonth() + 1).padStart(2, "0")}` : "");
     return `<span>${t}</span>`;
   }).join("");
 }
@@ -2008,10 +2500,10 @@ function openDrinkSheet(entry, presetId) {
 
 /* ================= Обработчики ================= */
 const actions = {
-  prevDay() { if (state.date > minDate()) { state.date = addDays(state.date, -1); render(); } },
+  prevDay() { if (state.date > FLOOR_DATE) { state.date = addDays(state.date, -1); if (state.date < (state.histFrom || state.liveFrom || "0")) loadHistory(addDays(state.date, -60)); render(); } },
   nextDay() { state.date = addDays(state.date, 1); render(); },
   today() { state.date = todayStr(); render(); },
-  pickDay(ds) { if (ds.date >= minDate()) { state.date = ds.date; render(); } },
+  pickDay(ds) { if (ds.date >= FLOOR_DATE) { state.date = ds.date; render(); } },
   addFood(ds) { openAddFood(ds.meal); },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { openProductForm(null); },
@@ -2046,7 +2538,23 @@ const actions = {
     });
     batch.commit().then(() => toast(`Добавлено продуктов: ${items.length}`)).catch(writeFail);
   },
-  repDays(ds) { state.repDays = Number(ds.n) === 30 ? 30 : 7; render(); },
+  repDays(ds) {
+    const v = Number(ds.n);
+    state.repDays = REP_PRESETS.includes(v) ? v : 7;
+    state.repCustom = null;
+    render();
+    if (state.repDays === 0) loadHistory(FLOOR_DATE);
+    else if (state.repDays > HISTORY_DAYS) loadHistory(addDays(todayStr(), -state.repDays));
+  },
+  repCustom() { openCustomPeriod(); },
+  aiRun() { runAi(); },
+  aiSetup() { openAiSetup(); },
+  aiForgetKey() {
+    if (!confirm("Удалить ключ Gemini с этого телефона?")) return;
+    try { localStorage.removeItem(AI_KEY); } catch { /* ignore */ }
+    aiModelsCache = null;
+    render();
+  },
   saveGoal() {
     const g = num($("#goal-input").value);
     if (!(g >= 500 && g <= 10000)) { toast("Введите цель от 500 до 10 000 ккал"); return; }
