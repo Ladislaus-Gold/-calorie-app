@@ -10,8 +10,8 @@ import {
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
   getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=26";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=26";
+import { STARTER } from "./starter.js?v=28";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=28";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 26;
+const APP_VERSION = 28;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -927,8 +927,9 @@ function aiPrompt(a) {
 - Опирайся только на данные ниже, называй конкретные числа. Если записей мало или есть пропущенные дни, прямо скажи, что выводы приблизительные.
 - Не ставь диагнозы и не назначай лечение. Ты не заменяешь врача. Если в данных видно что-то тревожное (очень низкие калории, много алкоголя, кофеина выше нормы), мягко посоветуй обсудить это со специалистом.
 - Пиши простым языком, без воды и без общих фраз про здоровый образ жизни.
-- Формат: заголовки второго уровня («## Общая картина», «## Питание», «## Жидкость и напитки», «## Кофеин», «## Нагрузка», «## Что получается хорошо», «## На что обратить внимание», «## План на ближайшую неделю»). Внутри разделов короткие абзацы и списки через «- ». Таблицы не используй. «План на ближайшую неделю»: 3–5 конкретных, выполнимых шагов.
+- Формат: заголовки второго уровня («## Общая картина», «## Питание», «## Жидкость и напитки», «## Кофеин», «## Нагрузка», «## Упражнения дома», «## Что получается хорошо», «## На что обратить внимание», «## План на ближайшую неделю»). Внутри разделов короткие абзацы и списки через «- ». Таблицы не используй. «План на ближайшую неделю»: 3–5 конкретных, выполнимых шагов.
 - Раздел «Кофеин» пропусти, если кофеина нет.
+- Раздел «Упражнения дома» обязателен: 4–6 конкретных упражнений без оборудования или с минимумом (стул, бутылки с водой, коврик) под цель пользователя, его вес, возраст и текущую нагрузку из данных. Для каждого: название, сколько подходов и повторений (или минут), сколько раз в неделю и короткая подсказка по технике. Если нагрузок в данных нет или мало, начни с лёгкого уровня и укажи, как постепенно усложнять. Учитывай питание: если калорий или белка заметно не хватает, предупреди, что интенсивность лучше повышать позже. Не предлагай экстремальных нагрузок и добавь, что при болях, травмах или хронических заболеваниях стоит посоветоваться с врачом.
 
 Данные (JSON):
 ${JSON.stringify(aiPayload(a))}`;
@@ -966,14 +967,16 @@ function aiCardHtml(days) {
   const ai = state.ai;
   const stamp = (t) => new Date(t).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
   const lastHtml = last
-    ? `<div class="ai-text">${mdLite(last.text)}</div><p class="chart-note">Последний анализ: ${last.from && last.to ? `период ${esc(shortDate(last.from))} — ${esc(shortDate(last.to))}, ` : ""}получен ${esc(stamp(last.ts))}${last.model ? `, модель ${esc(last.model)}` : ""}. Хранится, пока вы не запустите новый. Это не медицинская рекомендация.</p>`
+    ? `<div class="ai-text" style="margin-top:18px">${mdLite(last.text)}</div><p class="chart-note">Последний анализ: ${last.from && last.to ? `период ${esc(shortDate(last.from))} — ${esc(shortDate(last.to))}, ` : ""}получен ${esc(stamp(last.ts))}${last.model ? `, модель ${esc(last.model)}` : ""}. Хранится, пока вы не запустите новый. Это не медицинская рекомендация.</p>`
     : "";
+  const delBtn = last ? `<button type="button" class="btn ghost full" style="margin-top:8px" data-act="aiDelete">Удалить анализ</button>` : "";
   const errHtml = ai.error ? `<div class="banner" role="alert"><b>${esc(ai.error)}</b>${ai.detail ? `<br><small style="white-space:pre-wrap;word-break:break-word">${esc(ai.detail)}</small>` : ""}</div>` : "";
   if (!key) {
     return `<section class="card ai-card">
       <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
       <p class="foot-note" style="margin:0 0 12px">Gemini прочитает все данные за выбранный период (еда, напитки, вода, кофеин, нагрузки) и напишет выводы: как вы питаетесь, что пьёте и какая у вас нагрузка. Один раз нужно подключить бесплатный ключ Google AI. Ключ хранится на каждом устройстве отдельно.</p>
       <button type="button" class="btn primary full" data-act="aiSetup">Подключить Gemini</button>
+      ${delBtn}
       ${lastHtml}
     </section>`;
   }
@@ -984,6 +987,7 @@ function aiCardHtml(days) {
     <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
     ${status}
     <button type="button" class="btn primary full" id="ai-run" data-act="aiRun" ${ai.busy ? "disabled" : ""}>${ai.busy ? "Анализирую…" : last ? `Обновить анализ за ${esc(periodText(days))}` : "Проанализировать"}</button>
+    ${delBtn}
     <button type="button" class="btn ghost full" style="margin-top:8px" data-act="aiForgetKey">Сменить или удалить ключ</button>
     ${lastHtml}
   </section>`;
@@ -2682,6 +2686,13 @@ const actions = {
   },
   repCustom() { openCustomPeriod(); },
   aiRun() { runAi(); },
+  aiDelete() {
+    state.aiLast = null;
+    state.ai = { busy: false, error: "", detail: "" };
+    try { localStorage.removeItem("ai_last"); } catch { /* ignore */ }
+    if (state.user) deleteDoc(docRef("settings", "ai")).catch(writeFail);
+    render();
+  },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
   checkStatus() { checkStatus(true); },
   aiSetup() { openAiSetup(); },
