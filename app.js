@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 43;
+const APP_VERSION = 45;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -892,43 +892,94 @@ async function geminiError(r) {
   e.status = r.status;
   return e;
 }
+// Запрос к Gemini. Быстрее за счёт: запомненной рабочей модели (пробуется первой, без запроса списка),
+// короткого таймаута на попытку, отключённых «размышлений» и потокового ответа (extra.onText).
 async function askGemini(prompt, step = () => {}, extra = {}) {
   const key = geminiKey();
   if (!key) throw new Error("no-key");
-  step("Подбираю модель Gemini…");
-  const models = await geminiModels(key);
-  let last = null, noThink = !!extra.json;
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const attempts = [];
-  models.forEach((m, i) => { attempts.push(m); if (i < 2) attempts.push(m); }); // у первых двух моделей одна повторная попытка
-  for (let k = 0; k < attempts.length; k++) {
-    const model = attempts[k];
-    step(`Запрос к ${model.replace("models/", "")} (попытка ${k + 1} из ${attempts.length}). Обычно 10–30 секунд.${last ? ` Прошлая попытка: ${String(last.message || last).slice(0, 140)}` : ""}`);
-    if (k > 0 && attempts[k - 1] === model) await sleep(3000);
-    try {
-      const r = await fetchT(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }, ...(extra.image ? [{ inlineData: { mimeType: extra.image.mime, data: extra.image.data } }] : [])] }],
-          generationConfig: { temperature: extra.json ? 0.2 : 0.4, maxOutputTokens: 8192, ...(extra.json ? { responseMimeType: "application/json" } : {}), ...(noThink ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
-        }),
-      });
+  const prefKey = extra.lite ? "gm_lite" : "gm_std";
+  const pref = lsGet(prefKey) || "";
+  const TIMEOUT = extra.image ? 25000 : 20000;
+  let last = null, real = null, noThink = true, models = null;
+  const body = () => JSON.stringify({
+    contents: [{ role: "user", parts: [{ text: prompt }, ...(extra.image ? [{ inlineData: { mimeType: extra.image.mime, data: extra.image.data } }] : [])] }],
+    generationConfig: { temperature: extra.json ? 0.2 : 0.4, maxOutputTokens: 8192, ...(extra.json ? { responseMimeType: "application/json" } : {}), ...(noThink ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
+  });
+  const textOf = (j) => (((j.candidates || [])[0] || {}).content || {}).parts ? ((j.candidates[0].content.parts) || []).map((p) => p.text || "").join("") : "";
+
+  async function once(model) {
+    if (!extra.onText) {
+      const r = await fetchT(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: body() }, TIMEOUT);
       if (!r.ok) throw await geminiError(r);
       const j = await r.json();
-      const parts = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
-      const text = parts.map((p) => p.text || "").join("").trim();
+      const text = textOf(j).trim();
       if (!text) throw new Error((j.promptFeedback && j.promptFeedback.blockReason) ? `Запрос отклонён: ${j.promptFeedback.blockReason}` : "Пустой ответ");
+      return text;
+    }
+    // потоковый ответ: текст появляется сразу; таймаут действует до первых данных
+    const ctl = new AbortController();
+    let timer = setTimeout(() => ctl.abort(), TIMEOUT);
+    try {
+      const r = await fetch(`${AI_BASE}/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: body(), signal: ctl.signal });
+      if (!r.ok) throw await geminiError(r);
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      let buf = "", text = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (value) {
+          clearTimeout(timer); timer = setTimeout(() => ctl.abort(), 30000); // пауза между кусками
+          buf += dec.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf("\n")) >= 0) {
+            const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+            if (!line.startsWith("data:")) continue;
+            try { const t = textOf(JSON.parse(line.slice(5))); if (t) { text += t; extra.onText(text); } } catch { /* неполный кусок */ }
+          }
+        }
+        if (done) break;
+      }
+      text = text.trim();
+      if (!text) throw new Error("Пустой ответ");
+      return text;
+    } finally { clearTimeout(timer); }
+  }
+
+  const order = async () => {
+    if (!models) {
+      step("Подбираю модель Gemini…");
+      models = await geminiModels(key);
+      if (extra.lite) { const lt = models.filter((m) => /lite/.test(m)); models = [...lt, ...models.filter((m) => !lt.includes(m))]; }
+    }
+    return models;
+  };
+  const tried = new Set();
+  const queue = pref ? [pref] : [];
+  for (let n = 0; n < 6; n++) {
+    let model = queue.shift();
+    if (!model) {
+      const list = (await order()).filter((m) => !tried.has(m));
+      if (!list.length) break;
+      model = list[0];
+    }
+    if (tried.has(model)) continue;
+    tried.add(model);
+    step(`Запрос к ${model.replace("models/", "")}…${last ? ` Прошлая попытка: ${String((real || last).message || last).slice(0, 120)}` : ""}`);
+    try {
+      const text = await once(model);
+      lsSet(prefKey, model);
       return { text, model: model.replace("models/", "") };
     } catch (e) {
+      if (e.name === "AbortError") e.message = "нет ответа вовремя";
       last = e;
-      if (noThink && e.status === 400 && /think/i.test(e.message || "")) { noThink = false; k--; continue; } // модель не принимает отключение размышлений
+      if (e.status !== 404) real = e;
+      if (noThink && e.status === 400 && /think/i.test(e.message || "")) { noThink = false; tried.delete(model); queue.unshift(model); continue; }
+      if (e.status === 404 && model === pref) lsSet(prefKey, ""); // запомненная модель исчезла
       if (e.status === 400 || e.status === 401 || e.status === 403 || e.status === 429) break; // ключ или лимит: другая модель не поможет
-      if (e.status === 404) { /* модель недоступна: пробуем следующую */ }
+      if (extra.onText) extra.onText(""); // сброс частичного текста перед следующей моделью
     }
   }
   aiModelsCache = null;
-  throw last || new Error("Не удалось получить ответ");
+  throw real || last || new Error("Не удалось получить ответ");
 }
 
 function aiPayload(a) {
@@ -1042,7 +1093,7 @@ function aiCardHtml(days) {
     <button type="button" class="btn primary full" id="ai-run" data-act="aiRun" ${ai.busy ? "disabled" : ""}>${ai.busy ? "Анализирую…" : last ? `Обновить анализ за ${esc(periodText(days))}` : "Проанализировать"}</button>
     ${delBtn}
     <button type="button" class="btn ghost full" style="margin-top:8px" data-act="aiForgetKey">Сменить или удалить ключ</button>
-    ${lastHtml}
+    ${ai.busy && ai.partial ? `<div class="ai-text" style="margin-top:18px">${mdLite(ai.partial)}</div>` : lastHtml}
   </section>`;
 }
 
@@ -1078,7 +1129,7 @@ async function runAi() {
   state.ai = { busy: true, error: "", detail: "", step: "Готовлю данные для Gemini…" };
   render();
   try {
-    const r = await askGemini(aiPrompt(a), step);
+    const r = await askGemini(aiPrompt(a), step, { onText: (t) => { state.ai.partial = t; if (state.tab === "reports") render(); } });
     const rec = { text: r.text, ts: Date.now(), model: r.model, from: days[0], to: days[days.length - 1] };
     state.aiLast = rec;
     aiSaveLast(rec);
@@ -1993,7 +2044,7 @@ function openAiDish(mealId) {
 {"name":"короткое название блюда по-русски","grams":вес порции в граммах числом,"kcal":калории всей порции числом,"protein":белки всей порции в граммах,"fat":жиры всей порции в граммах,"carbs":углеводы всей порции в граммах,"items":[{"name":"ингредиент","grams":число}],"comment":"одна короткая фраза о том, что неточно"}
 Числа без единиц. Калории и БЖУ указывай на всю порцию, а не на 100 г. Если не уверен, дай реалистичную среднюю оценку.`;
     try {
-      const r = await askGemini(prompt, (t) => { const el = $("#ai-step", ov); if (el) el.textContent = t; }, { image: photo, json: true });
+      const r = await askGemini(prompt, (t) => { const el = $("#ai-step", ov); if (el) el.textContent = t; }, { image: photo, json: true, lite: true });
       if (!ov.isConnected) return;
       showResult(parseDishJson(r.text), r.model);
     } catch (e) {
