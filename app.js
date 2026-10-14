@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 56;
+const APP_VERSION = 59;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -841,20 +841,20 @@ function localInsights(a) {
   if (a.L < n * 0.7) add("info", `Еда записана в ${a.L} днях из ${n}. Чем полнее дневник, тем точнее выводы: пропущенные дни не учитываются.`);
   const dev = (a.kcalAvg - a.goal) / a.goal;
   if (Math.abs(dev) <= 0.1) add("good", `Калории в среднем ${fmtInt(a.kcalAvg)} ккал в день: это в пределах 10% от вашей цели (${fmtInt(a.goal)}).`);
-  else if (dev > 0) add("warn", `В среднем вы едите ${fmtInt(a.kcalAvg)} ккал в день, это на ${fmtInt(a.kcalAvg - a.goal)} больше цели (${fmtInt(a.goal)}). Дней с перебором более 10%: ${a.overDays}.`);
+  else if (dev > 0) add(dev > 0.2 ? "bad" : "warn", `В среднем вы едите ${fmtInt(a.kcalAvg)} ккал в день, это на ${fmtInt(a.kcalAvg - a.goal)} больше цели (${fmtInt(a.goal)}). Дней с перебором более 10%: ${a.overDays}.`);
   else add("info", `В среднем ${fmtInt(a.kcalAvg)} ккал в день, это на ${fmtInt(a.goal - a.kcalAvg)} меньше цели. Дней, когда съедено меньше 70% цели: ${a.underDays}.`);
   if (a.plan) {
     const pr = a.pAvg / a.plan.protein;
-    if (pr < 0.85) add("warn", `Белка мало: в среднем ${fmt(a.pAvg)} г при ориентире ${a.plan.protein} г. Белок помогает сохранять мышцы и дольше держит сытость.`);
+    if (pr < 0.85) add(pr < 0.7 ? "bad" : "warn", `Белка мало: в среднем ${fmt(a.pAvg)} г при ориентире ${a.plan.protein} г. Белок помогает сохранять мышцы и дольше держит сытость.`);
     else add("good", `Белок в норме: ${fmt(a.pAvg)} г в день при ориентире ${a.plan.protein} г.`);
   }
   const pct = (v) => Math.round(v * 100);
   add("info", `Структура калорий: белки ${pct(a.share.protein)}%, жиры ${pct(a.share.fat)}%, углеводы ${pct(a.share.carbs)}%.`);
-  if (a.share.fat > 0.38) add("warn", `Жиров много: ${pct(a.share.fat)}% калорий. Обычный ориентир до 30–35%.`);
+  if (a.share.fat > 0.38) add(a.share.fat > 0.45 ? "bad" : "warn", `Жиров много: ${pct(a.share.fat)}% калорий. Обычный ориентир до 30–35%.`);
   const meals = MEALS.map((m) => ({ m, s: a.mealKcal[m.id] / a.mealTotal })).sort((x, y) => y.s - x.s);
   if (meals[0].s > 0.45) add("info", `Больше всего калорий приходится на «${meals[0].m.name.toLowerCase()}»: ${pct(meals[0].s)}%.`);
   const snack = a.mealKcal.snack / a.mealTotal;
-  if (snack > 0.3) add("warn", `Перекусы дают ${pct(snack)}% калорий. Проверьте, не уходят ли туда сладкое и напитки.`);
+  if (snack > 0.3) add(snack > 0.4 ? "bad" : "warn", `Перекусы дают ${pct(snack)}% калорий. Проверьте, не уходят ли туда сладкое и напитки.`);
   const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
   const withWd = wdAvg.map((v, i) => ({ v, i })).filter((x) => a.wd[x.i].n >= 2);
   if (withWd.length >= 4) {
@@ -863,24 +863,24 @@ function localInsights(a) {
   }
   if (a.hydDays) {
     const r = a.hydAvg / a.targetAvg;
-    if (r < 0.8) add("warn", `Жидкости не хватает: в среднем ${fmtInt(a.hydAvg)} мл при норме около ${fmtInt(a.targetAvg)} мл. Норма выполнена в ${a.normDays} днях из ${a.days.length}.`);
+    if (r < 0.8) add(r < 0.65 ? "bad" : "warn", `Жидкости не хватает: в среднем ${fmtInt(a.hydAvg)} мл при норме около ${fmtInt(a.targetAvg)} мл. Норма выполнена в ${a.normDays} днях из ${a.days.length}.`);
     else add("good", `Жидкость в порядке: в среднем ${fmtInt(a.hydAvg)} мл при норме около ${fmtInt(a.targetAvg)} мл. Норма выполнена в ${a.normDays} днях из ${a.days.length}.`);
   } else add("info", "Жидкость не записывалась. Добавляйте воду и напитки, чтобы видеть баланс.");
   if (a.drinkKcalTotal > 0 && a.L) {
     const dk = a.drinkKcalTotal / a.L;
-    if (dk > a.kcalAvg * 0.1) add("warn", `С напитками вы получаете в среднем ${fmtInt(dk)} ккал в день (${pct(dk / a.kcalAvg)}% рациона). Это легко сократить.`);
+    if (dk > a.kcalAvg * 0.1) add(dk > a.kcalAvg * 0.2 ? "bad" : "warn", `С напитками вы получаете в среднем ${fmtInt(dk)} ккал в день (${pct(dk / a.kcalAvg)}% рациона). Это легко сократить.`);
     else add("info", `Калории из напитков: в среднем ${fmtInt(dk)} ккал в день.`);
   }
   if (a.alcMl > 0) add("warn", `За период записан алкоголь: ${fmtInt(a.alcMl)} мл. Он обезвоживает и добавляет калории.`);
   if (a.cafTotal > 0) {
-    if (a.cafOver) add("warn", `Кофеина больше нормы (${a.cafLim} мг) в ${a.cafOver} днях. В среднем ${fmtInt(a.cafAvg)} мг в день с кофеином.`);
+    if (a.cafOver) add(a.cafOver >= a.days.length * 0.3 ? "bad" : "warn", `Кофеина больше нормы (${a.cafLim} мг) в ${a.cafOver} днях. В среднем ${fmtInt(a.cafAvg)} мг в день с кофеином.`);
     else add("good", `Кофеин в пределах нормы: в среднем ${fmtInt(a.cafAvg)} мг в день при допустимых ${a.cafLim} мг.`);
   }
-  if (a.actTotalMin === 0) add("warn", "Нагрузок за период нет. Даже ежедневная быстрая ходьба 20–30 минут заметно меняет самочувствие и расход калорий.");
+  if (a.actTotalMin === 0) add("bad", "Нагрузок за период нет. Даже ежедневная быстрая ходьба 20–30 минут заметно меняет самочувствие и расход калорий.");
   else {
     const perWeek = a.actTotalMin / a.weeks;
     const t = a.plan ? a.plan.weekly : null;
-    if (t) add(perWeek >= t.minutes ? "good" : "warn", `Нагрузка: ${fmtInt(perWeek)} мин в неделю при ориентире ${t.minutes} мин. Активных дней: ${a.actDays} из ${a.days.length}.`);
+    if (t) add(perWeek >= t.minutes ? "good" : perWeek < t.minutes * 0.5 ? "bad" : "warn", `Нагрузка: ${fmtInt(perWeek)} мин в неделю при ориентире ${t.minutes} мин. Активных дней: ${a.actDays} из ${a.days.length}.`);
     else add("info", `Нагрузка: ${fmtInt(perWeek)} мин в неделю, активных дней ${a.actDays} из ${a.days.length}.`);
     if (a.stepDays) add(a.stepsAvg >= STEPS_GOAL ? "good" : "info", `Шагов в среднем ${fmtInt(a.stepsAvg)} в день (дней с данными ${a.stepDays}). Ориентир для здоровья: около ${fmtInt(STEPS_GOAL)} шагов.`);
     if (t) {
@@ -888,7 +888,8 @@ function localInsights(a) {
       if (sw < t.strength * 0.7) add("info", `Силовых тренировок ${fmt(sw)} в неделю при ориентире ${t.strength}.`);
     }
   }
-  return out;
+  const rank = { bad: 0, warn: 1, good: 2, info: 3 };
+  return out.map((x, i) => ({ ...x, i })).sort((x, y) => rank[x.kind] - rank[y.kind] || x.i - y.i);
 }
 
 // ---- Gemini ----
@@ -1252,7 +1253,8 @@ function viewReports() {
   const goalBottom = (state.goal / goalMax) * 100;
 
   const ins = localInsights(a);
-  const insHtml = `<div class="ins">${ins.map((i) => `<div class="in ${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`;
+  const INS_LBL = { bad: "Обратить внимание", warn: "Можно улучшить", good: "В норме", info: "К сведению" };
+  const insHtml = `<div class="ins">${ins.map((i, k) => `${k === 0 || ins[k - 1].kind !== i.kind ? `<div class="in-h ${i.kind}">${INS_LBL[i.kind]}</div>` : ""}<div class="in ${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`;
   const plan = a.plan;
   const macroRow = (name, avg, target, cls) => `<div class="rk"><div class="rk-top"><span class="rk-n">${name}</span><span class="rk-v">${fmt(avg)} г${target ? ` из ${target} г` : ""}</span></div><div class="rk-bar"><i class="${cls}" style="width:${target ? Math.min(100, (avg / target) * 100) : Math.min(100, avg)}%"></i></div></div>`;
   const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
@@ -1290,16 +1292,24 @@ function viewReports() {
     if (r === 0) return "как в прошлом периоде";
     return `${r > 0 ? "+" : "−"}${fmtInt(Math.abs(r))}${unit} к прошлым ${n} дн.`;
   };
-  const kpi = a.L || a.hydDays || a.stepDays ? `<div class="stat-grid">
-        ${kv("ккал в день", fmtInt(a.kcalAvg), [`цель ${fmtInt(a.goal)}`, dlt(a.kcalAvg, prev && prev.kcalAvg, "")].filter(Boolean).join("<br>"))}
-        ${kv("белка в день", `${fmtInt(a.pAvg)} г`, [plan ? `цель ${plan.protein} г` : "", dlt(a.pAvg, prev && prev.pAvg, " г")].filter(Boolean).join("<br>"))}
-        ${kv("жидкость в день", `${fmtInt(a.hydAvg)} мл`, [`норма ${fmtInt(a.targetAvg)} мл`, dlt(a.hydAvg, prev && prev.hydAvg, " мл")].filter(Boolean).join("<br>"))}
-        ${a.stepDays ? kv("шагов в день", fmtInt(a.stepsAvg), dlt(a.stepsAvg, prev && prev.stepsAvg, "")) : kv("нагрузка в неделю", `${fmtInt(a.actTotalMin / a.weeks)} мин`, plan ? `ориентир ${plan.weekly.minutes}` : "")}
+  const sub = (...x) => x.filter(Boolean).join("<br>");
+  const kpi = a.L || a.hydDays || a.actTotalMin || a.stepDays ? `<div class="stat-grid">
+        ${kv("ккал в день", fmtInt(a.kcalAvg), sub(`цель ${fmtInt(a.goal)}`, dlt(a.kcalAvg, prev && prev.kcalAvg, "")))}
+        ${kv("дней с перебором", String(a.overDays), "более 10% к цели")}
+        ${kv("белка в день", `${fmtInt(a.pAvg)} г`, sub(plan ? `цель ${plan.protein} г` : "", dlt(a.pAvg, prev && prev.pAvg, " г")))}
+        ${kv("жидкость в день", `${fmtInt(a.hydAvg)} мл`, sub(`средняя норма ${fmtInt(a.targetAvg)} мл`, dlt(a.hydAvg, prev && prev.hydAvg, " мл")))}
+        ${kv("дней с нормой воды", `${a.normDays} из ${n}`)}
+        ${kv("кофеин в день", `${fmtInt(a.cafAvg)} мг`, `допустимо ${a.cafLim} мг`)}
+        ${kv("дней выше нормы кофеина", String(a.cafOver))}
+        ${kv("нагрузка в неделю", `${fmtInt(a.actTotalMin / a.weeks)} мин`, plan ? `ориентир ${plan.weekly.minutes}` : "")}
+        ${kv("сожжено нагрузкой", `${fmtInt(a.actTotalKcal)} ккал`, `активных дней ${a.actDays}`)}
+        ${a.stepDays ? kv("шагов в день", fmtInt(a.stepsAvg), sub(`дней с данными ${a.stepDays}`, dlt(a.stepsAvg, prev && prev.stepsAvg, ""))) : ""}
+        ${a.restAvg || a.hrAvgAll ? kv("пульс в покое", a.restAvg ? `${fmtInt(a.restAvg)} уд/мин` : "—", a.hrAvgAll ? `средний за день ${fmtInt(a.hrAvgAll)}` : "") : ""}
       </div>` : `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`;
   const wtp = weightBlock(days[0], days[n - 1], `за ${n} дн.`);
   const moreOpen = !!state.moreCharts;
   return head + `
-    <section class="card"><h2 class="h2">Главное за период</h2>${kpi}</section>
+    <section class="card"><h2 class="h2">Все показатели периода</h2>${kpi}</section>
     ${aiCardHtml(days)}
     <section class="card">
       <h2 class="h2">Краткие выводы</h2>
@@ -1321,23 +1331,8 @@ function viewReports() {
       <p class="chart-note">Продукты и блюда с наибольшим вкладом в калории.</p>
     </section>` : ""}
     ${drinkRows.length ? `<section class="card"><h2 class="h2">Что я пью</h2>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
-    <button type="button" class="btn ghost full more-charts" data-act="toggleMoreCharts">${moreOpen ? "Скрыть остальные графики ▲" : "Ещё графики и все показатели ▼"}</button>
+    <button type="button" class="btn ghost full more-charts" data-act="toggleMoreCharts">${moreOpen ? "Скрыть остальные графики ▲" : "Ещё графики ▼"}</button>
     ${moreOpen ? `
-    <section class="card">
-      <h2 class="h2">Все показатели периода</h2>
-      ${a.L || a.hydDays || a.actTotalMin || a.stepDays ? `<div class="stat-grid">
-        ${kv("ккал в день", fmtInt(a.kcalAvg), `цель ${fmtInt(a.goal)}`)}
-        ${kv("дней с перебором", String(a.overDays), "более 10% к цели")}
-        ${kv("жидкость в день", `${fmtInt(a.hydAvg)} мл`, `норма ${fmtInt(a.targetAvg)} мл`)}
-        ${kv("дней с нормой воды", `${a.normDays} из ${n}`)}
-        ${kv("кофеин в день", `${fmtInt(a.cafAvg)} мг`, `допустимо ${a.cafLim} мг`)}
-        ${kv("дней выше нормы кофеина", String(a.cafOver))}
-        ${kv("нагрузка в неделю", `${fmtInt(a.actTotalMin / a.weeks)} мин`, plan ? `ориентир ${plan.weekly.minutes}` : "")}
-        ${kv("сожжено нагрузкой", `${fmtInt(a.actTotalKcal)} ккал`, `активных дней ${a.actDays}`)}
-        ${a.stepDays ? kv("шагов в день", fmtInt(a.stepsAvg), `дней с данными ${a.stepDays}`) : ""}
-        ${a.restAvg || a.hrAvgAll ? kv("пульс в покое", a.restAvg ? `${fmtInt(a.restAvg)} уд/мин` : "—", a.hrAvgAll ? `средний за день ${fmtInt(a.hrAvgAll)}` : "") : ""}
-      </div>` : `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`}
-    </section>
     ${a.L ? `<section class="card">
       <h2 class="h2">Белки, жиры, углеводы в день</h2>
       <div class="rank">
@@ -2636,14 +2631,14 @@ function miniTiles(day) {
   const caf = caffeineStatus(day);
   const banner = caf.level !== "ok" ? `<div class="warn ${caf.level === "over" ? "over" : ""}" style="margin:0 0 12px">${esc(caf.msgs[0].t)}</div>` : "";
   return `<div class="mini-row">
-    <button type="button" class="mini water" data-act="goTab" data-tab="health">
+    <button type="button" class="mini water" data-act="goTab" data-tab="health" data-h="today">
       <span class="mini-top"><span class="mini-ic">${DROP_SVG}</span><span class="mini-label">Жидкость</span></span>
       <span class="mini-val">${fmtInt(ml)}<small>мл</small></span>
       <span class="mini-sub">норма ${fmtInt(tg)} мл</span>
       ${caf.mg > 0 ? `<span class="mini-sub caf ${caf.level}">кофеин ${caf.mg} из ${caf.limit} мг</span>` : ""}
       <span class="mini-bar"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></span>
     </button>
-    <button type="button" class="mini act" data-act="goTab" data-tab="health">
+    <button type="button" class="mini act" data-act="goTab" data-tab="health" data-h="train">
       <span class="mini-top"><span class="mini-ic">${PULSE_SVG}</span><span class="mini-label">Нагрузка</span></span>
       <span class="mini-val">${fmtInt(mins)}<small>мин</small></span>
       <span class="mini-sub">сожжено ${fmtInt(burned)} ккал</span>
@@ -2706,7 +2701,7 @@ function viewHealth() {
       <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
     </button>`).join("");
   const tab = state.hTab || "today";
-  const tabs = `<div class="seg full htabs" data-seg="htab">${[["today", "Сегодня"], ["train", "Тренировки"], ["dyn", "Динамика"]].map(([v, t]) => `<button type="button" data-act="healthTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
+  const tabs = `<div class="seg full htabs" data-seg="htab">${[["today", "Жидкость"], ["train", "Тренировки"], ["dyn", "Динамика"]].map(([v, t]) => `<button type="button" data-act="healthTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
   const pToday = `
     <section class="card">
       <div class="card-top"><h2 class="h2">Жидкость</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
@@ -3325,7 +3320,7 @@ const actions = {
   },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { openProductForm(null); },
-  goTab(ds) { state.tab = ds.tab; render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
+  goTab(ds) { state.tab = ds.tab; if (ds.h) { state.hTab = ds.h; lsSet("hTab", ds.h); } render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
   addWater(ds) { const n = Number(ds.ml); if (n > 0) openDrinkSheet(null, null, n); else openRemoveSheet(); },
   addDrink() { openDrinkSheet(); },
   macroTop(ds) { openMacroTop(ds.key); },
