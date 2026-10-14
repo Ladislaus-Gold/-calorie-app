@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 31;
+const APP_VERSION = 32;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -526,7 +526,7 @@ function macroGoals() {
 function macrosHtml(p, f, c, plan) {
   const one = (name, color, v, g) => {
     const over = g > 0 && v > g;
-    return `<span class="mx${over ? " over" : ""}"><i style="background:var(${color})"></i>${name} ${fmt(v)}${g > 0 ? ` из ${fmtInt(g)}` : ""}</span>`;
+    return `<span class="mx${over ? " over" : ""}"><i style="background:var(${color})"></i>${name} ${fmt(v)} г${g > 0 ? ` из ${fmtInt(g)} г` : ""}</span>`;
   };
   return one("Белки", "--protein", p, plan && plan.p) + one("Жиры", "--fat", f, plan && plan.f) + one("Углеводы", "--carbs", c, plan && plan.c);
 }
