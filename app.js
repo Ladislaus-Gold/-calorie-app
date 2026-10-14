@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 29;
+const APP_VERSION = 30;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -766,7 +766,7 @@ function analyze(days) {
     t.n++; t.min += Number(w.minutes) || 0; t.kcal += Number(w.kcal) || 0;
   });
   const actTypes = Object.values(types).sort((a, b) => b.min - a.min);
-  const strengthSessions = actTypes.filter((t) => t.strength).reduce((s, t) => s + t.n, 0);
+  const strengthSessions = actTypes.filter((t) => t.strength).reduce((s, t) => s + t.n, 0) + wkInRange.filter(isStrengthW).length;
 
   const overDays = logged.filter((x) => x.kcal > goal * 1.1).length;
   const underDays = logged.filter((x) => x.kcal < goal * 0.7).length;
@@ -927,7 +927,7 @@ function aiPayload(a) {
     },
     кофеин: { среднее_мг_в_день_с_кофеином: r(a.cafAvg), допустимо_мг_в_день: a.cafLim, дней_выше_нормы: a.cafOver },
     нагрузка: {
-      минут_всего: a.actTotalMin, активных_дней: a.actDays, минут_в_неделю: r(a.actTotalMin / a.weeks), сожжено_ккал_всего: r(a.actTotalKcal),
+      силовых_тренировок: a.strengthSessions, минут_всего: a.actTotalMin, активных_дней: a.actDays, минут_в_неделю: r(a.actTotalMin / a.weeks), сожжено_ккал_всего: r(a.actTotalKcal),
       виды: a.actTypes.map((t) => ({ вид: t.name, раз: t.n, мин: t.min, ккал: t.kcal })),
     },
     данные_с_часов_Apple_Health: a.stepDays || a.hrAvgAll || a.workoutCount ? {
@@ -2083,6 +2083,9 @@ const actBurned = (d) => {
   return actOn(d).reduce((sum, a) => sum + (Number(a.kcal) || 0), 0) + Math.max(h ? Number(h.activeKcal) || 0 : 0, wkKcal(d));
 };
 const STEPS_GOAL = 8000;
+// Силовая ли тренировка: ручная отметка (strength true/false) главнее, иначе определяем по названию с часов
+const STRENGTH_RE = /силов|strength|функциональн|functional|кроссфит|crossfit/i;
+const isStrengthW = (w) => (typeof w.strength === "boolean" ? w.strength : STRENGTH_RE.test(String(w.name || "")));
 const timeOf = (ts) => { try { const dt = ts && ts.toDate ? ts.toDate() : ts && ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts); return Number.isNaN(dt.getTime()) ? "" : dt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 const waterBase = () => (Number(state.profile.waterBaseMl) > 0 ? Number(state.profile.waterBaseMl) : 2000);
 // Норма воды растёт с нагрузкой: примерно 500 мл на час тренировки
@@ -2203,7 +2206,7 @@ function viewHealth() {
   const wkMin = wk.reduce((sum, d) => sum + actMinutes(d), 0);
   const wkStepsDays = wk.filter((d) => stepsOn(d) > 0);
   const wkStepsAvg = wkStepsDays.length ? wkStepsDays.reduce((sum, d) => sum + stepsOn(d), 0) / wkStepsDays.length : 0;
-  const wkStr = wk.reduce((sum, d) => sum + actOn(d).filter((a) => a.type === "strength").length, 0);
+  const wkStr = wk.reduce((sum, d) => sum + actOn(d).filter((a) => a.type === "strength").length + workoutsOn(d).filter(isStrengthW).length, 0);
   const wt = plan ? plan.weekly : { minutes: 150, strength: 2, text: WEEKLY.maintain.text };
   const favs = favDrinks();
   const actRows = acts.map((a) => `
@@ -2213,7 +2216,8 @@ function viewHealth() {
     </button>`).join("");
   const wktRows = wkts.map((w) => {
     const bits = [timeOf(w.start), w.minutes ? `${fmtInt(w.minutes)} мин` : "", w.distanceKm ? `${fmt(w.distanceKm)} км` : "", w.hrAvg ? `пульс ${fmtInt(w.hrAvg)}${w.hrMax ? ` (макс ${fmtInt(w.hrMax)})` : ""}` : ""].filter(Boolean);
-    return `<div class="entry"><span class="e-main"><span class="e-name">${esc(w.name)}</span><span class="e-sub">${bits.join(" · ")} · Apple Watch</span></span><span class="e-kcal">${w.kcal ? fmtInt(w.kcal) : "—"}<small>ккал</small></span></div>`;
+    const st = isStrengthW(w);
+    return `<div class="entry"><span class="e-main"><span class="e-name">${esc(w.name)}</span><span class="e-sub">${bits.join(" · ")} · Apple Watch</span><button type="button" class="chip ${st ? "sel" : "muted"}" style="margin-top:8px;padding:5px 12px;font-size:12px" data-act="toggleStrength" data-id="${esc(w.id)}">${st ? "Силовая ✓" : "Отметить силовой"}</button></span><span class="e-kcal">${w.kcal ? fmtInt(w.kcal) : "—"}<small>ккал</small></span></div>`;
   }).join("");
   // Сначала самые свежие; по умолчанию видны два последних, остальные раскрываются кнопкой
   const FLUID_SHOW = 2;
@@ -2722,6 +2726,7 @@ const actions = {
   },
   waterCustom() { openWaterSheet(); },
   addActivity() { openActivitySheet(null); },
+  toggleStrength(ds) { const w = state.workouts.find((x) => x.id === ds.id); if (w) updateDoc(docRef("workouts", w.id), { strength: !isStrengthW(w) }).catch(writeFail); },
   editActivity(ds) { const a = state.activity.find((x) => x.id === ds.id); if (a) openActivitySheet(a); },
   openProfile() { openProfile(false); },
   async copyLink(ds) {
