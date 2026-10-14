@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 45;
+const APP_VERSION = 46;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -968,8 +968,9 @@ async function askGemini(prompt, step = () => {}, extra = {}) {
       const text = await once(model);
       lsSet(prefKey, model);
       return { text, model: model.replace("models/", "") };
-    } catch (e) {
-      if (e.name === "AbortError") e.message = "нет ответа вовремя";
+    } catch (e0) {
+      // у DOMException (обрыв по таймауту) message только для чтения: заменяем обычной ошибкой
+      const e = e0 && e0.name === "AbortError" ? Object.assign(new Error("нет ответа вовремя"), { name: "AbortError" }) : e0;
       last = e;
       if (e.status !== 404) real = e;
       if (noThink && e.status === 400 && /think/i.test(e.message || "")) { noThink = false; tried.delete(model); queue.unshift(model); continue; }

@@ -469,3 +469,9 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 
 .overlay.top #af-body.lm > .af-btns, .overlay.top #af-body.lm > #af-q { flex: 0 0 auto; }
 .overlay.top #af-q { min-height: 52px; height: 52px; font-size: 17px; margin-bottom: 8px; }
+
+/* Калории приёма пищи: аккуратная плашка */
+.meal-kcal { min-width: 92px; padding: 9px 12px 8px; border-radius: 16px; background: var(--accent-soft); color: var(--accent-d); text-align: center; font-size: 22px; font-weight: 800; line-height: 1.05; letter-spacing: -.04em; box-shadow: inset 0 0 0 1px rgba(27, 157, 75, .12); }
+.meal-kcal small { margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.meal-kcal.over { background: var(--red-soft); color: var(--red); box-shadow: inset 0 0 0 1px rgba(214, 69, 69, .18); }
+.meal-kcal.over small { color: #B85C5C; }
