@@ -475,3 +475,46 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .meal-kcal small { margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
 .meal-kcal.over { background: var(--red-soft); color: var(--red); box-shadow: inset 0 0 0 1px rgba(214, 69, 69, .18); }
 .meal-kcal.over small { color: #B85C5C; }
+
+/* ================= v47: оформление всех вкладок ================= */
+/* карточки: мягкая многослойная тень и светлая верхняя кромка */
+.card { border-color: var(--line-2); box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 2px 4px rgba(23, 60, 36, .04), 0 12px 28px rgba(23, 60, 36, .06); }
+/* заголовки карточек: короткая зелёная метка слева */
+.h2 { display: flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 700; letter-spacing: -.03em; }
+.h2::before { content: ""; flex: 0 0 auto; width: 4px; height: 17px; border-radius: 3px; background: linear-gradient(180deg, var(--accent-2), var(--accent)); }
+.card-top .h2 { margin: 0; }
+/* шапка страницы */
+.title { font-size: 32px; font-weight: 700; letter-spacing: -.05em; }
+.overline { color: var(--accent); letter-spacing: .1em; }
+/* кнопки */
+.btn.primary { background: linear-gradient(180deg, #27B05B, #1B9D4B); box-shadow: 0 10px 20px rgba(27, 157, 75, .26), 0 1px 0 rgba(255, 255, 255, .25) inset; }
+.btn.soft { background: var(--accent-soft); color: var(--accent-d); border: 1px solid rgba(27, 157, 75, .16); }
+.btn.soft:active { background: #D4EEDB; }
+.btn.ghost { background: #fff; }
+/* плитки показателей: цвет по смыслу (по кругу), число крупнее */
+.stat { border: 0; padding: 13px 14px; background: var(--t, var(--field)); }
+.stat b { color: var(--tc, var(--text)); font-size: 24px; }
+.stat span { color: var(--tm, var(--muted)); }
+.stat-grid .stat:nth-child(6n+1) { --t: #E3F4E7; --tc: #0E7A37; --tm: #4F7A5C; }
+.stat-grid .stat:nth-child(6n+2) { --t: #FFF1D6; --tc: #8A5A00; --tm: #8F7440; }
+.stat-grid .stat:nth-child(6n+3) { --t: #E3F2FC; --tc: #14709F; --tm: #4F7D96; }
+.stat-grid .stat:nth-child(6n+4) { --t: #F7E8F3; --tc: #94397F; --tm: #85647B; }
+.stat-grid .stat:nth-child(6n+5) { --t: #EEE9FB; --tc: #5A47B5; --tm: #6F6892; }
+.stat-grid .stat:nth-child(6n+6) { --t: #DDF3F0; --tc: #0F7C70; --tm: #4B7F79; }
+/* нижняя панель: активная вкладка в «таблетке» */
+.nav-btn svg { width: 50px; height: 30px; padding: 4px 14px; border-radius: 999px; transition: background .18s ease; }
+.nav-btn.active svg { background: var(--accent-soft); }
+/* список продуктов: цветной кружок с буквой */
+.prow { grid-template-columns: 40px 1fr auto; gap: 12px; padding: 11px 2px; }
+.p-ava { width: 40px; height: 40px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.p-kcal { padding: 6px 10px; border-radius: 12px; background: var(--field); text-align: right; font-variant-numeric: tabular-nums; }
+.p-kcal small { display: block; }
+/* фон страницы: лёгкий зелёный градиент сверху */
+body { background-image: radial-gradient(120% 40% at 50% 0, #E6F5EA 0, transparent 70%); background-repeat: no-repeat; }
+.stat b { font-size: 22px; white-space: nowrap; }
+.p-kcal { padding: 5px 8px; min-width: 64px; }
+
+/* v48: калории приёма пищи без плашки */
+.meal-kcal, .meal-kcal.over { min-width: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; text-align: right; font-size: 20px; font-weight: 700; letter-spacing: -.03em; color: var(--text); }
+.meal-kcal.over { color: var(--red); }
+.meal-kcal small, .meal-kcal.over small { margin-top: 2px; font-size: 10px; font-weight: 600; color: var(--muted); }

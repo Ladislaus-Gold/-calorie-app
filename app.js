@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 46;
+const APP_VERSION = 47;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -652,7 +652,9 @@ function productRow(p, attr) {
   const mine = !!state.user && p.createdBy === state.user.uid;
   const by = !mine && p.createdByName ? `Добавил(а): ${esc(p.createdByName)}` : "";
   const meta = [p.brand ? esc(p.brand) : "", p.barcode ? esc(p.barcode) : "", by].filter(Boolean).join(", ");
+  const hue = parseInt(fnv(fold(p.name)), 36) % 360, ch = (String(p.name || "?").trim()[0] || "?").toUpperCase();
   return `<button type="button" class="prow" ${attr}="${esc(p.id)}">
+    <span class="p-ava" style="background:hsl(${hue} 55% 92%);color:hsl(${hue} 45% 30%)">${esc(ch)}</span>
     <span class="p-main"><span class="p-name">${esc(p.name)}</span><span class="p-macros">${macrosHtml(p.protein, p.fat, p.carbs)}</span>${meta ? `<span class="p-sub">${meta}</span>` : ""}</span>
     <span class="p-kcal">${fmtInt(p.kcal)}<small>ккал / 100 г</small></span></button>`;
 }
@@ -1334,7 +1336,7 @@ function statusHtml() {
     ${row("Синхронизация данных", sync[0], sync[1])}
     ${row("Gemini (ключ)", geminiKey() ? G : N, geminiKey() ? "Подключён" : "Не подключён")}
     <button type="button" class="btn ghost full" style="margin-top:10px" data-act="checkStatus" ${wait ? "disabled" : ""}>${wait ? "Проверяю…" : "Проверить снова"}</button>
-    <button type="button" class="btn full" style="margin-top:8px" data-act="reloadApp">Обновить приложение до актуальной версии</button>
+    <button type="button" class="btn soft full" style="margin-top:8px" data-act="reloadApp">Обновить приложение до актуальной версии</button>
   </div>`;
 }
 
