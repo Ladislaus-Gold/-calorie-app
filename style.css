@@ -661,9 +661,41 @@ button.lg-row:active { background: var(--accent-soft); }
 .pu-sum b { font-size: 15px; }
 .pu-sum small { font-size: 11px; color: var(--muted); }
 .pu-list { display: flex; flex-direction: column; }
-.pu-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.pu-row { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .pu-row:last-child { border-bottom: 0; }
 .pu-d { display: flex; flex-direction: column; gap: 2px; }
 .pu-d small { font-size: 12px; color: var(--muted); }
 .pu-g { color: var(--muted); }
 .pu-k { font-weight: 600; min-width: 74px; text-align: right; }
+
+/* v62: блок «Кофеин» */
+.caf-card { margin-top: 16px; padding: 14px; border-radius: 18px; background: var(--bg); border: 1px solid var(--line-2); --cf: var(--accent); --cf-soft: var(--accent-soft); }
+.caf-card.lv-warn { --cf: #C98A1A; --cf-soft: var(--amber-soft); }
+.caf-card.lv-over { --cf: var(--red); --cf-soft: var(--red-soft); }
+.caf-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.caf-card .caf-t { font-size: 15px; font-weight: 700; }
+.caf-val { font-size: 13px; color: var(--muted); }
+.caf-val b { font-size: 22px; color: var(--cf); letter-spacing: -.02em; margin-right: 2px; }
+.caf-bar { height: 8px; margin-top: 10px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
+.caf-bar i { display: block; height: 100%; border-radius: 999px; background: var(--cf); transition: width .3s ease; }
+.caf-msgs { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.caf-msgs li { position: relative; padding-left: 16px; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.caf-msgs li::before { content: ""; position: absolute; left: 0; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: #C98A1A; }
+.caf-msgs li.over::before { background: var(--red); }
+.caf-more { display: block; margin: 10px 0 0; padding: 4px 0; background: none; border: 0; color: var(--accent-d); font-size: 13px; font-weight: 600; }
+.caf-info { margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+
+/* v63 */
+.pu-info { font-size: 13px; color: var(--muted); margin: 0 2px 10px; line-height: 1.4; }
+.pu-info b { color: inherit; font-weight: 700; }
+.pu-tot { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; margin-bottom: 4px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line-2); font-size: 12px; color: var(--muted); }
+.pu-m { grid-column: 1 / -1; font-size: 12px; }
+.bju { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.bju span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.bju i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.pu-tot { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.pu-tot .bju { font-weight: 600; color: var(--text, inherit); }
+/* v64: БЖУ в окне «Когда я это ел» как в списке продуктов */
+.pu-tot { flex-direction: column; align-items: flex-start; gap: 6px; }
+.pu-tot .p-macros { margin-top: 0; font-size: 13px; color: inherit; font-weight: 600; }
+.pu-m .p-macros { margin-top: 0; }

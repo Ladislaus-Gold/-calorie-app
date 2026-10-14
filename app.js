@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 61;
+const APP_VERSION = 64;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2059,6 +2059,7 @@ function previewHtml(per100, grams, info, replaceMg = 0) {
 }
 
 /* ----- Когда я ел этот продукт: все записи дневника за всё время ----- */
+const bju = (p, f, c) => `<span class="p-macros">${macrosHtml(Number(p) || 0, Number(f) || 0, Number(c) || 0)}</span>`;
 async function openProductUsage(p) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>Когда я это ел</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
@@ -2078,8 +2079,13 @@ async function openProductUsage(p) {
   if (!list.length) { body.innerHTML = `<div class="empty"><b>Пока не ел</b>Этого продукта ещё нет в вашем дневнике.</div>`; return; }
   const sumG = list.reduce((t, e) => t + (Number(e.grams) || 0), 0), sumK = list.reduce((t, e) => t + (Number(e.kcal) || 0), 0);
   const days = new Set(list.map((e) => e.date)).size;
-  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span></div>`).join("");
-  body.innerHTML = `<div class="pu-sum"><div><b>${list.length}</b><small>${list.length === 1 ? "запись" : "записей"}</small></div><div><b>${days}</b><small>дн.</small></div><div><b>${fmtInt(sumG)} г</b><small>всего</small></div><div><b>${fmtInt(sumK)}</b><small>ккал всего</small></div></div>
+  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span><span class="pu-m">${bju(e.protein, e.fat, e.carbs)}</span></div>`).join("");
+  const sm = (k) => list.reduce((t, e) => t + (Number(e[k]) || 0), 0);
+  const avgG = sumG / list.length, last = list[0].date, daysAgo = Math.round((parseD(todayStr()) - parseD(last)) / 86400000);
+  const lastTxt = daysAgo <= 0 ? "сегодня" : daysAgo === 1 ? "вчера" : `${daysAgo} дн. назад`;
+  body.innerHTML = `<div class="pu-info">Последний раз: <b>${lastTxt}</b> · средняя порция <b>${fmtInt(avgG)} г</b> (${fmtInt(sumK / list.length)} ккал)</div>
+    <div class="pu-sum"><div><b>${list.length}</b><small>${list.length === 1 ? "запись" : "записей"}</small></div><div><b>${days}</b><small>дн.</small></div><div><b>${fmtInt(sumG)} г</b><small>всего</small></div><div><b>${fmtInt(sumK)}</b><small>ккал всего</small></div></div>
+    <div class="pu-tot"><span>БЖУ за всё время</span>${bju(sm("protein"), sm("fat"), sm("carbs"))}</div>
     <div class="pu-list">${rows}</div>`;
 }
 
@@ -2743,11 +2749,13 @@ function viewHealth() {
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
       ${favs.length ? `<p class="foot-note" style="margin:14px 2px 8px">Избранное и частые напитки</p><div class="chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
       ${fluidRows || legacyRow ? `<div class="entries flat">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}` : ""}
-      <div class="caf-line"><span class="caf-t">Кофеин</span><span class="pill ${caf.level === "ok" ? "" : caf.level}">${caf.mg} из ${caf.limit} мг</span></div>
-      <div class="track caf ${caf.level}"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
-      ${caf.msgs.map((m) => `<div class="warn ${m.lv === "over" ? "over" : ""}">${esc(m.t)}</div>`).join("")}
-      <button type="button" class="more-btn" data-act="toggleCafInfo">${state.cafInfo ? "Скрыть" : "О норме кофеина"}</button>
-      ${state.cafInfo ? `<p class="foot-note" style="margin:8px 0 0">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}
+      <div class="caf-card lv-${caf.level}">
+        <div class="caf-top"><span class="caf-t">Кофеин</span><span class="caf-val"><b>${fmtInt(caf.mg)}</b> из ${fmtInt(caf.limit)} мг</span></div>
+        <div class="caf-bar"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
+        ${caf.msgs.length ? `<ul class="caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}
+        <button type="button" class="caf-more" data-act="toggleCafInfo">${state.cafInfo ? "Скрыть" : "О норме кофеина"}</button>
+        ${state.cafInfo ? `<p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}
+      </div>
     </section>`;
   const pTrain = `
     <section class="card">
