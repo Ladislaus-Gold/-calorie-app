@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 77;
+const APP_VERSION = 78;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2998,6 +2998,7 @@ function viewHealth() {
   const pDyn = `
     ${weightCard(day)}
     ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true)}
+    ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v))}
     ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "") : ""}`;
   return `
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
