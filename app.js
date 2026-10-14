@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 34;
+const APP_VERSION = 36;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2423,6 +2423,36 @@ function maybeOnboard() {
 // Уменьшение («−250») тоже запись, но не больше, чем воды записано за день.
 const isWaterDrink = (x) => x.drinkId === "water";
 const plainWaterOn = (d) => waterOn(d) + (byDateIndex("drinks").get(d) || EMPTY).filter(isWaterDrink).reduce((sum, x) => sum + (Number(x.ml) || 0), 0);
+function openRemoveSheet() {
+  const day = state.date;
+  const recs = (byDateIndex("drinks").get(day) || EMPTY).filter((x) => Number(x.ml) > 0)
+    .sort((a, b) => String(timeOf(a.createdAt)).localeCompare(String(timeOf(b.createdAt))));
+  const legacy = Math.round(waterOn(day));
+  if (!recs.length && legacy <= 0) { toast("За этот день нет записей жидкости"); return; }
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Убрать жидкость</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <label class="field"><span>Сколько убрать, мл</span><input id="rm-ml" class="input big" inputmode="numeric" value="250" autocomplete="off"></label>
+    <p class="foot-note" style="margin:0 2px 8px">Выберите запись, из которой убрать:</p>
+    <div class="plist">${recs.slice().reverse().map((x) => `<div class="drow"><button type="button" class="d-main" data-rid="${x.id}"><span class="p-name">${esc(x.name)}</span><span class="p-sub">${timeOf(x.createdAt)} · ${fmt(x.ml)} мл</span></button></div>`).join("")}
+    ${legacy > 0 ? `<div class="drow"><button type="button" class="d-main" data-rid="__legacy"><span class="p-name">Вода</span><span class="p-sub">записано суммой за день · ${fmt(legacy)} мл</span></button></div>` : ""}</div>`);
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rid]");
+    if (!b) return;
+    const want = Math.round(num($("#rm-ml", ov).value));
+    if (!(want > 0)) { toast("Введите объём"); return; }
+    if (b.dataset.rid === "__legacy") {
+      setDoc(doc(db, "users", state.user.uid, "water", day), { date: day, ml: Math.max(0, legacy - want) }, { merge: true }).catch(writeFail);
+    } else {
+      const x = recs.find((r) => r.id === b.dataset.rid);
+      if (!x) return;
+      const left = Math.round(Number(x.ml) - want);
+      if (left > 0) updateDoc(docRef("drinks", x.id), { ml: left }).catch(writeFail);
+      else deleteDoc(docRef("drinks", x.id)).catch(writeFail);
+    }
+    ov.close();
+  });
+}
+
 function changeWater(n) {
   const day = state.date;
   let ml = Math.round(Number(n));
@@ -2585,7 +2615,7 @@ function toggleFav(id) {
 }
 
 // entry: запись, которую правим; presetId: сразу открыть напиток (из избранного)
-function openDrinkSheet(entry, presetId) {
+function openDrinkSheet(entry, presetId, presetMl) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>Напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div id="dk-body"></div>`);
@@ -2604,6 +2634,7 @@ function openDrinkSheet(entry, presetId) {
   function showList() {
     const favs = favDrinks();
     body.innerHTML = `
+      ${presetMl > 0 ? `<p class="foot-note" style="margin:0 2px 8px">Выберите напиток для ${fmt(presetMl)} мл</p>` : ""}
       <input id="dk-q" class="input search" type="search" placeholder="Найти напиток" value="${esc(st.q)}" autocomplete="off">
       ${favs.length ? `<p class="foot-note" style="margin:0 2px 8px">Избранное и частые</p><div class="chips">${favs.map((d) => `<button type="button" class="chip" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
       <div class="chips cats" id="dk-cats">${DRINK_CATS.map((c) => `<button type="button" class="chip ${st.cat === c.id ? "sel" : ""}" data-cat="${c.id}">${c.t}</button>`).join("")}</div>
@@ -2646,7 +2677,7 @@ function openDrinkSheet(entry, presetId) {
     const isCustom = d.id === "custom";
     const isWater = d.id === "water" && !existing;
     const oldCaf = existing ? (Number(existing.ml) * Number(existing.caf100)) / 100 : 0;
-    const lastMl = existing ? existing.ml : (Number(lsGet(`dml:${d.id}`)) || 250);
+    const lastMl = existing ? existing.ml : (presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250));
     body.innerHTML = `
       <div class="picked"><div class="p-name">${isCustom ? "Свой напиток" : esc(d.n)}</div>${isCustom ? "" : `<div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div>`}</div>
       ${isCustom ? `<label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
@@ -2744,7 +2775,7 @@ const actions = {
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { openProductForm(null); },
   goTab(ds) { state.tab = ds.tab; render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
-  addWater(ds) { changeWater(Number(ds.ml)); },
+  addWater(ds) { const n = Number(ds.ml); if (n > 0) openDrinkSheet(null, null, n); else openRemoveSheet(); },
   addDrink() { openDrinkSheet(); },
   toggleFluid() { state.fluidOpenDay = state.fluidOpenDay === state.date ? null : state.date; render(); },
   quickDrink(ds) { openDrinkSheet(null, ds.did); },
@@ -2752,7 +2783,7 @@ const actions = {
     if (ds.kind === "food") { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); }
     else { const x = state.drinks.find((y) => y.id === ds.id); if (x) openDrinkSheet(x); }
   },
-  waterCustom() { openWaterSheet(); },
+  waterCustom() { openDrinkSheet(); },
   addActivity() { openActivitySheet(null); },
   toggleStrength(ds) { const w = state.workouts.find((x) => x.id === ds.id); if (w) updateDoc(docRef("workouts", w.id), { strength: !isStrengthW(w) }).catch(writeFail); },
   editActivity(ds) { const a = state.activity.find((x) => x.id === ds.id); if (a) openActivitySheet(a); },
