@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 40;
+const APP_VERSION = 41;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1820,27 +1820,34 @@ function previewHtml(per100, grams, info, replaceMg = 0) {
 /* ----- Добавление еды в дневник ----- */
 function openAddFood(mealId, presetProduct) {
   const ov = openSheet(`
-    <div class="sheet-head"><h2>Добавить еду</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-    <label class="field"><span>Приём пищи</span><select id="af-meal" class="input">${mealOptions(mealId)}</select></label>
+    <div class="sheet-head af-head"><select id="af-meal" class="input" aria-label="Приём пищи">${mealOptions(mealId)}</select><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div id="af-body"></div>`);
+  ov.classList.add("top");
   const body = $("#af-body", ov);
   let q = "";
+  // окно держится у верхнего края видимой области: клавиатура не закрывает результаты поиска
+  const vv = window.visualViewport;
+  if (vv) {
+    const fit = () => {
+      if (!ov.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); return; }
+      ov.style.top = `${vv.offsetTop}px`; ov.style.height = `${vv.height}px`; ov.style.bottom = "auto";
+    };
+    vv.addEventListener("resize", fit); vv.addEventListener("scroll", fit); fit();
+  }
 
   function showList() {
+    body.classList.add("lm");
     body.innerHTML = `
-      <button type="button" class="btn primary full scan-cta" id="af-scan">${SCAN_SVG}<span>Сканировать штрих-код</span></button>
+      <div class="af-btns">
+        <button type="button" class="btn primary" id="af-scan">${SCAN_SVG}<span>Скан</span></button>
+        <button type="button" class="btn ghost" id="af-new">+ Продукт</button>
+        <button type="button" class="btn ghost" id="af-ai">Блюдо (ИИ)</button>
+      </div>
       <input id="af-q" class="input search" type="search" placeholder="Найти в общей базе" value="${esc(q)}" autocomplete="off">
-      <div id="af-list" class="plist"></div>
-      <div id="af-off"></div>
-      <button type="button" class="btn ghost full" id="af-ai" style="margin-top:12px">Блюдо по описанию или фото (ИИ)</button>
-      <button type="button" class="btn ghost full" id="af-new" style="margin-top:12px">+ Новый продукт</button>`;
+      <div id="af-list" class="plist"></div>`;
     const draw = () => {
       const items = filterProducts(q).slice(0, 60);
-      $("#af-list", ov).innerHTML = items.length ? items.map((p) => productRow(p, "data-pick")).join("") : (state.products.length ? `<div class="empty"><b>Ничего не найдено</b>Поищите в Open Food Facts или добавьте продукт вручную.</div>` : emptyProducts);
-      const term = q.trim();
-      $("#af-off", ov).innerHTML = term.length >= 3 ? `<button type="button" class="btn ghost full" id="af-off-btn" style="margin-top:12px">Искать «${esc(term)}» в Open Food Facts</button>` : "";
-      const ob = $("#af-off-btn", ov);
-      if (ob) ob.addEventListener("click", () => showOff(term));
+      $("#af-list", ov).innerHTML = items.length ? items.map((p) => productRow(p, "data-pick")).join("") : (state.products.length ? `<div class="empty"><b>Ничего не найдено</b>Отсканируйте штрих-код или добавьте продукт вручную.</div>` : emptyProducts);
     };
     draw();
     $("#af-q", ov).addEventListener("input", (e) => { q = e.target.value; draw(); });
@@ -1856,6 +1863,7 @@ function openAddFood(mealId, presetProduct) {
   }
 
   async function showOff(term) {
+    body.classList.remove("lm");
     body.innerHTML = `<div class="empty"><b>Ищу в Open Food Facts…</b>Это может занять несколько секунд.</div>`;
     const res = await searchOFF(term);
     if (!ov.isConnected) return;
@@ -1878,6 +1886,7 @@ function openAddFood(mealId, presetProduct) {
   }
 
   function showDetail(p) {
+    body.classList.remove("lm");
     const info = p.drink ? { pct: Number(p.hydrationPct) || 0, caf100: Number(p.caffeineMg100) || 0 } : null;
     const last = Number(lsGet(`g:${p.id}`)) || (info ? 250 : 100);
     body.innerHTML = `

@@ -452,3 +452,17 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .meal-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 8px; }
 .meal-pick-btn { display: flex; align-items: center; gap: 10px; padding: 14px 12px; border-radius: 16px; background: var(--field); border: 1px solid var(--line); font-size: 16px; font-weight: 600; color: var(--text); text-align: left; }
 .meal-pick-btn.cur { border-color: var(--accent); background: var(--accent-soft); }
+
+/* «Добавить еду»: окно у верхнего края, кнопки сверху, список прокручивается */
+.overlay.top { align-items: flex-start; }
+.overlay.top .sheet { display: flex; flex-direction: column; overflow: hidden; max-height: 100%; border-radius: 0 0 22px 22px; box-shadow: 0 14px 40px rgba(0, 0, 0, .22);
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 12px; transform: translateY(-24px); }
+.overlay.top.open .sheet { transform: none; }
+.af-head { gap: 10px; margin-bottom: 10px; }
+.af-head select { flex: 1; min-width: 0; }
+.overlay.top #af-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; }
+.overlay.top #af-body.lm { overflow: hidden; }
+.af-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.af-btns .btn { padding-left: 6px; padding-right: 6px; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.af-btns .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.overlay.top #af-body.lm #af-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; align-content: start; }
