@@ -766,3 +766,37 @@ button.lg-row:active { background: var(--accent-soft); }
 :root[data-theme="dark"] .sum-verdict { background: rgba(60, 170, 100, .14); color: #8EE0A8; }
 :root[data-theme="dark"] .sum-verdict.lv-warn { background: rgba(240, 190, 80, .14); color: #F2C879; }
 :root[data-theme="dark"] .sum-verdict.lv-bad { background: rgba(230, 90, 90, .15); color: #F5A3A5; }
+/* v72: завтрак жёлтый, обед оранжевый */
+.meal.m-breakfast { --mc: #FFC82E; }
+.meal.m-lunch { --mc: #F2762E; }
+.meal.m-breakfast .meal-top, .meal.m-breakfast .meal-empty { background: linear-gradient(120deg, color-mix(in srgb, #FFD43B 42%, transparent), color-mix(in srgb, #FFE680 10%, transparent) 78%); }
+.meal.m-lunch .meal-top, .meal.m-lunch .meal-empty { background: linear-gradient(120deg, color-mix(in srgb, #F2762E 30%, transparent), color-mix(in srgb, #F2762E 6%, transparent) 78%); }
+:root[data-theme="dark"] .meal.m-breakfast .meal-top, :root[data-theme="dark"] .meal.m-breakfast .meal-empty { background: linear-gradient(120deg, color-mix(in srgb, #FFC82E 30%, transparent), color-mix(in srgb, #FFC82E 6%, transparent) 78%); }
+:root[data-theme="dark"] .meal.m-lunch .meal-top, :root[data-theme="dark"] .meal.m-lunch .meal-empty { background: linear-gradient(120deg, color-mix(in srgb, #F2762E 32%, transparent), color-mix(in srgb, #F2762E 7%, transparent) 78%); }
+/* v73: цвета приёмов в окне «Куда добавить?» */
+.meal-pick-btn.m-breakfast { --mc: #FFC82E; } .meal-pick-btn.m-lunch { --mc: #F2762E; } .meal-pick-btn.m-dinner { --mc: #6B76D9; } .meal-pick-btn.m-snack { --mc: #22B2C8; }
+.meal-pick-btn { border-color: color-mix(in srgb, var(--mc) 35%, transparent); background: linear-gradient(120deg, color-mix(in srgb, var(--mc) 28%, transparent), color-mix(in srgb, var(--mc) 7%, transparent) 80%); }
+.meal-pick-btn.cur { border: 2px solid var(--mc); padding: 13px 11px; background: linear-gradient(120deg, color-mix(in srgb, var(--mc) 40%, transparent), color-mix(in srgb, var(--mc) 12%, transparent) 80%); }
+/* v74: милые «Краткие выводы» и компактная карточка ИИ */
+.ins { display: grid; gap: 10px; }
+.in-grp { border-radius: 16px; padding: 10px 12px 4px; background: color-mix(in srgb, #A9B0BD 12%, transparent); }
+.in-grp.k-bad { background: var(--red-soft); }
+.in-grp.k-warn { background: var(--amber-soft); }
+.in-grp.k-good { background: var(--accent-soft); }
+.in-grp .in-h { display: flex; align-items: center; gap: 6px; padding: 0 0 4px; text-transform: none; letter-spacing: 0; font-size: 14px; }
+.in-grp .in-h b { margin-left: auto; min-width: 22px; padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, .7); font-size: 12px; text-align: center; color: var(--text); }
+.in-em { font-size: 16px; line-height: 1; }
+.in-grp .in { border-bottom: 1px solid rgba(0, 0, 0, .06); padding: 8px 0; }
+.in-grp .in:last-child { border-bottom: 0; }
+.in-sum .in-h { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font-size: 14px; }
+.sum-verdict { border-radius: 16px; }
+.ai-mini .h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 0; }
+.ai-actions { display: flex; gap: 8px; margin-top: 10px; }
+.ai-actions .btn.primary { flex: 1; }
+.ai-actions .ai-key { flex: 0 0 auto; width: 48px; padding: 0; font-size: 18px; }
+:root[data-theme="dark"] .in-grp { background: rgba(255, 255, 255, .05); }
+:root[data-theme="dark"] .in-grp.k-bad { background: rgba(230, 90, 90, .13); }
+:root[data-theme="dark"] .in-grp.k-warn { background: rgba(240, 190, 80, .12); }
+:root[data-theme="dark"] .in-grp.k-good { background: rgba(60, 170, 100, .13); }
+:root[data-theme="dark"] .in-grp .in { border-bottom-color: rgba(255, 255, 255, .08); }
+:root[data-theme="dark"] .in-grp .in-h b { background: rgba(255, 255, 255, .12); }

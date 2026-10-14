@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 71;
+const APP_VERSION = 74;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1275,12 +1275,11 @@ function aiCardHtml(days) {
   const status = ai.busy
     ? `<p class="foot-note" style="margin:0 0 12px">${esc(ai.step || "Gemini читает ваши данные. Обычно это 10–30 секунд.")}</p>`
     : errHtml || (last ? "" : `<p class="foot-note" style="margin:0 0 12px">Нажмите кнопку: ИИ изучит данные за период ${esc(periodText(days))} и напишет выводы. Сводка по дням без имени и почты отправляется в Google Gemini.</p>`);
-  return `<section class="card ai-card">
-    <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
-    ${status}
-    <button type="button" class="btn primary full" id="ai-run" data-act="aiRun" ${ai.busy ? "disabled" : ""}>${ai.busy ? "Анализирую…" : last ? `Обновить анализ за ${esc(periodText(days))}` : "Проанализировать"}</button>
+  return `<section class="card ai-card ai-mini">
+    <div class="ai-mini-row"><div><h2 class="h2">Анализ с помощью ИИ <span class="pill">Gemini</span></h2>${ai.busy || errHtml ? "" : last ? "" : `<p class="foot-note" style="margin:4px 0 0">ИИ изучит данные за ${esc(periodText(days))}. Сводка без имени и почты уходит в Google Gemini.</p>`}</div></div>
+    ${ai.busy ? `<p class="foot-note" style="margin:8px 0 0">${esc(ai.step || "Gemini читает ваши данные. Обычно это 10–30 секунд.")}</p>` : errHtml}
+    <div class="ai-actions"><button type="button" class="btn primary" id="ai-run" data-act="aiRun" ${ai.busy ? "disabled" : ""}>${ai.busy ? "Анализирую…" : last ? `Обновить за ${esc(periodText(days))}` : "Проанализировать"}</button><button type="button" class="btn ghost ai-key" data-act="aiForgetKey" aria-label="Сменить или удалить ключ" title="Ключ">🔑</button></div>
     ${delBtn}
-    <button type="button" class="btn ghost full" style="margin-top:8px" data-act="aiForgetKey">Сменить или удалить ключ</button>
     ${ai.busy && ai.partial ? `<div class="ai-text" style="margin-top:18px">${mdLite(ai.partial)}</div>` : lastHtml}
   </section>`;
 }
@@ -1397,11 +1396,13 @@ function viewReports() {
   const INS_LBL = { bad: "Обратить внимание", warn: "Можно улучшить", good: "В норме", info: "К сведению" };
   const cross = crossInsights(a);
   const crossHtml = cross.verdict || cross.links.length ? `<div class="in-sum">
-      <div class="in-h k-${cross.verdict ? cross.verdict.lv : "info"}">Итог и связи между показателями</div>
+      <div class="in-h k-${cross.verdict ? cross.verdict.lv : "info"}"><span class="in-em">🧭</span>Итог и связи между показателями</div>
       ${cross.verdict ? `<div class="sum-verdict lv-${cross.verdict.lv}">${esc(cross.verdict.text)}</div>` : ""}
       ${cross.links.length ? cross.links.map((l) => `<div class="in k-${l.kind}"><i></i><p>${esc(l.text)}</p></div>`).join("") : `<p class="foot-note" style="margin:8px 0 0">Чтобы увидеть связи (нагрузка и вода, сон и еда, кофеин и сон), нужно хотя бы по 2 дня каждого типа. Записывайте дальше.</p>`}
     </div>` : "";
-  const insHtml = `<div class="ins">${ins.map((i, k) => `${k === 0 || ins[k - 1].kind !== i.kind ? `<div class="in-h k-${i.kind}">${INS_LBL[i.kind]}</div>` : ""}<div class="in k-${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}${crossHtml}</div>`;
+  const INS_EM = { bad: "🚨", warn: "💡", good: "✅", info: "ℹ️" };
+  const insGroups = ["bad", "warn", "good", "info"].map((k) => ({ k, list: ins.filter((i) => i.kind === k) })).filter((g) => g.list.length);
+  const insHtml = `<div class="ins">${insGroups.map((g) => `<div class="in-grp k-${g.k}"><div class="in-h k-${g.k}"><span class="in-em">${INS_EM[g.k]}</span>${INS_LBL[g.k]}<b>${g.list.length}</b></div>${g.list.map((i) => `<div class="in k-${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`).join("")}${crossHtml}</div>`;
   const plan = a.plan;
   const macroRow = (name, avg, target, cls) => `<div class="rk"><div class="rk-top"><span class="rk-n">${name}</span><span class="rk-v">${fmt(avg)} г${target ? ` из ${target} г` : ""}</span></div><div class="rk-bar"><i class="${cls}" style="width:${target ? Math.min(100, (avg / target) * 100) : Math.min(100, avg)}%"></i></div></div>`;
   const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
@@ -3558,7 +3559,7 @@ const actions = {
     const cur = mealByTime();
     const ov = openSheet(`
       <div class="sheet-head"><h2>Куда добавить?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-      <div class="meal-pick">${MEALS.map((m) => `<button type="button" class="meal-pick-btn${m.id === cur ? " cur" : ""}" data-meal="${m.id}"><span class="meal-ic ${m.id}">${m.emoji}</span><span>${m.name}</span></button>`).join("")}</div>`);
+      <div class="meal-pick">${MEALS.map((m) => `<button type="button" class="meal-pick-btn m-${m.id}${m.id === cur ? " cur" : ""}" data-meal="${m.id}"><span class="meal-ic ${m.id}">${m.emoji}</span><span>${m.name}</span></button>`).join("")}</div>`);
     ov.addEventListener("click", (e) => {
       const b = e.target.closest("[data-meal]");
       if (!b) return;
