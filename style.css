@@ -19,9 +19,9 @@
   --red-soft: #FDECEC;
   --amber: #F5BD45;
   --amber-soft: #FFF4D6;
-  --protein: #4DB3D6;
-  --fat: #F1766B;
-  --carbs: #F5BD45;
+  --protein: #A66BD9;
+  --fat: #F29A3D;
+  --carbs: #4F8FE8;
   --water: #38B1E6;
   --water-soft: #E3F4FC;
   --radius: 22px;
@@ -163,7 +163,7 @@ b { font-weight: 600; }
 .meal-ic svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .meal-ic.lunch { background: #FFE9D2; color: #D0701A; }
 .meal-ic.dinner { background: #E6E8FF; color: #5560C9; }
-.meal-ic.snack { background: #FFE3E0; color: #D4574B; }
+.meal-ic.snack { background: #DDF4F8; color: #1C93A6; }
 .meal-info { min-width: 0; }
 .meal-name { font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
 .meal-macros, .p-macros { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 2px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -609,7 +609,7 @@ button.lg-row:active { background: var(--accent-soft); }
 :root[data-theme="dark"] .meal-ic { background: #3A3115; color: #F5BD45; }
 :root[data-theme="dark"] .meal-ic.lunch { background: #3D2B18; color: #F0A35E; }
 :root[data-theme="dark"] .meal-ic.dinner { background: #25294A; color: #98A2FF; }
-:root[data-theme="dark"] .meal-ic.snack { background: #402322; color: #F59A90; }
+:root[data-theme="dark"] .meal-ic.snack { background: #17363C; color: #6ED3E3; }
 :root[data-theme="dark"] .stat-grid .stat:nth-child(6n+1) { --t: #1B3524; --tc: #6FE0A0; --tm: #8FB89C; }
 :root[data-theme="dark"] .stat-grid .stat:nth-child(6n+2) { --t: #3A3115; --tc: #F5C85E; --tm: #C2A870; }
 :root[data-theme="dark"] .stat-grid .stat:nth-child(6n+3) { --t: #12303F; --tc: #6CC4EE; --tm: #86B0C5; }
@@ -716,3 +716,17 @@ button.lg-row:active { background: var(--accent-soft); }
 .sl-lg i { width: 10px; height: 10px; border-radius: 50%; display: block; }
 .sl-lg small { color: var(--muted); text-align: right; }
 .caf-msgs li.ok::before { background: var(--accent); }
+
+/* v66: мягкий цвет приёма пищи в шапке карточки (полоска калорий и цифры остаются по цели) */
+.meal.m-breakfast { --mc: #E8B33A; }
+.meal.m-lunch { --mc: #E8873A; }
+.meal.m-dinner { --mc: #6B76D9; }
+.meal.m-snack { --mc: #22B2C8; }
+.meal .meal-head { border-radius: 16px; background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 10%, transparent), transparent 75%); box-shadow: inset 3px 0 0 var(--mc); }
+:root[data-theme="dark"] .meal .meal-head { background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 12%, transparent), transparent 75%); }
+.rk-bar i.prot { background: var(--protein); }
+
+/* v68: полоска калорий входит в цветную шапку приёма пищи */
+.meal .meal-top { border-radius: 16px; background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 10%, transparent), transparent 75%); box-shadow: inset 3px 0 0 var(--mc); padding-bottom: 2px; }
+:root[data-theme="dark"] .meal .meal-top { background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 12%, transparent), transparent 75%); }
+.meal .meal-head { background: none; box-shadow: none; border-radius: 0; }

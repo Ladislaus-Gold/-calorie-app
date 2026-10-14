@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 65;
+const APP_VERSION = 68;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -632,14 +632,14 @@ function viewDiary() {
         <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
         <span class="e-kcal">${fmtInt(e.kcal)}<small>ккал</small></span>
       </button></div>`).join("");
-    return `<section class="card meal">
-      <div class="meal-head">
+    return `<section class="card meal m-${m.id}">
+      <div class="meal-top"><div class="meal-head">
         <span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span>
         <div class="meal-name">${m.name}</div>
         <div class="meal-kcal${mt.kcal > target ? " over" : ""}">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
         <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
       </div>
-      <div class="meal-plan"><div class="track ${target > 0 ? levelOf(mt.kcal / target) : ""}"><i style="width:${mp}%"></i></div></div>
+      <div class="meal-plan"><div class="track ${target > 0 ? levelOf(mt.kcal / target) : ""}"><i style="width:${mp}%"></i></div></div></div>
       ${rows ? `<div class="entries">${rows}${items.length > 1 ? `<button type="button" class="more-btn" data-act="toggleMeal" data-key="${mKey}">${mOpen ? "Свернуть ▲" : `Показать все (${items.length}) ▼`}</button>` : ""}</div>` : ""}
     </section>`;
   }).join("");
@@ -1369,7 +1369,7 @@ function viewReports() {
     ${a.L ? `<section class="card">
       <h2 class="h2">Белки, жиры, углеводы в день</h2>
       <div class="rank">
-        ${macroRow("Белки", a.pAvg, plan && plan.protein, "")}
+        ${macroRow("Белки", a.pAvg, plan && plan.protein, "prot")}
         ${macroRow("Жиры", a.fAvg, plan && plan.fat, "fat")}
         ${macroRow("Углеводы", a.cAvg, plan && plan.carbs, "carb")}
       </div>
