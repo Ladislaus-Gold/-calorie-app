@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 36;
+const APP_VERSION = 38;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -182,6 +182,7 @@ const state = {
   insOpen: false,
   status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
+  mealOpen: {},
   hist: { entries: [], water: [], activity: [], drinks: [], workouts: [] },
   histFrom: null,
   liveFrom: null,
@@ -597,7 +598,8 @@ function viewDiary() {
     const mp = target > 0 ? Math.min(100, (mt.kcal / target) * 100) : 0;
     const sh = mealSplit()[m.id] / 100;
     const mplan = mg ? { p: Math.round(mg.protein * sh), f: Math.round(mg.fat * sh), c: Math.round(mg.carbs * sh) } : null;
-    const rows = items.map((e) => `
+    const mKey = `${day}:${m.id}`, mOpen = !!state.mealOpen[mKey], shown = mOpen || items.length < 2 ? items : items.slice(-1);
+    const rows = shown.map((e) => `
       <button type="button" class="entry" data-act="editEntry" data-id="${esc(e.id)}">
         <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
         <span class="e-kcal">${fmtInt(e.kcal)}<small>ккал</small></span>
@@ -611,7 +613,7 @@ function viewDiary() {
         <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
       </div>
       <div class="meal-plan"><div class="track ${mt.kcal > target ? "over" : ""}"><i style="width:${mp}%"></i></div></div>
-      ${rows ? `<div class="entries">${rows}</div>` : ""}
+      ${rows ? `<div class="entries">${rows}${items.length > 1 ? `<button type="button" class="more-btn" data-act="toggleMeal" data-key="${mKey}">${mOpen ? "Свернуть ▲" : `Показать все (${items.length}) ▼`}</button>` : ""}</div>` : ""}
     </section>`;
   }).join("");
 
@@ -2685,6 +2687,7 @@ function openDrinkSheet(entry, presetId, presetMl) {
           <label class="field"><span>Гидратация, %</span><input id="dk-pct" class="input" inputmode="decimal" value="${String(d.h).replace(".", ",")}" autocomplete="off"></label>
           <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dk-caf" class="input" inputmode="decimal" value="${existing ? String(existing.caf100).replace(".", ",") : "0"}" autocomplete="off"></label>
         </div>
+        <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dk-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
         <label class="field"><span>Калории, ккал на 100 мл (если есть)</span><input id="dk-kcal" class="input" inputmode="decimal" value="0" autocomplete="off"></label>` : ""}
       <label class="field"><span>Объём, мл</span><input id="dk-ml" class="input big" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"></label>
       <div class="chips">${[100, 150, 200, 250, 330, 500].map((n) => `<button type="button" class="chip" data-n="${n}">${n}</button>`).join("")}</div>
@@ -2719,6 +2722,12 @@ function openDrinkSheet(entry, presetId, presetMl) {
     upd();
     body.addEventListener("input", upd);
     body.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { $("#dk-ml", ov).value = c.dataset.n; upd(); }));
+    const signBtn = $("#dk-sign", ov);
+    if (signBtn) signBtn.addEventListener("click", () => {
+      const inp = $("#dk-pct", ov), v = String(inp.value).trim().replace(/^[−–-]\s*/, "");
+      inp.value = /^[−–-]/.test(String(inp.value).trim()) ? v : (v ? "-" + v : "-");
+      upd();
+    });
     if (!existing) $("#dk-back", ov).addEventListener("click", showList);
     $("#dk-save", ov).addEventListener("click", () => {
       const r = read();
@@ -2777,6 +2786,7 @@ const actions = {
   goTab(ds) { state.tab = ds.tab; render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
   addWater(ds) { const n = Number(ds.ml); if (n > 0) openDrinkSheet(null, null, n); else openRemoveSheet(); },
   addDrink() { openDrinkSheet(); },
+  toggleMeal(ds) { state.mealOpen[ds.key] = !state.mealOpen[ds.key]; render(); },
   toggleFluid() { state.fluidOpenDay = state.fluidOpenDay === state.date ? null : state.date; render(); },
   quickDrink(ds) { openDrinkSheet(null, ds.did); },
   editFluid(ds) {
