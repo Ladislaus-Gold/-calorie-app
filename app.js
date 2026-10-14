@@ -10,7 +10,7 @@ import {
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
   getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=28";
+import { STARTER } from "./starter.js?v=49";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=28";
 
 const firebaseConfig = {
@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 47;
+const APP_VERSION = 49;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -679,7 +679,7 @@ function viewProducts() {
     <p class="foot-note">Продукты видят все пользователи. Править или удалять продукт может только тот, кто его добавил.</p>
     ${missing ? `<section class="card">
       <h2 class="h2">Базовые продукты</h2>
-      <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный. У жареных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
+      <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный, тушёный. У жареных и тушёных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
       <button type="button" class="btn ghost full" data-act="importStarter">Добавить в общую базу</button>
     </section>` : ""}`;
 }
@@ -956,6 +956,16 @@ async function askGemini(prompt, step = () => {}, extra = {}) {
   };
   const tried = new Set();
   const queue = pref ? [pref] : [];
+  let fatal = false;
+  // Google иногда перегружен сразу по всем моделям (503): делаем до 4 кругов с паузой, во втором и дальше сначала лёгкие модели
+  for (let round = 0; round < 4 && !fatal; round++) {
+  if (round > 0) {
+    const wait = 4 * round;
+    step(`Gemini перегружен (это на стороне Google). Повтор через ${wait} с, круг ${round + 1} из 4…`);
+    await new Promise((r) => setTimeout(r, wait * 1000));
+    tried.clear(); queue.length = 0;
+    if (models) { const lt = models.filter((m) => /lite/.test(m)); models = [...lt, ...models.filter((m) => !lt.includes(m))]; }
+  }
   for (let n = 0; n < 6; n++) {
     let model = queue.shift();
     if (!model) {
@@ -977,9 +987,11 @@ async function askGemini(prompt, step = () => {}, extra = {}) {
       if (e.status !== 404) real = e;
       if (noThink && e.status === 400 && /think/i.test(e.message || "")) { noThink = false; tried.delete(model); queue.unshift(model); continue; }
       if (e.status === 404 && model === pref) lsSet(prefKey, ""); // запомненная модель исчезла
-      if (e.status === 400 || e.status === 401 || e.status === 403 || e.status === 429) break; // ключ или лимит: другая модель не поможет
+      if (e.status === 400 || e.status === 401 || e.status === 403 || e.status === 429) { fatal = true; break; } // ключ или лимит: другая модель не поможет
       if (extra.onText) extra.onText(""); // сброс частичного текста перед следующей моделью
     }
+  }
+  if (fatal || !real) break; // не перегрузка: повторять бесполезно
   }
   aiModelsCache = null;
   throw real || last || new Error("Не удалось получить ответ");
