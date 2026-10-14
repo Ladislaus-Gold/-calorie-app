@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 38;
+const APP_VERSION = 40;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -609,7 +609,6 @@ function viewDiary() {
         <span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span>
         <div class="meal-name">${m.name}</div>
         <div class="meal-kcal${mt.kcal > target ? " over" : ""}">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
-        <button type="button" class="add-btn" data-act="addFood" data-meal="${m.id}" aria-label="Добавить в «${m.name}»">+</button>
         <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
       </div>
       <div class="meal-plan"><div class="track ${mt.kcal > target ? "over" : ""}"><i style="width:${mp}%"></i></div></div>
@@ -634,7 +633,8 @@ function viewDiary() {
       <h2 class="h2">Баланс БЖУ</h2>
       <div class="sum-grid">${donut(t)}<div class="legend">${legend}</div></div>
     </section>
-    ${mealsHtml}`;
+    ${mealsHtml}
+    <button type="button" class="fab" data-act="pickMeal" aria-label="Добавить еду">+</button>`;
 }
 
 /* ================= Продукты ================= */
@@ -892,7 +892,7 @@ async function geminiError(r) {
   e.status = r.status;
   return e;
 }
-async function askGemini(prompt, step = () => {}) {
+async function askGemini(prompt, step = () => {}, extra = {}) {
   const key = geminiKey();
   if (!key) throw new Error("no-key");
   step("Подбираю модель Gemini…");
@@ -909,7 +909,10 @@ async function askGemini(prompt, step = () => {}) {
       const r = await fetchT(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 8192 } }),
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }, ...(extra.image ? [{ inlineData: { mimeType: extra.image.mime, data: extra.image.data } }] : [])] }],
+          generationConfig: { temperature: extra.json ? 0.2 : 0.4, maxOutputTokens: 8192, ...(extra.json ? { responseMimeType: "application/json" } : {}) },
+        }),
       });
       if (!r.ok) throw await geminiError(r);
       const j = await r.json();
@@ -1829,6 +1832,7 @@ function openAddFood(mealId, presetProduct) {
       <input id="af-q" class="input search" type="search" placeholder="Найти в общей базе" value="${esc(q)}" autocomplete="off">
       <div id="af-list" class="plist"></div>
       <div id="af-off"></div>
+      <button type="button" class="btn ghost full" id="af-ai" style="margin-top:12px">Блюдо по описанию или фото (ИИ)</button>
       <button type="button" class="btn ghost full" id="af-new" style="margin-top:12px">+ Новый продукт</button>`;
     const draw = () => {
       const items = filterProducts(q).slice(0, 60);
@@ -1842,6 +1846,7 @@ function openAddFood(mealId, presetProduct) {
     $("#af-q", ov).addEventListener("input", (e) => { q = e.target.value; draw(); });
     $("#af-scan", ov).addEventListener("click", () => openScanner((code) => processBarcode(code, showDetail, showDetail)));
     $("#af-new", ov).addEventListener("click", () => openProductForm(null, (p) => showDetail(p), { name: q.trim() }));
+    $("#af-ai", ov).addEventListener("click", () => { const meal = $("#af-meal", ov).value; ov.close(); openAiDish(meal); });
     $("#af-list", ov).addEventListener("click", (e) => {
       const b = e.target.closest("[data-pick]");
       if (!b) return;
@@ -1906,6 +1911,116 @@ function openAddFood(mealId, presetProduct) {
   }
 
   if (presetProduct) showDetail(presetProduct); else showList();
+}
+
+/* ----- Блюдо по описанию или фото (Gemini) ----- */
+async function photoToB64(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const k = Math.min(1, 1024 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return { mime: "image/jpeg", data: c.toDataURL("image/jpeg", 0.8).split(",")[1] };
+  } finally { URL.revokeObjectURL(url); }
+}
+function parseDishJson(text) {
+  const t = String(text).replace(/```json|```/g, "");
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a < 0 || b <= a) throw new Error("Ответ ИИ не удалось разобрать");
+  const j = JSON.parse(t.slice(a, b + 1));
+  const n = (v) => Math.max(0, Number(String(v).replace(",", ".")) || 0);
+  const grams = n(j.grams);
+  if (!(grams > 0) || !(n(j.kcal) >= 0)) throw new Error("ИИ не определил вес или калории блюда");
+  return { name: String(j.name || "Блюдо").slice(0, 80), grams, kcal: n(j.kcal), protein: n(j.protein), fat: n(j.fat), carbs: n(j.carbs),
+    items: Array.isArray(j.items) ? j.items.slice(0, 15).map((x) => ({ name: String(x.name || ""), grams: n(x.grams) })).filter((x) => x.name) : [], comment: String(j.comment || "") };
+}
+function openAiDish(mealId) {
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Блюдо (ИИ)</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div id="ai-body"></div>`);
+  const body = $("#ai-body", ov);
+  let photo = null, form = { desc: "", grams: "" };
+
+  function showForm(err) {
+    if (!geminiKey()) {
+      body.innerHTML = `<div class="banner"><b>Gemini не подключён</b><br><small>Откройте «Отчёты», блок «Анализ с помощью ИИ», и нажмите «Подключить Gemini». Ключ нужен один раз.</small></div>`;
+      return;
+    }
+    body.innerHTML = `
+      <p class="foot-note" style="margin:0 2px 10px">Опишите блюдо словами, сделайте фото или то и другое. ИИ оценит вес порции, калории и БЖУ. Это примерная оценка: проверьте и поправьте вес.</p>
+      <label class="field"><span>Приём пищи</span><select id="ai-meal" class="input">${mealOptions(mealId)}</select></label>
+      <label class="field"><span>Описание</span><textarea id="ai-desc" class="input" rows="3" placeholder="Например: шаурма куриная в лаваше, с овощами и чесночным соусом, большая">${esc(form.desc)}</textarea></label>
+      <label class="field"><span>Вес порции, г (если знаете)</span><input id="ai-g" class="input" inputmode="decimal" value="${esc(form.grams)}" autocomplete="off"></label>
+      <input type="file" accept="image/*" id="ai-file" class="vh">
+      <div class="row"><button type="button" class="btn ghost grow" id="ai-pick">${photo ? "Фото выбрано ✓ (заменить)" : "Добавить фото"}</button>${photo ? `<button type="button" class="btn ghost" id="ai-unphoto">Убрать</button>` : ""}</div>
+      ${err ? `<div class="banner" role="alert" style="margin-top:10px"><b>${esc(err)}</b></div>` : ""}
+      <button type="button" class="btn primary full" id="ai-go" style="margin-top:12px">Определить состав</button>`;
+    const keep = () => { form = { desc: $("#ai-desc", ov).value, grams: $("#ai-g", ov).value }; mealId = $("#ai-meal", ov).value; };
+    $("#ai-pick", ov).addEventListener("click", () => $("#ai-file", ov).click());
+    $("#ai-file", ov).addEventListener("change", async (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      keep();
+      try { photo = await photoToB64(f); } catch { photo = null; showForm("Не удалось прочитать фото"); return; }
+      showForm();
+    });
+    const un = $("#ai-unphoto", ov);
+    if (un) un.addEventListener("click", () => { keep(); photo = null; showForm(); });
+    $("#ai-go", ov).addEventListener("click", () => {
+      keep();
+      if (!form.desc.trim() && !photo) { showForm("Опишите блюдо или добавьте фото"); return; }
+      run();
+    });
+  }
+
+  async function run() {
+    body.innerHTML = `<div class="empty"><b>Определяю состав…</b><span id="ai-step">Обычно 10–30 секунд.</span></div>`;
+    const g = num(form.grams);
+    const prompt = `Ты диетолог. Оцени блюдо${photo ? " по фото" : ""}${form.desc.trim() ? ` и описанию: «${form.desc.trim()}»` : ""}.${g > 0 ? ` Вес порции известен: ${g} г.` : " Оцени вес порции в граммах сам."}
+Верни ТОЛЬКО JSON без пояснений такого вида:
+{"name":"короткое название блюда по-русски","grams":вес порции в граммах числом,"kcal":калории всей порции числом,"protein":белки всей порции в граммах,"fat":жиры всей порции в граммах,"carbs":углеводы всей порции в граммах,"items":[{"name":"ингредиент","grams":число}],"comment":"одна короткая фраза о том, что неточно"}
+Числа без единиц. Калории и БЖУ указывай на всю порцию, а не на 100 г. Если не уверен, дай реалистичную среднюю оценку.`;
+    try {
+      const r = await askGemini(prompt, (t) => { const el = $("#ai-step", ov); if (el) el.textContent = t; }, { image: photo, json: true });
+      if (!ov.isConnected) return;
+      showResult(parseDishJson(r.text), r.model);
+    } catch (e) {
+      if (!ov.isConnected) return;
+      showForm(e.message === "no-key" ? "Gemini не подключён" : `Не получилось: ${e.message}`);
+    }
+  }
+
+  function showResult(d, model) {
+    const p100 = { kcal: (d.kcal / d.grams) * 100, protein: (d.protein / d.grams) * 100, fat: (d.fat / d.grams) * 100, carbs: (d.carbs / d.grams) * 100 };
+    body.innerHTML = `
+      <label class="field"><span>Название</span><input id="ai-name" class="input" maxlength="80" value="${esc(d.name)}" autocomplete="off"></label>
+      <label class="field"><span>Вес порции, г</span><input id="ai-w" class="input big" inputmode="decimal" value="${Math.round(d.grams)}" autocomplete="off"></label>
+      <div class="preview" id="ai-prev"></div>
+      ${d.items.length ? `<p class="foot-note" style="margin:8px 2px">Состав по оценке ИИ: ${d.items.map((x) => `${esc(x.name)}${x.grams > 0 ? ` ${fmt(x.grams)} г` : ""}`).join(", ")}.</p>` : ""}
+      ${d.comment ? `<p class="foot-note" style="margin:0 2px 8px">${esc(d.comment)}</p>` : ""}
+      <p class="foot-note" style="margin:0 2px 10px">Примерная оценка (${esc(model)}). КБЖУ пересчитывается при изменении веса.</p>
+      <label class="field"><span>Приём пищи</span><select id="ai-meal2" class="input">${mealOptions(mealId)}</select></label>
+      <div class="row"><button type="button" class="btn ghost" id="ai-back">Назад</button><button type="button" class="btn primary grow" id="ai-add">Добавить</button></div>`;
+    const w = $("#ai-w", ov);
+    const upd = () => { $("#ai-prev", ov).innerHTML = previewHtml(p100, num(w.value), null); };
+    upd();
+    w.addEventListener("input", upd);
+    $("#ai-back", ov).addEventListener("click", () => showForm());
+    $("#ai-add", ov).addEventListener("click", () => {
+      const grams = num(w.value);
+      if (!(grams > 0)) { return; }
+      const name = $("#ai-name", ov).value.trim() || "Блюдо";
+      addDoc(colRef("entries"), {
+        date: state.date, meal: $("#ai-meal2", ov).value, productId: `ai:${fnv(fold(name))}`, name, brand: "Оценка ИИ",
+        grams, per100: p100, ...calc(p100, grams), createdAt: serverTimestamp(),
+      }).catch(writeFail);
+      ov.close();
+    });
+  }
+
+  showForm();
 }
 
 /* ----- Редактирование записи ----- */
@@ -2781,6 +2896,18 @@ const actions = {
   today() { state.date = todayStr(); render(); },
   pickDay(ds) { if (ds.date >= FLOOR_DATE) { state.date = ds.date; render(); } },
   addFood(ds) { openAddFood(ds.meal); },
+  pickMeal() {
+    const cur = mealByTime();
+    const ov = openSheet(`
+      <div class="sheet-head"><h2>Куда добавить?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+      <div class="meal-pick">${MEALS.map((m) => `<button type="button" class="meal-pick-btn${m.id === cur ? " cur" : ""}" data-meal="${m.id}"><span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span><span>${m.name}</span></button>`).join("")}</div>`);
+    ov.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-meal]");
+      if (!b) return;
+      ov.close();
+      openAddFood(b.dataset.meal);
+    });
+  },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { openProductForm(null); },
   goTab(ds) { state.tab = ds.tab; render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },

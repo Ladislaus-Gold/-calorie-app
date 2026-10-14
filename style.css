@@ -153,7 +153,7 @@ b { font-weight: 600; }
 
 /* ---------- Приёмы пищи ---------- */
 .meal { padding: 6px; }
-.meal-head { display: grid; grid-template-columns: 40px 1fr auto 36px; grid-template-areas: "ic name kcal add" "ic macros kcal add"; gap: 2px 10px; align-items: center; padding: 8px 8px 8px 10px; }
+.meal-head { display: grid; grid-template-columns: 40px 1fr auto; grid-template-areas: "ic name kcal" "ic macros kcal"; gap: 2px 10px; align-items: center; padding: 8px 8px 8px 10px; }
 .meal-head .meal-ic { grid-area: ic; }
 .meal-head .meal-name { grid-area: name; align-self: center; }
 .meal-head .meal-kcal { grid-area: kcal; align-self: center; }
@@ -443,3 +443,12 @@ select.input { appearance: none; -webkit-appearance: none; background-image: lin
 .mx.over { color: var(--red); }
 .meal-kcal.over { color: var(--red); }
 .lg-val.over { color: var(--red); }
+
+/* Плавающая кнопка добавления еды (Дневник) */
+.fab { position: fixed; z-index: 30; right: max(18px, calc((100% - 480px) / 2 + 18px)); bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 18px);
+  width: 58px; height: 58px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 10px 24px rgba(27, 157, 75, .38); }
+.fab:active { background: var(--accent-d); transform: scale(.96); }
+.meal-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 8px; }
+.meal-pick-btn { display: flex; align-items: center; gap: 10px; padding: 14px 12px; border-radius: 16px; background: var(--field); border: 1px solid var(--line); font-size: 16px; font-weight: 600; color: var(--text); text-align: left; }
+.meal-pick-btn.cur { border-color: var(--accent); background: var(--accent-soft); }
