@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 49;
+const APP_VERSION = 51;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -295,7 +295,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.obShown = false; state.aiLast = null;
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.bcMap = {}; state.bcOwner = {}; state.obShown = false; state.aiLast = null;
 }
 
 function markReady(name) {
@@ -369,6 +369,14 @@ function startData(uid) {
     state.fav = snap.exists() && Array.isArray(snap.data().fav) ? snap.data().fav : [];
     render();
   }, (err) => console.warn("Избранные напитки:", err)));
+
+  // Дополнительные штрих-коды упаковок: код -> id продукта (общая база, видна всем)
+  state.unsubs.push(onSnapshot(collection(db, "barcodes"), (snap) => {
+    const m = {}, o = {};
+    snap.docs.forEach((d) => { const v = d.data(); if (v && v.productId) { m[d.id] = v.productId; o[d.id] = v.createdBy; } });
+    state.bcMap = m; state.bcOwner = o;
+    render();
+  }, (err) => console.warn("Штрих-коды упаковок:", err)));
 
   // Последний ответ ИИ: хранится в аккаунте и на устройстве до следующего запуска анализа
   state.aiLast = aiLoadLocal();
@@ -643,7 +651,7 @@ function filterProducts(q) {
   const words = fold(q).split(/\s+/).filter(Boolean);
   if (!words.length) return state.products;
   return state.products.filter((p) => {
-    const hay = fold(`${p.name} ${p.brand || ""} ${p.barcode || ""} ${p.createdByName || ""}`);
+    const hay = fold(`${p.name} ${p.brand || ""} ${p.barcode || ""} ${aliasCodes(p.id).join(" ")} ${p.createdByName || ""}`);
     return words.every((w) => hay.includes(w)); // все слова запроса должны встретиться: «куриная жарен»
   });
 }
@@ -1379,6 +1387,26 @@ function viewMe() {
 
 /* ================= Штрих-коды, Open Food Facts, камера ================= */
 const normBC = (s) => String(s || "").replace(/\D/g, "").replace(/^0+/, "");
+// Продукт по штрих-коду: основной код продукта или привязанный код другой упаковки
+const findByBarcode = (code) => {
+  const k = normBC(code);
+  if (!k) return null;
+  const own = state.products.find((p) => normBC(p.barcode) === k);
+  if (own) return own;
+  const id = state.bcMap && state.bcMap[k];
+  return id ? state.products.find((p) => p.id === id) || null : null;
+};
+const aliasCodes = (productId) => Object.keys(state.bcMap || {}).filter((k) => state.bcMap[k] === productId);
+function linkBarcode(code, productId) {
+  const k = normBC(code);
+  state.bcMap = { ...state.bcMap, [k]: productId }; state.bcOwner = { ...state.bcOwner, [k]: state.user.uid };
+  setDoc(doc(db, "barcodes", k), { productId, createdBy: state.user.uid, createdAt: serverTimestamp() }).catch(writeFail);
+}
+function unlinkBarcode(code) {
+  const k = normBC(code);
+  const m = { ...state.bcMap }; delete m[k]; state.bcMap = m;
+  deleteDoc(doc(db, "barcodes", k)).catch(writeFail);
+}
 const OFF_NOTE = "Данные из Open Food Facts. Сверьте с упаковкой и при необходимости поправьте.";
 const NEW_BC_NOTE = "Этого продукта нет в общей базе. Введите данные с упаковки один раз: дальше он будет находиться по штрих-коду.";
 const OFF_FAIL_NOTE = "Не удалось связаться с Open Food Facts. Введите данные с упаковки вручную.";
@@ -1839,10 +1867,43 @@ function openScanner(onCode) {
   })();
 }
 
+// Окно «Новый штрих-код»: привязать к существующему продукту или создать новый. Возвращает {product} | {} (новый) | null (закрыто)
+function askLinkBarcode(code) {
+  return new Promise((resolve) => {
+    let done = false, q = "";
+    const finish = (v) => { if (done) return; done = true; resolve(v); ov.close(); };
+    const ov = openSheet(`
+      <div class="sheet-head"><h2>Новый штрих-код</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+      <div class="note">Код ${esc(code)} не найден в вашей базе. Если это новая упаковка уже знакомого продукта, привяжите код к нему: в следующий раз продукт найдётся сразу.</div>
+      <input id="lk-q" class="input search" type="search" placeholder="Найти продукт для привязки" autocomplete="off">
+      <div id="lk-list" class="plist lk-list"></div>
+      <button type="button" class="btn ghost full" id="lk-new" style="margin-top:12px">Это новый продукт</button>`);
+    ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-close]")) finish(null); });
+    const draw = () => {
+      const items = filterProducts(q).slice(0, 40);
+      $("#lk-list", ov).innerHTML = items.length ? items.map((p) => productRow(p, "data-pick")).join("") : `<div class="empty"><b>Ничего не найдено</b>Попробуйте другое название.</div>`;
+    };
+    draw();
+    $("#lk-q", ov).addEventListener("input", (e) => { q = e.target.value; draw(); });
+    $("#lk-list", ov).addEventListener("click", (e) => {
+      const b = e.target.closest("[data-pick]");
+      const p = b && state.products.find((x) => x.id === b.dataset.pick);
+      if (p) finish({ product: p });
+    });
+    $("#lk-new", ov).addEventListener("click", () => finish({}));
+  });
+}
+
 // Найти продукт по штрих-коду: сначала у себя, потом в Open Food Facts, иначе ручной ввод.
 async function processBarcode(code, onOwn, onSaved) {
-  const own = state.products.find((p) => normBC(p.barcode) === normBC(code));
+  const own = findByBarcode(code);
   if (own) { onOwn(own); return; }
+  // неизвестный код: сначала предлагаем привязать его к уже существующему продукту (новая упаковка)
+  if (state.products.length) {
+    const choice = await askLinkBarcode(code);
+    if (choice && choice.product) { linkBarcode(code, choice.product.id); onOwn(choice.product); return; }
+    if (!choice) return;
+  }
   toast("Ищу в Open Food Facts…");
   const r = await fetchOFF(code);
   if (r.state === "found") openProductForm(null, onSaved, { ...r.data, source: "off", note: OFF_NOTE + drinkNote(r.data) });
@@ -2160,6 +2221,10 @@ function openProductForm(product, onSaved, prefill = {}) {
     <label class="field"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
     <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
     <div class="field"><span>Штрих-код (необязательно)</span>${barcodeField}</div>
+    ${product ? `<div class="field" id="pf-alias"><span>Другие упаковки: ещё штрих-коды этого продукта</span>
+      <div id="pf-alias-list" class="chips"></div>
+      <div class="inline"><input id="pf-alias-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код другой упаковки" autocomplete="off"><button type="button" class="icon-btn" id="pf-alias-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="pf-alias-add">Добавить</button></div>
+      <p class="foot-note" id="pf-alias-msg" style="margin:6px 2px 0">Коды общие: любой пользователь, отсканировав эту упаковку, получит этот продукт. Убрать код может тот, кто его добавил.</p></div>` : ""}
     <div class="field"><span>Значения на 100 г</span></div>
     <div class="field-grid">
       <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
@@ -2172,6 +2237,34 @@ function openProductForm(product, onSaved, prefill = {}) {
       ? `<button type="button" class="btn ghost full" data-close>Закрыть</button>`
       : `${product ? `<button type="button" class="btn danger" id="pf-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="pf-save">Сохранить</button>`}</div>`);
 
+  if (product) {
+    const list = $("#pf-alias-list", ov), msg = $("#pf-alias-msg", ov), inp = $("#pf-alias-in", ov);
+    const drawAliases = () => {
+      const codes = aliasCodes(product.id);
+      list.innerHTML = codes.length ? codes.map((c) => `<span class="chip alias">${esc(c)}${state.bcOwner[c] === uid ? `<button type="button" class="alias-x" data-del="${esc(c)}" aria-label="Убрать код">×</button>` : ""}</span>`).join("") : "";
+    };
+    drawAliases();
+    const add = (raw) => {
+      const code = String(raw || "").replace(/\D/g, "");
+      if (code.length < 6) { msg.textContent = "Введите штрих-код полностью (цифры)."; return; }
+      const k = normBC(code);
+      if (k === normBC(product.barcode)) { msg.textContent = "Это уже основной штрих-код продукта."; return; }
+      const other = findByBarcode(code);
+      if (other && other.id !== product.id) { msg.textContent = `Этот код уже привязан к продукту «${other.name}».`; return; }
+      linkBarcode(code, product.id);
+      inp.value = "";
+      msg.textContent = "Код добавлен. Теперь при сканировании этой упаковки продукт найдётся сразу.";
+      drawAliases();
+    };
+    $("#pf-alias-add", ov).addEventListener("click", () => add(inp.value));
+    $("#pf-alias-scan", ov).addEventListener("click", () => openScanner((code) => add(code)));
+    list.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-del]");
+      if (!b) return;
+      unlinkBarcode(b.dataset.del);
+      drawAliases();
+    });
+  }
   if (ro) return;
 
   $("#pf-drink", ov).addEventListener("change", (e) => $("#pf-drink-box", ov).classList.toggle("hidden", !e.target.checked));
@@ -2206,8 +2299,8 @@ function openProductForm(product, onSaved, prefill = {}) {
 
   $("#pf-scan", ov).addEventListener("click", () => openScanner(async (code) => {
     $("#pf-barcode", ov).value = code;
-    const dup = state.products.find((x) => normBC(x.barcode) === normBC(code) && (!product || x.id !== product.id));
-    if (dup) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
+    const dup = findByBarcode(code);
+    if (dup && (!product || dup.id !== product.id)) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
     const empty = !$("#pf-name", ov).value.trim() && !$("#pf-kcal", ov).value.trim();
     if (product || !empty) return;
     toast("Ищу в Open Food Facts…");
@@ -2237,8 +2330,8 @@ function openProductForm(product, onSaved, prefill = {}) {
     if (kcal > 1000) { toast("Калории на 100 г: не больше 1000"); return; }
     if ([protein, fat, carbs].some((x) => x > 100)) { toast("Белки, жиры и углеводы на 100 г: не больше 100"); return; }
     if (barcode) {
-      const dup = state.products.find((x) => normBC(x.barcode) === normBC(barcode) && (!product || x.id !== product.id));
-      if (dup) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
+      const dup = findByBarcode(barcode);
+      if (dup && (!product || dup.id !== product.id)) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
     }
     const isDrink = $("#pf-drink", ov).checked;
     let drinkData = { drink: false, hydrationPct: 0, caffeineMg100: 0 };

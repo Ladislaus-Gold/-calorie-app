@@ -518,3 +518,10 @@ body { background-image: radial-gradient(120% 40% at 50% 0, #E6F5EA 0, transpare
 .meal-kcal, .meal-kcal.over { min-width: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; text-align: right; font-size: 20px; font-weight: 700; letter-spacing: -.03em; color: var(--text); }
 .meal-kcal.over { color: var(--red); }
 .meal-kcal small, .meal-kcal.over small { margin-top: 2px; font-size: 10px; font-weight: 600; color: var(--muted); }
+
+/* v50: дополнительные штрих-коды */
+.chip.alias { display: inline-flex; align-items: center; gap: 6px; padding-right: 4px; font-variant-numeric: tabular-nums; }
+.alias-x { width: 22px; height: 22px; border-radius: 50%; background: rgba(0, 0, 0, .08); color: var(--muted); font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+#pf-alias .inline { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+#pf-alias .inline .input { flex: 1; min-width: 0; }
+.lk-list { max-height: 40vh; overflow-y: auto; margin-top: 8px; }
