@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 54;
+const APP_VERSION = 56;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -308,7 +308,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.obShown = false; state.aiLast = null;
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null;
 }
 
 function markReady(name) {
@@ -716,6 +716,7 @@ function viewProducts() {
 /* ================= Аналитика: период, итоги, выводы, анализ через Gemini ================= */
 const REP_PRESETS = [7, 14, 30, 90, 365, 0]; // 0 = за всё время
 const presetLabel = (v) => (v === 0 ? "Всё" : v === 365 ? "Год" : `${v} дн.`);
+const isSoupName = (n) => /суп|борщ|щи\b|бульон|солянк|харчо|окрошк|\bуха\b|рассольник|лапш/i.test(String(n || ""));
 const MEAL_NAME = Object.fromEntries(MEALS.map((m) => [m.id, m.name]));
 
 function reportDays() {
@@ -769,6 +770,7 @@ function analyze(days) {
 
   const foods = {};
   logged.forEach((x) => x.list.forEach((e) => {
+    if (e.drink && !isSoupName(e.name)) return; // напитки с калориями показываются только в «Что я пью»
     const f = foods[e.name] = foods[e.name] || { name: e.name, n: 0, kcal: 0, qty: 0, drink: !!e.drink };
     f.n++; f.kcal += e.kcal || 0; f.qty += e.grams || 0;
   }));
@@ -781,6 +783,7 @@ function analyze(days) {
     drinkKcalTotal += x.drinkKcal;
     x.items.forEach((i) => {
       if (i.kind === "drink" && isWaterDrink(i)) { plainWater += i.ml; return; }
+      if (i.kind === "food" && isSoupName(i.name)) { cafTotal += itemCaf(i); return; } // супы в «Что я ем»
       const r = drinks[i.name] = drinks[i.name] || { name: i.name, n: 0, ml: 0, eff: 0, caf: 0, kcal: 0 };
       r.n++; r.ml += i.ml; r.eff += itemHyd(i); r.caf += itemCaf(i);
       if (i.kind === "food") r.kcal += i.kcal || 0;
@@ -1229,15 +1232,16 @@ function viewReports() {
   const n = days.length;
   const a = analyze(days);
   // Длинные периоды на графиках показываются по неделям (среднее за неделю), иначе столбики слишком мелкие
-  const grouped = n > 120;
-  const gIdx = grouped ? Array.from({ length: Math.ceil(n / 7) }, (_, i) => i * 7) : null;
+  const step = n > 400 ? 30 : n > 45 ? 7 : 1;
+  const grouped = step > 1;
+  const gIdx = grouped ? Array.from({ length: Math.ceil(n / step) }, (_, i) => i * step) : null;
   const chartKeys = grouped ? gIdx.map((i) => days[i]) : days;
   const gmap = {};
-  if (grouped) gIdx.forEach((i) => { gmap[days[i]] = days.slice(i, i + 7); });
+  if (grouped) gIdx.forEach((i) => { gmap[days[i]] = days.slice(i, i + step); });
   const gfn = (fn) => (grouped ? (k) => { const v = gmap[k].map(fn).filter((x) => x > 0); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : 0; } : fn);
   const ggoal = (fn) => (!fn || !grouped ? fn : (k) => Math.max(...gmap[k].map(fn)));
-  const kper = grouped ? gIdx.map((i) => { const seg = a.per.slice(i, i + 7).filter((x) => x.has); return { d: days[i], has: seg.length > 0, kcal: seg.length ? seg.reduce((t, x) => t + x.kcal, 0) / seg.length : 0 }; }) : a.per;
-  const by = grouped ? "по неделям (среднее)" : "по дням";
+  const kper = grouped ? gIdx.map((i) => { const seg = a.per.slice(i, i + step).filter((x) => x.has); return { d: days[i], has: seg.length > 0, kcal: seg.length ? seg.reduce((t, x) => t + x.kcal, 0) / seg.length : 0 }; }) : a.per;
+  const by = grouped ? (step === 30 ? "по месяцам (среднее)" : "по неделям (среднее)") : "по дням";
   const active = (v) => (!state.repCustom && state.repDays === v ? "on" : "");
   const goalMax = Math.max(state.goal * 1.15, ...kper.map((x) => x.kcal), 1);
   const bars = kper.map((x) => {
@@ -1263,20 +1267,64 @@ function viewReports() {
   drinkRows.sort((x, y) => y.v - x.v);
   const actRows = a.actTypes.map((t) => ({ name: t.name, v: t.min, text: `${fmtInt(t.min)} мин · ${t.n} раз · ${fmtInt(t.kcal)} ккал` }));
 
-  return `
+  const tab = state.rTab === "detail" ? "detail" : "over";
+  const head = `
     ${pageHead("Статистика", "Отчёты")}
     <div class="seg scroll" role="group" aria-label="Период">
       ${REP_PRESETS.map((v) => `<button type="button" data-act="repDays" data-n="${v}" class="${active(v)}">${presetLabel(v)}</button>`).join("")}
       <button type="button" data-act="repCustom" class="${state.repCustom ? "on" : ""}">Свой</button>
     </div>
     <p class="foot-note rp-range">${esc(periodText(days))} · ${n} дн. · еда записана в ${a.L}${state.histBusy ? " · загружаю историю…" : ""}</p>
+    <div class="seg full htabs" data-seg="rtab">${[["over", "Общее"], ["detail", "Детали"]].map(([v, t]) => `<button type="button" data-act="reportTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
+  if (tab === "detail") return head + reportDetailHtml(a, days) + `<p class="foot-note" style="margin:6px 4px 0">Нажмите на день, чтобы увидеть записи. Все записи хранятся в вашем аккаунте без ограничения по времени.</p>`;
+  // сравнение с предыдущим периодом такой же длины (если там есть данные)
+  let prev = null;
+  if (!state.repCustom && state.repDays > 0) {
+    const pd = Array.from({ length: n }, (_, i) => addDays(days[0], i - n));
+    const pa = analyze(pd);
+    if (pa.L > 0) prev = pa;
+  }
+  const dlt = (cur, old, unit) => {
+    if (!prev || !(old > 0)) return "";
+    const r = Math.round(cur - old);
+    if (r === 0) return "как в прошлом периоде";
+    return `${r > 0 ? "+" : "−"}${fmtInt(Math.abs(r))}${unit} к прошлым ${n} дн.`;
+  };
+  const kpi = a.L || a.hydDays || a.stepDays ? `<div class="stat-grid">
+        ${kv("ккал в день", fmtInt(a.kcalAvg), [`цель ${fmtInt(a.goal)}`, dlt(a.kcalAvg, prev && prev.kcalAvg, "")].filter(Boolean).join("<br>"))}
+        ${kv("белка в день", `${fmtInt(a.pAvg)} г`, [plan ? `цель ${plan.protein} г` : "", dlt(a.pAvg, prev && prev.pAvg, " г")].filter(Boolean).join("<br>"))}
+        ${kv("жидкость в день", `${fmtInt(a.hydAvg)} мл`, [`норма ${fmtInt(a.targetAvg)} мл`, dlt(a.hydAvg, prev && prev.hydAvg, " мл")].filter(Boolean).join("<br>"))}
+        ${a.stepDays ? kv("шагов в день", fmtInt(a.stepsAvg), dlt(a.stepsAvg, prev && prev.stepsAvg, "")) : kv("нагрузка в неделю", `${fmtInt(a.actTotalMin / a.weeks)} мин`, plan ? `ориентир ${plan.weekly.minutes}` : "")}
+      </div>` : `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`;
+  const wtp = weightBlock(days[0], days[n - 1], `за ${n} дн.`);
+  const moreOpen = !!state.moreCharts;
+  return head + `
+    <section class="card"><h2 class="h2">Главное за период</h2>${kpi}</section>
     ${aiCardHtml(days)}
     <section class="card">
       <h2 class="h2">Краткие выводы</h2>
       ${state.insOpen ? `${insHtml}<button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleIns">Скрыть краткие выводы</button>` : `<button type="button" class="btn ghost full" data-act="toggleIns">Показать краткие выводы</button>`}
     </section>
     <section class="card">
-      <h2 class="h2">Итоги периода</h2>
+      <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${wtp.last ? `${fmt(wtp.last.kg)} кг` : "нет записей"}</span></div>
+      ${wtp.svg}<p class="chart-note" style="margin:8px 0 0">${wtp.note}</p>
+    </section>
+    <section class="card">
+      <h2 class="h2">Калории ${by}</h2>
+      <div class="chart">${bars}<div class="goal" style="bottom:${goalBottom}%"></div></div>
+      <div class="chart-labels">${chartLabels(chartKeys)}</div>
+      <p class="chart-note">Пунктир: ваша цель ${fmtInt(state.goal)} ккал. Красным отмечены дни с перебором.</p>
+    </section>
+    ${a.L ? `<section class="card">
+      <h2 class="h2">Что я ем чаще всего</h2>
+      ${rankRows(foodRows)}
+      <p class="chart-note">Продукты и блюда с наибольшим вкладом в калории.</p>
+    </section>` : ""}
+    ${drinkRows.length ? `<section class="card"><h2 class="h2">Что я пью</h2>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
+    <button type="button" class="btn ghost full more-charts" data-act="toggleMoreCharts">${moreOpen ? "Скрыть остальные графики ▲" : "Ещё графики и все показатели ▼"}</button>
+    ${moreOpen ? `
+    <section class="card">
+      <h2 class="h2">Все показатели периода</h2>
       ${a.L || a.hydDays || a.actTotalMin || a.stepDays ? `<div class="stat-grid">
         ${kv("ккал в день", fmtInt(a.kcalAvg), `цель ${fmtInt(a.goal)}`)}
         ${kv("дней с перебором", String(a.overDays), "более 10% к цели")}
@@ -1289,12 +1337,6 @@ function viewReports() {
         ${a.stepDays ? kv("шагов в день", fmtInt(a.stepsAvg), `дней с данными ${a.stepDays}`) : ""}
         ${a.restAvg || a.hrAvgAll ? kv("пульс в покое", a.restAvg ? `${fmtInt(a.restAvg)} уд/мин` : "—", a.hrAvgAll ? `средний за день ${fmtInt(a.hrAvgAll)}` : "") : ""}
       </div>` : `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`}
-    </section>
-    <section class="card">
-      <h2 class="h2">Калории ${by}</h2>
-      <div class="chart">${bars}<div class="goal" style="bottom:${goalBottom}%"></div></div>
-      <div class="chart-labels">${chartLabels(chartKeys)}</div>
-      <p class="chart-note">Пунктир: ваша цель ${fmtInt(state.goal)} ккал. Красным отмечены дни с перебором.</p>
     </section>
     ${a.L ? `<section class="card">
       <h2 class="h2">Белки, жиры, углеводы в день</h2>
@@ -1313,19 +1355,59 @@ function viewReports() {
       <h2 class="h2">По дням недели</h2>
       <div class="wd-grid">${wdBars}</div>
       <p class="chart-note">Средние калории по дням недели (только дни с записями).</p>
-    </section>
-    <section class="card">
-      <h2 class="h2">Что я ем чаще всего</h2>
-      ${rankRows(foodRows)}
-      <p class="chart-note">Продукты и блюда с наибольшим вкладом в калории.</p>
     </section>` : ""}
     ${barsCard(`Жидкость ${by}`, chartKeys, gfn(hydrationOn), ggoal(waterTarget), "мл", "water")}
-    ${drinkRows.length ? `<section class="card"><h2 class="h2">Что я пью</h2>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
     ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true)}
     ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "")}
     ${a.stepDays ? barsCard(`Шаги ${by}`, chartKeys, gfn(stepsOn), (() => STEPS_GOAL), "шагов", "") : ""}
-    ${actRows.length ? `<section class="card"><h2 class="h2">Нагрузки по видам</h2>${rankRows(actRows)}</section>` : ""}
+    ${actRows.length ? `<section class="card"><h2 class="h2">Нагрузки по видам</h2>${rankRows(actRows)}</section>` : ""}` : ""}
     <p class="foot-note" style="margin:6px 4px 0">Все записи хранятся в вашем аккаунте без ограничения по времени. Старые периоды подгружаются при выборе.</p>`;
+}
+
+/* ================= Отчёты: детализация по датам ================= */
+function dayDetailHtml(p) {
+  const d = p.d;
+  const meals = MEALS.map((m) => {
+    const items = p.list.filter((e) => e.meal === m.id).sort((a, b) => createdMs(a) - createdMs(b));
+    if (!items.length) return "";
+    const mk = items.reduce((t, e) => t + (e.kcal || 0), 0);
+    return `<div class="dd-sec"><div class="dd-h"><span>${m.name}</span><b>${fmtInt(mk)} ккал</b></div>${items.map((e) => `<div class="dd-i"><span>${esc(e.name)}<small>${fmt(e.grams)} ${e.drink ? "мл" : "г"}</small></span><b>${fmtInt(e.kcal)}</b></div>`).join("")}</div>`;
+  }).join("");
+  const drinks = (byDateIndex("drinks").get(d) || EMPTY).slice().sort((a, b) => createdMs(a) - createdMs(b));
+  const water = waterOn(d);
+  const fl = [...(water > 0 ? [`<div class="dd-i"><span>Вода (суммой за день)<small>${fmt(water)} мл</small></span><b>${fmt(water)} мл</b></div>`] : []),
+    ...drinks.map((x) => `<div class="dd-i"><span>${esc(x.name)}<small>${timeOf(createdMs(x))} · ${fmt(x.ml)} мл</small></span><b>${signed(Math.round((Number(x.ml) || 0) * (Number(x.pct) || 0) / 100))} мл</b></div>`)].join("");
+  const acts = [...workoutsOn(d).map((w) => `<div class="dd-i"><span>${esc(w.name)}<small>${w.minutes ? `${fmtInt(w.minutes)} мин` : ""}${w.distanceKm ? ` · ${fmt(w.distanceKm)} км` : ""} · Apple Watch</small></span><b>${fmtInt(w.kcal || 0)} ккал</b></div>`),
+    ...actOn(d).map((a) => `<div class="dd-i"><span>${esc(a.name)}<small>${fmt(a.minutes)} мин</small></span><b>${fmtInt(a.kcal || 0)} ккал</b></div>`)].join("");
+  const wkg = weightOn(d);
+  const extra = [p.caf > 0 ? `кофеин ${fmtInt(p.caf)} мг` : "", p.steps > 0 ? `${fmtInt(p.steps)} шагов` : "", p.restHr ? `пульс в покое ${fmtInt(p.restHr)}` : "", wkg ? `вес ${fmt(wkg)} кг` : ""].filter(Boolean).join(" · ");
+  return `<div class="dd-body">${meals}${fl ? `<div class="dd-sec"><div class="dd-h"><span>Жидкость</span><b>${fmtInt(p.hyd)} мл</b></div>${fl}</div>` : ""}${acts ? `<div class="dd-sec"><div class="dd-h"><span>Нагрузки</span><b>${fmtInt(p.burned)} ккал</b></div>${acts}</div>` : ""}${extra ? `<p class="foot-note" style="margin:8px 0 0">${extra}</p>` : ""}<button type="button" class="btn soft full dd-go" data-act="openDay" data-d="${d}">Открыть в дневнике</button></div>`;
+}
+
+function dayRowHtml(p) {
+  const open = !!state.openDays[p.d];
+  const lvl = p.has ? levelOf(p.kcal / state.goal) : "";
+  return `<div class="dd${open ? " open" : ""}"><button type="button" class="dd-row" data-act="toggleDay" data-d="${p.d}">
+      <span class="dd-date">${esc(dayLabel(p.d))}</span>
+      <span class="dd-kcal ${lvl}">${p.has ? fmtInt(p.kcal) : "—"}<small>ккал</small></span>
+      <span class="dd-mini">${p.has ? `Б ${fmtInt(p.protein)} · Ж ${fmtInt(p.fat)} · У ${fmtInt(p.carbs)}` : "еда не записана"}${p.hyd > 0 ? ` · ${fmt(Math.round(p.hyd))} мл` : ""}</span>
+      <span class="dd-arrow">${open ? "▲" : "▼"}</span></button>${open ? dayDetailHtml(p) : ""}</div>`;
+}
+
+function reportDetailHtml(a, days) {
+  const hasData = (p) => p.has || p.hyd > 0 || p.actMin > 0 || p.steps > 0 || weightOn(p.d) > 0;
+  const rows = a.per.filter(hasData).reverse();
+  if (!rows.length) return `<section class="card"><div class="empty"><b>За этот период нет записей</b>Выберите другой период.</div></section>`;
+  if (days.length <= 62) return `<section class="card dd-list">${rows.map(dayRowHtml).join("")}</section>`;
+  // длинный период: недели свёрнуты, внутри дни
+  const weeks = new Map();
+  rows.forEach((p) => { const k = weekStart(p.d); (weeks.get(k) || weeks.set(k, []).get(k)).push(p); });
+  return `<section class="card dd-list">${[...weeks.entries()].map(([k, list]) => {
+    const logged = list.filter((p) => p.has);
+    const avgK = logged.length ? logged.reduce((t, p) => t + p.kcal, 0) / logged.length : 0;
+    const open = !!state.openWks[k];
+    return `<div class="dw${open ? " open" : ""}"><button type="button" class="dw-row" data-act="toggleWk" data-k="${k}"><span class="dd-date">${esc(shortDate(k))} — ${esc(shortDate(addDays(k, 6)))}</span><span class="dd-kcal ${logged.length ? levelOf(avgK / state.goal) : ""}">${logged.length ? fmtInt(avgK) : "—"}<small>ккал/день</small></span><span class="dd-mini">${logged.length} дн. с едой</span><span class="dd-arrow">${open ? "▲" : "▼"}</span></button>${open ? list.map(dayRowHtml).join("") : ""}</div>`;
+  }).join("")}</section>`;
 }
 
 /* ================= Состояние: сервер, правила, версия ================= */
@@ -2623,9 +2705,9 @@ function viewHealth() {
       <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл, засчитано ${signed(Math.round(itemHyd(i)))} мл${i.kind === "food" ? ", из дневника питания" : ""}</span></span>
       <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
     </button>`).join("");
-  return `
-    ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
-    ${plan ? "" : fillProfilePrompt}
+  const tab = state.hTab || "today";
+  const tabs = `<div class="seg full htabs" data-seg="htab">${[["today", "Сегодня"], ["train", "Тренировки"], ["dyn", "Динамика"]].map(([v, t]) => `<button type="button" data-act="healthTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
+  const pToday = `
     <section class="card">
       <div class="card-top"><h2 class="h2">Жидкость</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
       <div class="big-line">${fmtInt(ml)}<small>мл засчитано</small></div>
@@ -2639,13 +2721,13 @@ function viewHealth() {
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
       ${favs.length ? `<p class="foot-note" style="margin:14px 2px 8px">Избранное и частые напитки</p><div class="chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
       ${fluidRows || legacyRow ? `<div class="entries flat">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}` : ""}
-    </section>
-    <section class="card">
-      <div class="card-top"><h2 class="h2">Кофеин</h2><span class="pill ${caf.level === "ok" ? "" : caf.level}">${caf.mg} из ${caf.limit} мг</span></div>
+      <div class="caf-line"><span class="caf-t">Кофеин</span><span class="pill ${caf.level === "ok" ? "" : caf.level}">${caf.mg} из ${caf.limit} мг</span></div>
       <div class="track caf ${caf.level}"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
       ${caf.msgs.map((m) => `<div class="warn ${m.lv === "over" ? "over" : ""}">${esc(m.t)}</div>`).join("")}
-      <p class="foot-note" style="margin:12px 0 0">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>
-    </section>
+      <button type="button" class="more-btn" data-act="toggleCafInfo">${state.cafInfo ? "Скрыть" : "О норме кофеина"}</button>
+      ${state.cafInfo ? `<p class="foot-note" style="margin:8px 0 0">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}
+    </section>`;
+  const pTrain = `
     <section class="card">
       <div class="card-top"><h2 class="h2">Активность</h2><span class="pill">${hd ? "Apple Health" : "нет данных с часов"}</span></div>
       ${hd ? `<div class="big-line">${fmtInt(steps)}<small>шагов</small></div>
@@ -2670,10 +2752,16 @@ function viewHealth() {
       <div class="card-top"><h2 class="h2">Неделя</h2><span class="pill">${fmtInt(wkMin)} из ${wt.minutes} мин</span></div>
       <div class="track"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
       <p class="foot-note" style="margin:12px 0 0">Силовых тренировок: <b>${wkStr}</b> из ${wt.strength}. ${esc(wt.text)}</p>
-    </section>
+    </section>`;
+  const pDyn = `
     ${weightCard(day)}
     ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true)}
     ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "") : ""}`;
+  return `
+    ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
+    ${plan ? "" : fillProfilePrompt}
+    ${tabs}
+    ${tab === "train" ? pTrain : tab === "dyn" ? pDyn : pToday}`;
 }
 
 /* ----- Вес ----- */
@@ -2697,28 +2785,53 @@ function openWeight() {
   if (del) del.addEventListener("click", () => { deleteDoc(docRef("weights", day)).catch(writeFail); ov.close(); });
 }
 
-function weightCard(day) {
-  const days = last7(day);
-  const pts = days.map((d, i) => ({ i, d, v: weightOn(d) })).filter((p) => p.v > 0);
+const WT_RANGES = [[30, "30 дн"], [90, "90 дн"], [0, "Всё"]];
+// График веса за период: точки записей + среднее за 7 дней, изменение и скорость
+function weightBlock(from, day, label) {
+  const all = state.weights.filter((w) => w.date <= day);
+  const pts = all.filter((w) => w.date >= from).map((w) => ({ d: w.date, v: Number(w.kg) }));
+  const dayN = (d) => Math.round((parseD(d) - parseD(from)) / 86400000);
+  const span = Math.max(1, dayN(day));
+  pts.forEach((p) => {
+    const win = all.filter((w) => w.date <= p.d && w.date > addDays(p.d, -7)).map((w) => Number(w.kg));
+    p.avg = win.reduce((a, b) => a + b, 0) / win.length;
+  });
   const lw = lastWeightUpTo(day);
-  const first = pts.length ? pts[0].v : 0, lastv = pts.length ? pts[pts.length - 1].v : 0;
-  const delta = pts.length > 1 ? lastv - first : null;
-  let svg = "";
+  let svg = "", note = "Запишите вес на вкладке «Здоровье» → «Динамика», и здесь появится график.";
   if (pts.length) {
-    const vs = pts.map((p) => p.v), mn = Math.min(...vs) - 0.4, mx = Math.max(...vs) + 0.4;
-    const X = (i) => 20 + (i / 6) * 260, Y = (v) => 10 + (1 - (v - mn) / (mx - mn)) * 60;
-    const line = pts.length > 1 ? `<polyline points="${pts.map((p) => `${X(p.i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "";
-    const dots = pts.map((p) => `<circle cx="${X(p.i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4" fill="var(--card)" stroke="var(--accent)" stroke-width="2.5"/><text x="${X(p.i).toFixed(1)}" y="${(Y(p.v) - 9).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--muted)">${fmt(p.v)}</text>`).join("");
-    svg = `<svg class="wt-svg" viewBox="0 0 300 80" role="img" aria-label="График веса за 7 дней">${line}${dots}</svg><div class="chart-labels">${chartLabels(days)}</div>`;
+    const vs = pts.flatMap((p) => [p.v, p.avg]), lo = Math.min(...vs), hi = Math.max(...vs), pad = Math.max(0.3, (hi - lo) * 0.15);
+    const mn = lo - pad, mx = hi + pad, L = 30, R = 292;
+    const X = (d) => L + (dayN(d) / span) * (R - L), Y = (v) => 8 + (1 - (v - mn) / (mx - mn)) * 66;
+    const line = pts.length > 1 ? `<polyline points="${pts.map((p) => `${X(p.d).toFixed(1)},${Y(p.avg).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "";
+    const dots = pts.map((p) => `<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="${pts.length > 45 ? 1.8 : 3}" fill="var(--muted-2)" opacity=".75"/>`).join("");
+    const lastp = pts[pts.length - 1];
+    const end = pts.length === 1 ? `<circle cx="${X(lastp.d).toFixed(1)}" cy="${Y(lastp.v).toFixed(1)}" r="4.5" fill="var(--card)" stroke="var(--accent)" stroke-width="2.5"/>` : "";
+    const ax = `<text x="0" y="${(Y(hi) + 3).toFixed(1)}" font-size="10" fill="var(--muted)">${fmt(Math.round(hi * 10) / 10)}</text><text x="0" y="${(Y(lo) + 3).toFixed(1)}" font-size="10" fill="var(--muted)">${fmt(Math.round(lo * 10) / 10)}</text>`;
+    svg = `<svg class="wt-svg" viewBox="0 0 300 84" role="img" aria-label="График веса">${ax}${dots}${line}${end}</svg>
+      <div class="wt-axis"><span>${esc(shortDate(from))}</span><span>${esc(shortDate(day))}</span></div>`;
+    if (pts.length < 2) note = "Одна запись. Взвешивайтесь раз в 2–3 дня, и здесь появится динамика.";
+    else {
+      const delta = pts[pts.length - 1].avg - pts[0].avg;
+      const days = Math.max(1, Math.round((parseD(pts[pts.length - 1].d) - parseD(pts[0].d)) / 86400000));
+      const sign = (x) => (x > 0 ? "+" : x < 0 ? "−" : "");
+      note = `<b>${sign(delta)}${fmt(Math.abs(Math.round(delta * 10) / 10))} кг</b> ${label}` + (days >= 7 ? `, около ${sign(delta)}${fmt(Math.abs(Math.round((delta / days) * 70) / 10))} кг в неделю.` : "." + " Для скорости нужно хотя бы 7 дней между записями.");
+      note += ` <span class="wt-legend"><i class="d"></i>записи <i class="l"></i>среднее за 7 дней</span>`;
+    }
   }
-  const pill = lw ? `${fmt(lw.kg)} кг` : "нет записей";
-  const note = delta == null
-    ? (pts.length ? "Одна запись за неделю: добавьте ещё одну, чтобы увидеть динамику." : "Запишите вес, и здесь появится график за 7 дней.")
-    : `За 7 дней: <b>${delta > 0 ? "+" : delta < 0 ? "−" : ""}${fmt(Math.abs(delta))} кг</b>.`;
+  return { svg, note, last: lw, count: pts.length };
+}
+
+function weightCard(day) {
+  const range = state.wtRange == null ? 30 : state.wtRange;
+  const all = state.weights.filter((w) => w.date <= day);
+  const from = range ? addDays(day, -(range - 1)) : (all.length ? all[0].date : day);
+  const b = weightBlock(from, day, range ? `за ${range} дн.` : "за всё время");
+  const segs = `<div class="seg full wt-seg">${WT_RANGES.map(([v, t]) => `<button type="button" data-act="wtRange" data-v="${v}" class="${range === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
   return `<section class="card">
-    <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${pill}</span></div>
-    ${svg}
-    <p class="chart-note" style="margin:${svg ? "6px" : "0"} 0 12px">${note}</p>
+    <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${b.last ? `${fmt(b.last.kg)} кг` : "нет записей"}</span></div>
+    ${segs}
+    ${b.svg}
+    <p class="chart-note" style="margin:8px 0 12px">${b.note}</p>
     <button type="button" class="btn ghost full" data-act="addWeight">+ Записать вес</button>
   </section>`;
 }
@@ -3218,6 +3331,9 @@ const actions = {
   macroTop(ds) { openMacroTop(ds.key); },
   setTheme(ds) { lsSet("theme", ds.v); applyTheme(); render(); },
   addWeight() { openWeight(); },
+  healthTab(ds) { state.hTab = ds.v; lsSet("hTab", ds.v); render(); const v = $("#view"); if (v) v.scrollTop = 0; },
+  wtRange(ds) { state.wtRange = Number(ds.v); lsSet("wtRange", ds.v); render(); },
+  toggleCafInfo() { state.cafInfo = !state.cafInfo; render(); },
   toggleMeal(ds) { state.mealOpen[ds.key] = !state.mealOpen[ds.key]; render(); },
   toggleFluid() { state.fluidOpenDay = state.fluidOpenDay === state.date ? null : state.date; render(); },
   quickDrink(ds) { openDrinkSheet(null, ds.did); },
@@ -3266,6 +3382,11 @@ const actions = {
     if (state.user) deleteDoc(docRef("settings", "ai")).catch(writeFail);
     render();
   },
+  reportTab(ds) { state.rTab = ds.v; lsSet("rTab", ds.v); render(); const v = $("#view"); if (v) v.scrollTop = 0; },
+  toggleMoreCharts() { state.moreCharts = !state.moreCharts; render(); },
+  toggleDay(ds) { state.openDays[ds.d] = !state.openDays[ds.d]; render(); },
+  toggleWk(ds) { state.openWks[ds.k] = !state.openWks[ds.k]; render(); },
+  openDay(ds) { state.date = ds.d; state.tab = "diary"; render(); const v = $("#view"); if (v) v.scrollTop = 0; },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
   checkStatus() { checkStatus(true); },
   async reloadApp() {
