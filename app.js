@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 41;
+const APP_VERSION = 43;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -897,13 +897,13 @@ async function askGemini(prompt, step = () => {}, extra = {}) {
   if (!key) throw new Error("no-key");
   step("Подбираю модель Gemini…");
   const models = await geminiModels(key);
-  let last = null;
+  let last = null, noThink = !!extra.json;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const attempts = [];
   models.forEach((m, i) => { attempts.push(m); if (i < 2) attempts.push(m); }); // у первых двух моделей одна повторная попытка
   for (let k = 0; k < attempts.length; k++) {
     const model = attempts[k];
-    step(`Запрос к ${model.replace("models/", "")} (попытка ${k + 1} из ${attempts.length}). Обычно 10–30 секунд.`);
+    step(`Запрос к ${model.replace("models/", "")} (попытка ${k + 1} из ${attempts.length}). Обычно 10–30 секунд.${last ? ` Прошлая попытка: ${String(last.message || last).slice(0, 140)}` : ""}`);
     if (k > 0 && attempts[k - 1] === model) await sleep(3000);
     try {
       const r = await fetchT(`${AI_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`, {
@@ -911,7 +911,7 @@ async function askGemini(prompt, step = () => {}, extra = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }, ...(extra.image ? [{ inlineData: { mimeType: extra.image.mime, data: extra.image.data } }] : [])] }],
-          generationConfig: { temperature: extra.json ? 0.2 : 0.4, maxOutputTokens: 8192, ...(extra.json ? { responseMimeType: "application/json" } : {}) },
+          generationConfig: { temperature: extra.json ? 0.2 : 0.4, maxOutputTokens: 8192, ...(extra.json ? { responseMimeType: "application/json" } : {}), ...(noThink ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
         }),
       });
       if (!r.ok) throw await geminiError(r);
@@ -922,6 +922,7 @@ async function askGemini(prompt, step = () => {}, extra = {}) {
       return { text, model: model.replace("models/", "") };
     } catch (e) {
       last = e;
+      if (noThink && e.status === 400 && /think/i.test(e.message || "")) { noThink = false; k--; continue; } // модель не принимает отключение размышлений
       if (e.status === 400 || e.status === 401 || e.status === 403 || e.status === 429) break; // ключ или лимит: другая модель не поможет
       if (e.status === 404) { /* модель недоступна: пробуем следующую */ }
     }
