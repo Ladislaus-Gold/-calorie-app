@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 30;
+const APP_VERSION = 31;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -513,8 +513,22 @@ function donut(t) {
 /* ================= Дневник ================= */
 function dateShort(s) { const d = parseD(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
 
-function macrosHtml(p, f, c) {
-  return `<span class="mx"><i style="background:var(--protein)"></i>Белки ${fmt(p)}</span><span class="mx"><i style="background:var(--fat)"></i>Жиры ${fmt(f)}</span><span class="mx"><i style="background:var(--carbs)"></i>Углеводы ${fmt(c)}</span>`;
+// Суточные цели по БЖУ (из плана профиля), приведённые к текущей цели по калориям, чтобы граммы и ккал не расходились
+function macroGoals() {
+  const pf = state.profile, P = Number(pf.goalProtein), F = Number(pf.goalFat), C = Number(pf.goalCarbs);
+  if (!(P > 0 && F > 0 && C > 0)) return null;
+  const k = P * 4 + F * 9 + C * 4;
+  const sc = state.goal > 0 && k > 0 ? state.goal / k : 1;
+  return { protein: P * sc, fat: F * sc, carbs: C * sc };
+}
+
+// БЖУ приёма пищи: факт, а при наличии плана «из N»; перевыполненное выделяется красным и жирным
+function macrosHtml(p, f, c, plan) {
+  const one = (name, color, v, g) => {
+    const over = g > 0 && v > g;
+    return `<span class="mx${over ? " over" : ""}"><i style="background:var(${color})"></i>${name} ${fmt(v)}${g > 0 ? ` из ${fmtInt(g)}` : ""}</span>`;
+  };
+  return one("Белки", "--protein", p, plan && plan.p) + one("Жиры", "--fat", f, plan && plan.f) + one("Углеводы", "--carbs", c, plan && plan.c);
 }
 
 function pageHead(overline, title, actions = "") {
@@ -568,12 +582,12 @@ function viewDiary() {
   const left = state.goal - t.kcal;
   const over = left < 0;
   const barPct = Math.min(100, (t.kcal / state.goal) * 100);
-  const pf = state.profile;
+  const mg = macroGoals();
   const legend = [
-    ["Белки", "var(--protein)", t.protein, pct(kP), pf.goalProtein],
-    ["Углеводы", "var(--carbs)", t.carbs, pct(kC), pf.goalCarbs],
-    ["Жиры", "var(--fat)", t.fat, pct(kF), pf.goalFat],
-  ].map(([n, c, g, p, tg]) => `<div class="lg-row"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}${tg ? `<small>цель ${fmtInt(tg)} г</small>` : ""}</span><span class="lg-val">${fmt(g)} г<small>${p}%</small></span></div>`).join("");
+    ["Белки", "var(--protein)", t.protein, pct(kP), mg && Math.round(mg.protein)],
+    ["Углеводы", "var(--carbs)", t.carbs, pct(kC), mg && Math.round(mg.carbs)],
+    ["Жиры", "var(--fat)", t.fat, pct(kF), mg && Math.round(mg.fat)],
+  ].map(([n, c, g, p, tg]) => `<div class="lg-row"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}${tg ? `<small>цель ${fmtInt(tg)} г</small>` : ""}</span><span class="lg-val${tg && g > tg ? " over" : ""}">${fmt(g)} г<small>${p}%</small></span></div>`).join("");
 
   // приёмы пищи
   const mealsHtml = MEALS.map((m) => {
@@ -581,6 +595,8 @@ function viewDiary() {
     const mt = sumEntries(items);
     const target = mealTarget(m.id);
     const mp = target > 0 ? Math.min(100, (mt.kcal / target) * 100) : 0;
+    const sh = mealSplit()[m.id] / 100;
+    const mplan = mg ? { p: Math.round(mg.protein * sh), f: Math.round(mg.fat * sh), c: Math.round(mg.carbs * sh) } : null;
     const rows = items.map((e) => `
       <button type="button" class="entry" data-act="editEntry" data-id="${esc(e.id)}">
         <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
@@ -590,9 +606,9 @@ function viewDiary() {
       <div class="meal-head">
         <span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span>
         <div class="meal-name">${m.name}</div>
-        <div class="meal-kcal">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
+        <div class="meal-kcal${mt.kcal > target ? " over" : ""}">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
         <button type="button" class="add-btn" data-act="addFood" data-meal="${m.id}" aria-label="Добавить в «${m.name}»">+</button>
-        <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs)}</div>
+        <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
       </div>
       <div class="meal-plan"><div class="track ${mt.kcal > target ? "over" : ""}"><i style="width:${mp}%"></i></div></div>
       ${rows ? `<div class="entries">${rows}</div>` : ""}
