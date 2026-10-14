@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 59;
+const APP_VERSION = 61;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1254,7 +1254,7 @@ function viewReports() {
 
   const ins = localInsights(a);
   const INS_LBL = { bad: "Обратить внимание", warn: "Можно улучшить", good: "В норме", info: "К сведению" };
-  const insHtml = `<div class="ins">${ins.map((i, k) => `${k === 0 || ins[k - 1].kind !== i.kind ? `<div class="in-h ${i.kind}">${INS_LBL[i.kind]}</div>` : ""}<div class="in ${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`;
+  const insHtml = `<div class="ins">${ins.map((i, k) => `${k === 0 || ins[k - 1].kind !== i.kind ? `<div class="in-h k-${i.kind}">${INS_LBL[i.kind]}</div>` : ""}<div class="in k-${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`;
   const plan = a.plan;
   const macroRow = (name, avg, target, cls) => `<div class="rk"><div class="rk-top"><span class="rk-n">${name}</span><span class="rk-v">${fmt(avg)} г${target ? ` из ${target} г` : ""}</span></div><div class="rk-bar"><i class="${cls}" style="width:${target ? Math.min(100, (avg / target) * 100) : Math.min(100, avg)}%"></i></div></div>`;
   const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
@@ -2058,6 +2058,31 @@ function previewHtml(per100, grams, info, replaceMg = 0) {
   return `${base}<p class="foot-note" style="margin:10px 0 0">Жидкость: <b>${signed(Math.round(eff))} мл</b> засчитано${caf > 0 ? `. Кофеин: <b>${fmtInt(caf)} мг</b>` : ""}.</p>${caf > 0 ? cafWarnHtml(caf, replaceMg) : ""}`;
 }
 
+/* ----- Когда я ел этот продукт: все записи дневника за всё время ----- */
+async function openProductUsage(p) {
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Когда я это ел</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <p class="foot-note" style="margin:0 2px 10px"><b>${esc(p.name)}</b>${p.brand ? `, ${esc(p.brand)}` : ""}</p>
+    <div id="pu-body"><div class="empty">Загружаю…</div></div>`);
+  let list = [];
+  try {
+    const snap = await getDocs(query(collection(db, "users", state.user.uid, "entries"), where("productId", "==", p.id)));
+    list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    list = state.entries.filter((e) => e.productId === p.id);
+  }
+  const wd = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+  list.sort((a, b) => (a.date === b.date ? createdMs(b) - createdMs(a) : a.date < b.date ? 1 : -1));
+  const body = $("#pu-body", ov);
+  if (!body) return;
+  if (!list.length) { body.innerHTML = `<div class="empty"><b>Пока не ел</b>Этого продукта ещё нет в вашем дневнике.</div>`; return; }
+  const sumG = list.reduce((t, e) => t + (Number(e.grams) || 0), 0), sumK = list.reduce((t, e) => t + (Number(e.kcal) || 0), 0);
+  const days = new Set(list.map((e) => e.date)).size;
+  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span></div>`).join("");
+  body.innerHTML = `<div class="pu-sum"><div><b>${list.length}</b><small>${list.length === 1 ? "запись" : "записей"}</small></div><div><b>${days}</b><small>дн.</small></div><div><b>${fmtInt(sumG)} г</b><small>всего</small></div><div><b>${fmtInt(sumK)}</b><small>ккал всего</small></div></div>
+    <div class="pu-list">${rows}</div>`;
+}
+
 /* ----- Откуда взялись белки / жиры / углеводы за день ----- */
 function openMacroTop(key) {
   const NAMES = { protein: ["Белки", "var(--protein)"], fat: ["Жиры", "var(--fat)"], carbs: ["Углеводы", "var(--carbs)"] };
@@ -2379,6 +2404,7 @@ function openProductForm(product, onSaved, prefill = {}) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
+    ${product ? `<button type="button" class="btn ghost full" id="pf-usage" style="margin-bottom:12px">Когда я это ел: даты, граммы, калории</button>` : ""}
     <label class="field"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
     <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
     <div class="field"><span>Штрих-код (необязательно)</span>${barcodeField}</div>
@@ -2398,6 +2424,7 @@ function openProductForm(product, onSaved, prefill = {}) {
       ? `<button type="button" class="btn ghost full" data-close>Закрыть</button>`
       : `${product ? `<button type="button" class="btn danger" id="pf-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="pf-save">Сохранить</button>`}</div>`);
 
+  if (product) $("#pf-usage", ov).addEventListener("click", () => openProductUsage(product));
   if (product) {
     const list = $("#pf-alias-list", ov), msg = $("#pf-alias-msg", ov), inp = $("#pf-alias-in", ov);
     const drawAliases = () => {
