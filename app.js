@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 51;
+const APP_VERSION = 53;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -593,10 +593,10 @@ function viewDiary() {
   const barPct = Math.min(100, (t.kcal / state.goal) * 100);
   const mg = macroGoals();
   const legend = [
-    ["Белки", "var(--protein)", t.protein, pct(kP), mg && Math.round(mg.protein)],
-    ["Углеводы", "var(--carbs)", t.carbs, pct(kC), mg && Math.round(mg.carbs)],
-    ["Жиры", "var(--fat)", t.fat, pct(kF), mg && Math.round(mg.fat)],
-  ].map(([n, c, g, p, tg]) => `<div class="lg-row"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}${tg ? `<small>цель ${fmtInt(tg)} г</small>` : ""}</span><span class="lg-val${tg && g > tg ? " over" : ""}">${fmt(g)} г<small>${p}%</small></span></div>`).join("");
+    ["Белки", "var(--protein)", t.protein, pct(kP), mg && Math.round(mg.protein), "protein"],
+    ["Углеводы", "var(--carbs)", t.carbs, pct(kC), mg && Math.round(mg.carbs), "carbs"],
+    ["Жиры", "var(--fat)", t.fat, pct(kF), mg && Math.round(mg.fat), "fat"],
+  ].map(([n, c, g, p, tg, key]) => `<button type="button" class="lg-row" data-act="macroTop" data-key="${key}"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}${tg ? `<small>цель ${fmtInt(tg)} г</small>` : ""}</span><span class="lg-val${tg && g > tg ? " over" : ""}">${fmt(g)} г<small>${p}%</small></span></button>`).join("");
 
   // приёмы пищи
   const mealsHtml = MEALS.map((m) => {
@@ -640,6 +640,7 @@ function viewDiary() {
     <section class="card">
       <h2 class="h2">Баланс БЖУ</h2>
       <div class="sum-grid">${donut(t)}<div class="legend">${legend}</div></div>
+      <p class="foot-note" style="margin:10px 2px 0">Нажмите на белки, жиры или углеводы: покажу, из каких продуктов они взялись.</p>
     </section>
     ${mealsHtml}
     <button type="button" class="fab" data-act="pickMeal" aria-label="Добавить еду">+</button>`;
@@ -1873,11 +1874,22 @@ function askLinkBarcode(code) {
     let done = false, q = "";
     const finish = (v) => { if (done) return; done = true; resolve(v); ov.close(); };
     const ov = openSheet(`
-      <div class="sheet-head"><h2>Новый штрих-код</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-      <div class="note">Код ${esc(code)} не найден в вашей базе. Если это новая упаковка уже знакомого продукта, привяжите код к нему: в следующий раз продукт найдётся сразу.</div>
-      <input id="lk-q" class="input search" type="search" placeholder="Найти продукт для привязки" autocomplete="off">
-      <div id="lk-list" class="plist lk-list"></div>
-      <button type="button" class="btn ghost full" id="lk-new" style="margin-top:12px">Это новый продукт</button>`);
+      <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Новый штрих-код</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+      <div id="af-body" class="lm">
+        <div class="note lk-note">Код ${esc(code)} не найден. Привяжите его к знакомому продукту (новая упаковка) или создайте новый.</div>
+        <div class="af-btns lk-btns"><button type="button" class="btn ghost" id="lk-new">Это новый продукт</button></div>
+        <input id="lk-q" class="input search" type="search" placeholder="Найти продукт для привязки" autocomplete="off">
+        <div id="lk-list" class="plist"></div>
+      </div>`);
+    ov.classList.add("top");
+    const vv = window.visualViewport;
+    if (vv) {
+      const fit = () => {
+        if (!ov.isConnected) { vv.removeEventListener("resize", fit); vv.removeEventListener("scroll", fit); return; }
+        ov.style.top = `${vv.offsetTop}px`; ov.style.height = `${vv.height}px`; ov.style.bottom = "auto";
+      };
+      vv.addEventListener("resize", fit); vv.addEventListener("scroll", fit); fit();
+    }
     ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-close]")) finish(null); });
     const draw = () => {
       const items = filterProducts(q).slice(0, 40);
@@ -1943,6 +1955,34 @@ function previewHtml(per100, grams, info, replaceMg = 0) {
   if (!info) return base;
   const ml = grams > 0 ? grams : 0, eff = (ml * info.pct) / 100, caf = (ml * info.caf100) / 100;
   return `${base}<p class="foot-note" style="margin:10px 0 0">Жидкость: <b>${signed(Math.round(eff))} мл</b> засчитано${caf > 0 ? `. Кофеин: <b>${fmtInt(caf)} мг</b>` : ""}.</p>${caf > 0 ? cafWarnHtml(caf, replaceMg) : ""}`;
+}
+
+/* ----- Откуда взялись белки / жиры / углеводы за день ----- */
+function openMacroTop(key) {
+  const NAMES = { protein: ["Белки", "var(--protein)"], fat: ["Жиры", "var(--fat)"], carbs: ["Углеводы", "var(--carbs)"] };
+  const [title, color] = NAMES[key] || NAMES.protein;
+  const list = entriesOn(state.date);
+  const groups = new Map();
+  let total = 0;
+  list.forEach((e) => {
+    const g = Number(e[key]) || 0;
+    if (g <= 0) return;
+    total += g;
+    const k = fold(e.name);
+    const r = groups.get(k) || { name: e.name, g: 0, kcal: 0, grams: 0, n: 0 };
+    r.g += g; r.kcal += Number(e.kcal) || 0; r.grams += Number(e.grams) || 0; r.n++;
+    groups.set(k, r);
+  });
+  const top = [...groups.values()].sort((a, b) => b.g - a.g).slice(0, 10);
+  const mg = macroGoals(), goal = mg ? Math.round(mg[key]) : 0;
+  const rows = top.map((r, i) => {
+    const share = total > 0 ? Math.round((r.g / total) * 100) : 0;
+    return `<div class="mt-row"><span class="mt-n">${i + 1}</span><span class="mt-main"><span class="mt-name">${esc(r.name)}</span><span class="mt-sub">${fmtInt(r.grams)} г${r.n > 1 ? `, записей: ${r.n}` : ""} · ${fmtInt(r.kcal)} ккал</span><span class="mt-bar"><i style="width:${share}%;background:${color}"></i></span></span><span class="mt-val">${fmt(r.g)} г<small>${share}%</small></span></div>`;
+  }).join("");
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>${title}: главные источники</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <p class="foot-note" style="margin:0 2px 10px">За ${esc(shortDate(state.date))}: всего ${fmt(total)} г${goal ? ` из ${fmtInt(goal)} г цели` : ""}. Доля считается от суммы за день.</p>
+    <div class="mt-list">${rows || `<div class="empty"><b>Пока нет записей</b>Добавьте еду в дневник.</div>`}</div>`);
 }
 
 /* ----- Добавление еды в дневник ----- */
@@ -3082,6 +3122,7 @@ const actions = {
   goTab(ds) { state.tab = ds.tab; render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
   addWater(ds) { const n = Number(ds.ml); if (n > 0) openDrinkSheet(null, null, n); else openRemoveSheet(); },
   addDrink() { openDrinkSheet(); },
+  macroTop(ds) { openMacroTop(ds.key); },
   toggleMeal(ds) { state.mealOpen[ds.key] = !state.mealOpen[ds.key]; render(); },
   toggleFluid() { state.fluidOpenDay = state.fluidOpenDay === state.date ? null : state.date; render(); },
   quickDrink(ds) { openDrinkSheet(null, ds.did); },
