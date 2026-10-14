@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 32;
+const APP_VERSION = 34;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -748,6 +748,7 @@ function analyze(days) {
     plainWater += x.water;
     drinkKcalTotal += x.drinkKcal;
     x.items.forEach((i) => {
+      if (i.kind === "drink" && isWaterDrink(i)) { plainWater += i.ml; return; }
       const r = drinks[i.name] = drinks[i.name] || { name: i.name, n: 0, ml: 0, eff: 0, caf: 0, kcal: 0 };
       r.n++; r.ml += i.ml; r.eff += itemHyd(i); r.caf += itemCaf(i);
       if (i.kind === "food") r.kcal += i.kcal || 0;
@@ -1275,6 +1276,7 @@ function statusHtml() {
     ${row("Синхронизация данных", sync[0], sync[1])}
     ${row("Gemini (ключ)", geminiKey() ? G : N, geminiKey() ? "Подключён" : "Не подключён")}
     <button type="button" class="btn ghost full" style="margin-top:10px" data-act="checkStatus" ${wait ? "disabled" : ""}>${wait ? "Проверяю…" : "Проверить снова"}</button>
+    <button type="button" class="btn full" style="margin-top:8px" data-act="reloadApp">Обновить приложение до актуальной версии</button>
   </div>`;
 }
 
@@ -2119,7 +2121,7 @@ const cafDose = () => Math.round(Math.min(200, 3 * userWeight()));
 function fluidItems(day) {
   const items = [];
   (byDateIndex("drinks").get(day) || EMPTY).forEach((x) => items.push({
-    kind: "drink", id: x.id, name: x.name, ml: Number(x.ml) || 0, pct: Number(x.pct) || 0, caf100: Number(x.caf100) || 0, ts: createdMs(x),
+    kind: "drink", id: x.id, drinkId: x.drinkId, name: x.name, ml: Number(x.ml) || 0, pct: Number(x.pct) || 0, caf100: Number(x.caf100) || 0, ts: createdMs(x),
   }));
   entriesOn(day).filter((e) => e.drink).forEach((e) => items.push({
     kind: "food", id: e.id, name: e.name, ml: Number(e.grams) || 0, pct: Number(e.drink.pct) || 0, caf100: Number(e.drink.caf100) || 0, kcal: Number(e.kcal) || 0, ts: createdMs(e),
@@ -2156,7 +2158,7 @@ const cafToast = (addMg, replaceMg = 0) => { const w = cafWarnings(addMg, replac
 
 function favDrinks() {
   const counts = {};
-  state.drinks.forEach((x) => { if (x.drinkId && x.drinkId !== "custom" && DRINK_BY_ID[x.drinkId]) counts[x.drinkId] = (counts[x.drinkId] || 0) + 1; });
+  state.drinks.forEach((x) => { if (x.drinkId && x.drinkId !== "custom" && x.drinkId !== "water" && DRINK_BY_ID[x.drinkId]) counts[x.drinkId] = (counts[x.drinkId] || 0) + 1; });
   const freq = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
   return [...state.fav, ...freq.filter((id) => !state.fav.includes(id))].slice(0, 8).map((id) => DRINK_BY_ID[id]).filter(Boolean);
 }
@@ -2206,8 +2208,9 @@ function viewHealth() {
   const extra = actMinutes(day) * 8;
   const left = tg - ml;
   const items = fluidItems(day);
-  const wMl = waterOn(day);
-  const dHyd = items.filter((i) => i.kind === "drink").reduce((sum, i) => sum + itemHyd(i), 0);
+  const isW = (i) => i.kind === "drink" && isWaterDrink(i);
+  const wMl = waterOn(day) + items.filter(isW).reduce((sum, i) => sum + itemHyd(i), 0);
+  const dHyd = items.filter((i) => i.kind === "drink" && !isW(i)).reduce((sum, i) => sum + itemHyd(i), 0);
   const fHyd = items.filter((i) => i.kind === "food").reduce((sum, i) => sum + itemHyd(i), 0);
   const parts = [];
   if (wMl) parts.push(`вода ${fmtInt(wMl)} мл`);
@@ -2240,12 +2243,14 @@ function viewHealth() {
   const fluidOpen = state.fluidOpenDay === day;
   const fluidSorted = items.slice().reverse();
   const fluidShown = fluidOpen ? fluidSorted : fluidSorted.slice(0, FLUID_SHOW);
+  // Вода, записанная раньше суммой за день (до появления истории)
+  const legacyRow = waterOn(day) > 0 ? `<div class="entry"><span class="e-main"><span class="e-name">Вода</span><span class="e-sub">${fmt(waterOn(day))} мл, записано суммой за день</span></span><span class="e-kcal">—<small>мг кофеина</small></span></div>` : "";
   const fluidMore = fluidSorted.length > FLUID_SHOW
     ? `<button type="button" class="more-btn" data-act="toggleFluid">${fluidOpen ? "Свернуть" : `Ещё ${fluidSorted.length - FLUID_SHOW}`}</button>`
     : "";
   const fluidRows = fluidShown.map((i) => `
     <button type="button" class="entry" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
-      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${fmt(i.ml)} мл, засчитано ${signed(Math.round(itemHyd(i)))} мл${i.kind === "food" ? ", из дневника питания" : ""}</span></span>
+      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл, засчитано ${signed(Math.round(itemHyd(i)))} мл${i.kind === "food" ? ", из дневника питания" : ""}</span></span>
       <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
     </button>`).join("");
   return `
@@ -2263,7 +2268,7 @@ function viewHealth() {
       </div>
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
       ${favs.length ? `<p class="foot-note" style="margin:14px 2px 8px">Избранное и частые напитки</p><div class="chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
-      ${fluidRows ? `<div class="entries flat">${fluidRows}</div>${fluidMore}` : ""}
+      ${fluidRows || legacyRow ? `<div class="entries flat">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}` : ""}
     </section>
     <section class="card">
       <div class="card-top"><h2 class="h2">Кофеин</h2><span class="pill ${caf.level === "ok" ? "" : caf.level}">${caf.mg} из ${caf.limit} мг</span></div>
@@ -2414,12 +2419,19 @@ function maybeOnboard() {
   }, 700);
 }
 
+// Вода всегда пишется отдельной записью с временем (история выпитого), а не прибавляется к сумме дня.
+// Уменьшение («−250») тоже запись, но не больше, чем воды записано за день.
+const isWaterDrink = (x) => x.drinkId === "water";
+const plainWaterOn = (d) => waterOn(d) + (byDateIndex("drinks").get(d) || EMPTY).filter(isWaterDrink).reduce((sum, x) => sum + (Number(x.ml) || 0), 0);
 function changeWater(n) {
-  const day = state.date, cur = waterOn(day);
-  const ref = doc(db, "users", state.user.uid, "water", day);
-  if (n < 0 && cur + n <= 0) setDoc(ref, { date: day, ml: 0 }, { merge: true }).catch(writeFail);
-  else setDoc(ref, { date: day, ml: increment(n) }, { merge: true }).catch(writeFail);
-  toast(n > 0 ? `Добавлено ${n} мл воды` : "Убрано 250 мл");
+  const day = state.date;
+  let ml = Math.round(Number(n));
+  if (!ml) return;
+  if (ml < 0) {
+    ml = -Math.min(-ml, Math.max(0, Math.round(plainWaterOn(day))));
+    if (!ml) return;
+  }
+  addDoc(colRef("drinks"), { drinkId: "water", name: "Вода", ml, pct: 100, caf100: 0, alc: "", date: day, createdAt: serverTimestamp() }).catch(writeFail);
 }
 
 function openWaterSheet() {
@@ -2783,6 +2795,14 @@ const actions = {
   },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
   checkStatus() { checkStatus(true); },
+  async reloadApp() {
+    try {
+      if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
+      if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map((r) => r.unregister())); }
+      await fetch("index.html", { cache: "reload" }).catch(() => {});
+    } catch (e) { /* ignore */ }
+    location.replace(location.pathname + "?r=" + Date.now());
+  },
   aiSetup() { openAiSetup(); },
   aiForgetKey() {
     if (!confirm("Удалить ключ Gemini с этого телефона?")) return;
