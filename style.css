@@ -547,3 +547,68 @@ button.lg-row:active { background: var(--accent-soft); }
 .mt-bar i { display: block; height: 100%; border-radius: 3px; }
 .mt-val { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; font-size: 15px; }
 .mt-val small { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+
+/* v54: общий блок калорий в «Балансе БЖУ», цвет по приближению к цели */
+.cal-sum { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-2); }
+.cal-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.cal-lbl { font-size: 13px; font-weight: 600; color: var(--muted); }
+.cal-val { font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: var(--accent-d); }
+.cal-val small { margin-left: 5px; font-size: 14px; font-weight: 600; letter-spacing: -.01em; color: var(--muted); }
+.cal-val.near { color: #B07A00; }
+.cal-val.over { color: var(--red); }
+.cal-foot { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.track.near > i { background: linear-gradient(90deg, #E0A94B, #F5BD45); }
+.qa-title { margin: 12px 2px 2px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.qa-title:first-child { margin-top: 2px; }
+
+/* Свайп по записи */
+.sw { position: relative; overflow: hidden; border-bottom: 1px solid var(--line-2); }
+.sw:last-child { border-bottom: 0; }
+.sw .entry { position: relative; z-index: 1; background: var(--card); border-bottom: 0; touch-action: pan-y; }
+.sw-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 13px; font-weight: 700; color: #fff; }
+.sw-edit, .sw-del { opacity: 0; transition: opacity .12s; }
+.sw.go-edit .sw-bg { background: var(--accent); }
+.sw.go-del .sw-bg { background: var(--red); }
+.sw.go-edit .sw-edit, .sw.go-del .sw-del { opacity: .75; }
+.sw.armed .sw-edit, .sw.armed .sw-del { opacity: 1; }
+
+/* График веса */
+.wt-svg { width: 100%; height: auto; display: block; margin-top: 6px; }
+
+/* ===== Тёмная тема ===== */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0D1410; --card: #18211B; --text: #E7EFE9; --muted: #93A399; --muted-2: #6F8076;
+  --line: #2B3830; --line-2: #243029; --field: #1F2A23;
+  --accent: #2DB45F; --accent-2: #46C173; --accent-d: #5BD58A; --accent-soft: #1B3524;
+  --green: #2DB45F; --green-soft: #1B3524; --red: #F0716F; --red-soft: #3B1F21;
+  --amber-soft: #3A3115; --water-soft: #12303F;
+  --shadow: 0 7px 24px rgba(0, 0, 0, .35);
+}
+:root[data-theme="dark"] body { background-image: radial-gradient(120% 40% at 50% 0, #12301D 0, transparent 70%); }
+:root[data-theme="dark"] .nav { background: rgba(21, 29, 24, .94); }
+:root[data-theme="dark"] .iconbtn, :root[data-theme="dark"] .icon-btn, :root[data-theme="dark"] .chip-btn,
+:root[data-theme="dark"] .btn.ghost, :root[data-theme="dark"] .combo-list, :root[data-theme="dark"] .wd-dot { background: var(--card); }
+:root[data-theme="dark"] .input:focus { background: var(--field); }
+:root[data-theme="dark"] .seg button.on { background: #2C3B31; color: var(--text); }
+:root[data-theme="dark"] .entry:active, :root[data-theme="dark"] .prow:active, :root[data-theme="dark"] .mini:active { background: #1F2A23; }
+:root[data-theme="dark"] .card { box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 12px 28px rgba(0, 0, 0, .35); }
+:root[data-theme="dark"] .note { color: #8FE0AE; }
+:root[data-theme="dark"] .warn, :root[data-theme="dark"] .pill.warn, :root[data-theme="dark"] .mini-sub.caf.warn { color: #F2C879; }
+:root[data-theme="dark"] .warn.over, :root[data-theme="dark"] .banner { color: #F5A3A5; }
+:root[data-theme="dark"] .chip.water { color: #7AD0F2; }
+:root[data-theme="dark"] .cal-val.near { color: #F5BD45; }
+:root[data-theme="dark"] .chart .b.zero { background: #26302A; }
+:root[data-theme="dark"] .mt-bar { background: rgba(255, 255, 255, .1); }
+:root[data-theme="dark"] .meal-ic { background: #3A3115; color: #F5BD45; }
+:root[data-theme="dark"] .meal-ic.lunch { background: #3D2B18; color: #F0A35E; }
+:root[data-theme="dark"] .meal-ic.dinner { background: #25294A; color: #98A2FF; }
+:root[data-theme="dark"] .meal-ic.snack { background: #402322; color: #F59A90; }
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+1) { --t: #1B3524; --tc: #6FE0A0; --tm: #8FB89C; }
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+2) { --t: #3A3115; --tc: #F5C85E; --tm: #C2A870; }
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+3) { --t: #12303F; --tc: #6CC4EE; --tm: #86B0C5; }
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+4) { --t: #3A2236; --tc: #E59BD3; --tm: #BA93B0; }
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+5) { --t: #2A2748; --tc: #AFA3F0; --tm: #9D98C4; }
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+6) { --t: #123734; --tc: #6FD8CB; --tm: #82B5AF; }
+:root[data-theme="dark"] .login { background: linear-gradient(180deg, #12301D 0%, var(--bg) 60%); }
+:root[data-theme="dark"] .overlay.open { background: rgba(0, 0, 0, .6); }

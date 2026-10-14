@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
+  <script>try{var p=localStorage.getItem("theme")||"auto";document.documentElement.dataset.theme=(p==="dark"||(p==="auto"&&window.matchMedia("(prefers-color-scheme: dark)").matches))?"dark":"light"}catch(e){}</script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -12,7 +13,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3">
   <link rel="icon" type="image/png" href="icon-192.png?v=3">
   <title>Health</title>
-  <link rel="stylesheet" href="style.css?v=53">
+  <link rel="stylesheet" href="style.css?v=54">
 </head>
 <body>
 
@@ -60,6 +61,6 @@
   <div id="loading" class="loading hidden"><div class="spinner" aria-label="Загрузка"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="app.js?v=53"></script>
+  <script type="module" src="app.js?v=54"></script>
 </body>
 </html>
