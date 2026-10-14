@@ -72,16 +72,16 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 68;
+const APP_VERSION = 71;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
 const FLOOR_DATE = "2020-01-01"; // нижняя граница для календарей
 const MEALS = [
-  { id: "breakfast", name: "Завтрак", icon: "sunrise" },
-  { id: "lunch", name: "Обед", icon: "sun" },
-  { id: "dinner", name: "Ужин", icon: "moon" },
-  { id: "snack", name: "Перекус", icon: "apple" },
+  { id: "breakfast", name: "Завтрак", icon: "sunrise", emoji: "🍳" },
+  { id: "lunch", name: "Обед", icon: "sun", emoji: "🍲" },
+  { id: "dinner", name: "Ужин", icon: "moon", emoji: "🍽️" },
+  { id: "snack", name: "Перекус", icon: "apple", emoji: "🍎" },
 ];
 const ICONS = {
   sunrise: '<path d="M5 18a7 7 0 0 1 14 0"/><path d="M12 6v3M4.9 10.9l1.8 1.8M19.1 10.9l-1.8 1.8M2 18h20"/>',
@@ -541,6 +541,39 @@ function donut(t) {
 function dateShort(s) { const d = parseD(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
 
 // Суточные цели по БЖУ (из плана профиля), приведённые к текущей цели по калориям, чтобы граммы и ккал не расходились
+// «Главное на сегодня»: одна короткая подсказка по текущему дню (только для сегодняшнего дня с записями)
+function dayTipHtml(day, list, t, left, mg) {
+  if (day !== todayStr() || !list.length) return "";
+  const parts = [];
+  const goal = state.goal;
+  if (left < -goal * 0.1) {
+    parts.push(`Калории превышены на ${fmtInt(-left)} ккал. Остаток дня лучше лёгкий: овощи, нежирный белок и вода, плюс прогулка 20–30 минут.`);
+  } else if (mg) {
+    const gap = mg.protein - t.protein;
+    if (gap > 20 && left > 0) {
+      const byName = new Map();
+      state.entries.filter((e) => !e.drink && Number(e.grams) > 0 && Number(e.protein) > 0).forEach((e) => {
+        const k = fold(e.name), p100 = (e.protein / e.grams) * 100, k100 = (e.kcal / e.grams) * 100;
+        const r = byName.get(k) || { name: e.name, n: 0, p100, k100 };
+        r.n++; byName.set(k, r);
+      });
+      const best = [...byName.values()].filter((r) => r.p100 >= 12 && r.k100 <= 260).sort((a, b) => b.n - a.n)[0];
+      let hint = " Подойдут творог, яйца, курица или рыба.";
+      if (best) {
+        const g = Math.min(300, Math.max(50, Math.round(((gap / best.p100) * 100) / 10) * 10));
+        hint = ` Например, «${best.name}»: около ${g} г дадут ${fmtInt((g * best.p100) / 100)} г белка.`;
+      }
+      parts.push(`Белка не хватает ${fmtInt(gap)} г.${hint}`);
+    } else if (left > 0) {
+      parts.push(`Осталось ${fmtInt(left)} ккал, белок почти набран. Можно добавить овощи или лёгкий перекус.`);
+    }
+  }
+  if (t.kcal > 600 && (t.fat * 9) / t.kcal > 0.45) parts.push(`Жиров уже ${Math.round(((t.fat * 9) / t.kcal) * 100)}% калорий, дальше лучше нежирное, без жареного.`);
+  const wt = waterTarget(day), hy = hydrationOn(day);
+  if (new Date().getHours() >= 15 && wt > 0 && hy / wt < 0.5 && parts.length < 2) parts.push(`Жидкости выпито ${Math.round((hy / wt) * 100)}% нормы: пора выпить воды.`);
+  if (!parts.length) parts.push("День идёт по плану: калории и белок в пределах цели.");
+  return `<section class="card day-tip"><span class="dt-ic">★</span><div><b>Главное на сегодня</b><p>${esc(parts.slice(0, 2).join(" "))}</p></div></section>`;
+}
 function macroGoals() {
   const pf = state.profile, P = Number(pf.goalProtein), F = Number(pf.goalFat), C = Number(pf.goalCarbs);
   if (!(P > 0 && F > 0 && C > 0)) return null;
@@ -625,7 +658,10 @@ function viewDiary() {
     const mp = target > 0 ? Math.min(100, (mt.kcal / target) * 100) : 0;
     const sh = mealSplit()[m.id] / 100;
     const mplan = mg ? { p: Math.round(mg.protein * sh), f: Math.round(mg.fat * sh), c: Math.round(mg.carbs * sh) } : null;
-    const mKey = `${day}:${m.id}`, mOpen = !!state.mealOpen[mKey], shown = mOpen || items.length < 2 ? items : items.slice(-1);
+    const mKey = `${day}:${m.id}`, mOpen = !!state.mealOpen[mKey], shown = mOpen ? items : [];
+    if (!items.length) {
+      return `<section class="card meal m-${m.id} meal-empty-card"><button type="button" class="meal-empty" data-act="addFood" data-meal="${m.id}"><span class="meal-ic ${m.id}">${m.emoji}</span><span class="me-main"><b>${m.name}</b><small>цель ${fmtInt(target)} ккал, пока пусто</small></span><span class="me-plus">+</span></button></section>`;
+    }
     const rows = shown.map((e) => `
       <div class="sw" data-sw="${esc(e.id)}"><div class="sw-bg"><span class="sw-edit">✎ Граммы</span><span class="sw-del">Удалить 🗑</span></div>
       <button type="button" class="entry" data-act="editEntry" data-id="${esc(e.id)}">
@@ -633,14 +669,14 @@ function viewDiary() {
         <span class="e-kcal">${fmtInt(e.kcal)}<small>ккал</small></span>
       </button></div>`).join("");
     return `<section class="card meal m-${m.id}">
-      <div class="meal-top"><div class="meal-head">
-        <span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span>
-        <div class="meal-name">${m.name}</div>
+      <div class="meal-top" role="button" tabindex="0" data-act="toggleMeal" data-key="${mKey}"><div class="meal-head">
+        <span class="meal-ic ${m.id}">${m.emoji}</span>
+        <div class="meal-name">${m.name}<span class="meal-chev${mOpen ? " open" : ""}">›</span></div>
         <div class="meal-kcal${mt.kcal > target ? " over" : ""}">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
         <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
       </div>
       <div class="meal-plan"><div class="track ${target > 0 ? levelOf(mt.kcal / target) : ""}"><i style="width:${mp}%"></i></div></div></div>
-      ${rows ? `<div class="entries">${rows}${items.length > 1 ? `<button type="button" class="more-btn" data-act="toggleMeal" data-key="${mKey}">${mOpen ? "Свернуть ▲" : `Показать все (${items.length}) ▼`}</button>` : ""}</div>` : ""}
+      ${rows ? `<div class="entries">${rows}</div>` : ""}
     </section>`;
   }).join("");
 
@@ -654,13 +690,13 @@ function viewDiary() {
     <section class="card balance">
       <div class="card-top"><h2 class="h2">Баланс БЖУ</h2><span class="pill">цель ${fmtInt(state.goal)} ккал</span></div>
       <div class="sum-grid">${donut(t)}<div class="legend">${legend}</div></div>
-      <p class="foot-note" style="margin:10px 2px 0">Нажмите на белки, жиры или углеводы: покажу, из каких продуктов они взялись.</p>
       <div class="cal-sum">
         <div class="cal-row"><span class="cal-lbl">${over ? "Перебор" : "Осталось"}</span><span class="cal-val ${calLevel}">${fmtInt(Math.abs(left))}<small>ккал</small></span></div>
         <div class="track ${calLevel}"><i style="width:${barPct}%"></i></div>
         <div class="cal-foot">Съедено ${fmtInt(t.kcal)} из ${fmtInt(state.goal)} ккал · ${Math.round((t.kcal / state.goal) * 100)}%</div>
       </div>
     </section>
+    ${dayTipHtml(day, list, t, left, mg)}
     ${mealsHtml}
     <button type="button" class="fab" data-act="pickMeal" aria-label="Добавить еду">+</button>`;
 }
@@ -1117,6 +1153,82 @@ function aiPrompt(a) {
 ${JSON.stringify(aiPayload(a))}`;
 }
 
+// Итоговая оценка и взаимосвязи между показателями (локально, без ИИ)
+function crossInsights(a) {
+  const out = { verdict: null, links: [] };
+  if (!a.L && !a.hydDays && !a.actTotalMin && !a.sleepDays) return out;
+  const pct = (v) => Math.round(v * 100);
+  const mean = (arr, f) => (arr.length ? arr.reduce((t, x) => t + f(x), 0) / arr.length : 0);
+  // --- общая оценка: каждый показатель получает уровень good / warn / bad ---
+  const m = [];
+  if (a.L) {
+    const dev = (a.kcalAvg - a.goal) / a.goal;
+    m.push(["Калории", Math.abs(dev) <= 0.1 ? "good" : Math.abs(dev) <= 0.2 ? "warn" : "bad"]);
+    if (a.plan) { const pr = a.pAvg / a.plan.protein; m.push(["Белок", pr >= 0.85 ? "good" : pr >= 0.7 ? "warn" : "bad"]); }
+  }
+  if (a.hydDays) { const r = a.hydAvg / a.targetAvg; m.push(["Жидкость", r >= 0.8 ? "good" : r >= 0.65 ? "warn" : "bad"]); }
+  if (a.cafTotal > 0) m.push(["Кофеин", a.cafOver === 0 ? "good" : a.cafOver >= a.days.length * 0.3 ? "bad" : "warn"]);
+  if (a.plan && a.plan.weekly) { const pw = a.actTotalMin / a.weeks, tt = a.plan.weekly.minutes; m.push(["Нагрузка", pw >= tt ? "good" : pw >= tt * 0.5 ? "warn" : "bad"]); }
+  if (a.stepDays) m.push(["Шаги", a.stepsAvg >= STEPS_GOAL ? "good" : a.stepsAvg >= STEPS_GOAL * 0.6 ? "warn" : "bad"]);
+  if (a.sleepDays) m.push(["Сон", a.sleepAvg >= SLEEP_MIN ? "good" : a.sleepAvg >= 6 ? "warn" : "bad"]);
+  if (m.length >= 3) {
+    const good = m.filter((x) => x[1] === "good"), bad = m.filter((x) => x[1] === "bad"), warn = m.filter((x) => x[1] === "warn");
+    const share = good.length / m.length;
+    let lv, head;
+    if (bad.length === 0 && share >= 0.7) { lv = "good"; head = "Вы на хорошем уровне."; }
+    else if (bad.length >= 2 || share < 0.4) { lv = "bad"; head = "Пока ниже нормы: есть над чем поработать."; }
+    else { lv = "warn"; head = "В целом неплохо, но кое-что стоит подтянуть."; }
+    const names = (arr) => arr.map((x) => x[0].toLowerCase()).join(", ");
+    const tail = [good.length ? `в норме: ${names(good)}` : "", warn.length ? `можно лучше: ${names(warn)}` : "", bad.length ? `главное внимание: ${names(bad)}` : ""].filter(Boolean).join("; ");
+    out.verdict = { lv, text: `${head} В норме ${good.length} из ${m.length} показателей (${tail}).` };
+  }
+  // --- взаимосвязи ---
+  const add = (kind, text) => out.links.push({ kind, text });
+  const per = a.per;
+  const actD = per.filter((x) => x.actMin > 0 && x.hyd > 0), restD = per.filter((x) => x.actMin === 0 && x.hyd > 0);
+  if (actD.length >= 2 && restD.length >= 2) {
+    const ra = mean(actD, (x) => x.hyd / x.target), rr = mean(restD, (x) => x.hyd / x.target);
+    if (ra < rr - 0.1) add("warn", `Нагрузка и вода: в дни с тренировками вы пьёте ${pct(ra)}% нормы, в остальные ${pct(rr)}%. При нагрузке норма растёт, пейте воду до и после занятия.`);
+    else if (ra >= 0.85) add("good", `Нагрузка и вода: в дни с тренировками воды хватает (${pct(ra)}% нормы).`);
+    else add("info", `Нагрузка и вода: в дни с тренировками выпито ${pct(ra)}% нормы, в остальные ${pct(rr)}%.`);
+  }
+  if (a.actTotalKcal > 0 && a.L) {
+    const net = a.kcalAvg - a.burnedAvg;
+    add("info", `Нагрузка и калории: в среднем съедено ${fmtInt(a.kcalAvg)} ккал в день, нагрузка сжигает ещё ${fmtInt(a.burnedAvg)} ккал. С учётом нагрузки баланс ${fmtInt(net)} ккал в день при цели ${fmtInt(a.goal)} (расход на обмен веществ сюда не входит).`);
+  }
+  const eatAct = per.filter((x) => x.has && x.actMin > 0), eatRest = per.filter((x) => x.has && x.actMin === 0);
+  if (eatAct.length >= 2 && eatRest.length >= 2) {
+    const ka = mean(eatAct, (x) => x.kcal), kr = mean(eatRest, (x) => x.kcal);
+    if (ka > kr * 1.15) add("info", `Нагрузка и аппетит: в дни с тренировками вы едите больше (${fmtInt(ka)} против ${fmtInt(kr)} ккал). Это нормально, главное, чтобы нагрузка не «съедалась» лишним.`);
+  }
+  if (a.plan && a.strengthSessions / a.weeks >= 1 && a.L && a.pAvg < a.plan.protein * 0.85) add("warn", `Силовые и белок: тренировки есть, а белка мало (${fmtInt(a.pAvg)} г при цели ${a.plan.protein} г). Мышцам не хватает материала для восстановления.`);
+  if (a.sleepDays >= 4) {
+    const shortD = per.filter((x) => x.has && x.sleep > 0 && x.sleep < SLEEP_MIN), longD = per.filter((x) => x.has && x.sleep >= SLEEP_MIN);
+    if (shortD.length >= 2 && longD.length >= 2) {
+      const ks = mean(shortD, (x) => x.kcal), kl = mean(longD, (x) => x.kcal);
+      if (ks > kl * 1.1) add("warn", `Сон и еда: после коротких ночей вы едите больше (${fmtInt(ks)} против ${fmtInt(kl)} ккал). Недосып усиливает аппетит.`);
+    }
+    const prev = (i) => (i > 0 ? per[i - 1] : null);
+    if (per.length <= 120) {
+      const late = [], clean = [];
+      per.forEach((x, i) => { const p = prev(i); if (!p || !(x.sleep > 0)) return; const hasLate = fluidItems(p.d).some((it) => itemCaf(it) > 0 && new Date(it.ts).getHours() >= 16); (hasLate ? late : clean).push(x.sleep); });
+      if (late.length >= 2 && clean.length >= 2) {
+        const sl = late.reduce((t, v) => t + v, 0) / late.length, sc = clean.reduce((t, v) => t + v, 0) / clean.length;
+        if (sc - sl >= 0.4) add("warn", `Кофеин и сон: после дней с кофеином позже 16:00 вы спите на ${fmtInt((sc - sl) * 60)} мин меньше (${fmtDur(sl)} против ${fmtDur(sc)}).`);
+        else add("info", `Кофеин и сон: заметной разницы после вечернего кофеина нет (${fmtDur(sl)} и ${fmtDur(sc)}).`);
+      }
+      const afterAct = [], afterRest = [];
+      per.forEach((x, i) => { const p = prev(i); if (!p || !(x.sleep > 0)) return; (p.actMin > 0 ? afterAct : afterRest).push(x.sleep); });
+      if (afterAct.length >= 2 && afterRest.length >= 2) {
+        const sa = afterAct.reduce((t, v) => t + v, 0) / afterAct.length, sr = afterRest.reduce((t, v) => t + v, 0) / afterRest.length;
+        if (sa - sr >= 0.3) add("good", `Нагрузка и сон: после дней с тренировками вы спите на ${fmtInt((sa - sr) * 60)} мин дольше.`);
+        else if (sr - sa >= 0.3) add("info", `Нагрузка и сон: после дней с тренировками вы спите на ${fmtInt((sr - sa) * 60)} мин меньше. Возможно, занятия слишком поздно.`);
+      }
+    }
+  }
+  return out;
+}
+
 // Минимальный разбор разметки ответа: заголовки, списки, жирный текст
 function mdLite(text) {
   const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,;:!?]|$)/g, "$1<i>$2</i>");
@@ -1154,10 +1266,8 @@ function aiCardHtml(days) {
   const delBtn = last ? `<button type="button" class="btn ghost full" style="margin-top:8px" data-act="aiDelete">Удалить анализ</button>` : "";
   const errHtml = ai.error ? `<div class="banner" role="alert"><b>${esc(ai.error)}</b>${ai.detail ? `<br><small style="white-space:pre-wrap;word-break:break-word">${esc(ai.detail)}</small>` : ""}</div>` : "";
   if (!key) {
-    return `<section class="card ai-card">
-      <div class="card-top"><h2 class="h2">Анализ с помощью ИИ</h2><span class="pill">Gemini</span></div>
-      <p class="foot-note" style="margin:0 0 12px">Gemini прочитает все данные за выбранный период (еда, напитки, вода, кофеин, нагрузки) и напишет выводы: как вы питаетесь, что пьёте и какая у вас нагрузка. Один раз нужно подключить бесплатный ключ Google AI. Ключ хранится на каждом устройстве отдельно.</p>
-      <button type="button" class="btn primary full" data-act="aiSetup">Подключить Gemini</button>
+    return `<section class="card ai-card ai-mini">
+      <div class="ai-mini-row"><div><h2 class="h2">Анализ с помощью ИИ</h2><p class="foot-note" style="margin:4px 0 0">Gemini разберёт данные за период. Нужен бесплатный ключ.</p></div><button type="button" class="btn ghost sm" data-act="aiSetup">Подключить</button></div>
       ${delBtn}
       ${lastHtml}
     </section>`;
@@ -1285,7 +1395,13 @@ function viewReports() {
 
   const ins = localInsights(a);
   const INS_LBL = { bad: "Обратить внимание", warn: "Можно улучшить", good: "В норме", info: "К сведению" };
-  const insHtml = `<div class="ins">${ins.map((i, k) => `${k === 0 || ins[k - 1].kind !== i.kind ? `<div class="in-h k-${i.kind}">${INS_LBL[i.kind]}</div>` : ""}<div class="in k-${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`;
+  const cross = crossInsights(a);
+  const crossHtml = cross.verdict || cross.links.length ? `<div class="in-sum">
+      <div class="in-h k-${cross.verdict ? cross.verdict.lv : "info"}">Итог и связи между показателями</div>
+      ${cross.verdict ? `<div class="sum-verdict lv-${cross.verdict.lv}">${esc(cross.verdict.text)}</div>` : ""}
+      ${cross.links.length ? cross.links.map((l) => `<div class="in k-${l.kind}"><i></i><p>${esc(l.text)}</p></div>`).join("") : `<p class="foot-note" style="margin:8px 0 0">Чтобы увидеть связи (нагрузка и вода, сон и еда, кофеин и сон), нужно хотя бы по 2 дня каждого типа. Записывайте дальше.</p>`}
+    </div>` : "";
+  const insHtml = `<div class="ins">${ins.map((i, k) => `${k === 0 || ins[k - 1].kind !== i.kind ? `<div class="in-h k-${i.kind}">${INS_LBL[i.kind]}</div>` : ""}<div class="in k-${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}${crossHtml}</div>`;
   const plan = a.plan;
   const macroRow = (name, avg, target, cls) => `<div class="rk"><div class="rk-top"><span class="rk-n">${name}</span><span class="rk-v">${fmt(avg)} г${target ? ` из ${target} г` : ""}</span></div><div class="rk-bar"><i class="${cls}" style="width:${target ? Math.min(100, (avg / target) * 100) : Math.min(100, avg)}%"></i></div></div>`;
   const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
@@ -2599,7 +2715,13 @@ function openProductForm(product, onSaved, prefill = {}) {
 }
 
 /* ================= Здоровье: вода, нагрузки, профиль ================= */
-const currentPlan = () => computePlan(state.profile);
+// План: цели калорий и БЖУ всегда совпадают с дневной целью (state.goal); calcKcal хранит чистый расчёт по профилю
+const currentPlan = () => {
+  const p = computePlan(state.profile);
+  if (!p) return p;
+  const mg = macroGoals(), hasGoal = Number(state.profile.goalKcal) > 0;
+  return { ...p, calcKcal: p.kcal, kcal: hasGoal ? Math.round(state.goal) : p.kcal, ...(mg ? { protein: Math.round(mg.protein), fat: Math.round(mg.fat), carbs: Math.round(mg.carbs) } : {}) };
+};
 const waterOn = (d) => (byDateIndex("water").get(d) || EMPTY).reduce((sum, x) => sum + (Number(x.ml) || 0), 0);
 const actOn = (d) => byDateIndex("activity").get(d) || EMPTY;
 // Данные из Apple Health: итоги дня (шаги, активные ккал, пульс) и тренировки с часов
@@ -2781,7 +2903,7 @@ function viewHealth() {
       <div class="card-top"><h2 class="h2">Жидкость</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
       <div class="big-line">${fmtInt(ml)}<small>мл засчитано</small></div>
       <div class="track water"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></div>
-      <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось ${fmtInt(left)} мл.` : "Норма на сегодня выполнена."}${extra ? ` В норму добавлено ${fmtInt(Math.round(extra / 50) * 50)} мл за нагрузку.` : ""}${parts.length ? ` Засчитано: ${parts.join(", ")}.` : ""}</p>
+      <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось ${fmtInt(left)} мл.` : "Норма на сегодня выполнена."}${` Норма сегодня ${fmtInt(tg)} мл = база ${fmtInt(waterBase())} мл${extra ? ` + нагрузка около ${fmtInt(extra)} мл` : ""}.`}${parts.length ? ` Засчитано: ${parts.join(", ")}.` : ""}</p>
       <div class="chips">
         ${[150, 250, 330, 500].map((n) => `<button type="button" class="chip water" data-act="addWater" data-ml="${n}">+${n}</button>`).join("")}
         <button type="button" class="chip" data-act="waterCustom">Другое</button>
@@ -2990,14 +3112,15 @@ function planCardHtml() {
     <div class="card-top"><h2 class="h2">Мой план</h2><button type="button" class="btn ghost sm" data-act="openProfile">Изменить</button></div>
     <p class="foot-note" style="margin:0 0 12px">Пол: ${pr.sex === "male" ? "мужской" : "женский"}, ${fmt(pr.age)} лет, ${fmt(pr.heightCm)} см, ${fmt(pr.weightKg)} кг. Цель: ${GOAL_NAME[pr.goal]}. ${esc(lvl.t)}.</p>
     <div class="stat-grid">
-      <div class="stat"><b>${fmtInt(plan.kcal)}</b><span>ккал в день</span></div>
-      <div class="stat"><b>${fmtInt(plan.water)} мл</b><span>воды в день</span></div>
+      <div class="stat"><b>${fmtInt(plan.kcal)}</b><span>ккал в день (цель дневника)</span></div>
+      <div class="stat"><b>${fmtInt(plan.water)} мл</b><span>базовая норма воды<br>плюс 8 мл за минуту нагрузки</span></div>
       <div class="stat"><b>${plan.protein} г</b><span>белки в день</span></div>
       <div class="stat"><b>${plan.fat} г</b><span>жиры в день</span></div>
       <div class="stat"><b>${plan.carbs} г</b><span>углеводы в день</span></div>
       <div class="stat"><b>${fmt(plan.bmi)}</b><span>индекс массы тела: ${plan.bmiLabel}</span></div>
     </div>
     <p class="foot-note" style="margin:12px 0 0">Основной обмен: ${fmtInt(plan.bmr)} ккал, расход с учётом образа жизни: ${fmtInt(plan.tdee)} ккал. ${esc(plan.weekly.text)} Это примерно ${fmtInt(plan.weekly.kcal)} ккал в неделю.</p>
+    ${plan.calcKcal && Math.abs(plan.calcKcal - plan.kcal) >= 30 ? `<div class="warn">Расчёт по вашему профилю даёт ${fmtInt(plan.calcKcal)} ккал, а цель в дневнике ${fmtInt(plan.kcal)} ккал. <button type="button" class="btn ghost sm" style="margin-top:8px" data-act="applyPlanGoal">Использовать расчёт</button></div>` : ""}
     ${warns}
     <p class="foot-note" style="margin:12px 0 0">Индекс массы тела не учитывает мышечную массу. Все значения ориентировочные, для здоровых взрослых, и не заменяют рекомендацию врача. При беременности, диабете и других заболеваниях согласуйте питание и нагрузку с врачом.</p>
   </section>`;
@@ -3006,7 +3129,7 @@ function planCardHtml() {
 function previewPlanHtml(plan) {
   return `<div class="pv-kcal">${fmtInt(plan.kcal)}<small>ккал в день</small></div>
     <div class="pv-macros"><div><b>${plan.protein}</b>белки, г</div><div><b>${plan.fat}</b>жиры, г</div><div><b>${plan.carbs}</b>углеводы, г</div></div>
-    <p class="foot-note" style="margin:10px 0 0">Вода: <b>${fmtInt(plan.water)} мл</b> в день. Нагрузка: <b>${plan.weekly.minutes} мин</b> в неделю.</p>
+    <p class="foot-note" style="margin:10px 0 0">Базовая норма воды: <b>${fmtInt(plan.water)} мл</b> в день. Нагрузка: <b>${plan.weekly.minutes} мин</b> в неделю.</p>
     ${plan.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}`;
 }
 
@@ -3435,7 +3558,7 @@ const actions = {
     const cur = mealByTime();
     const ov = openSheet(`
       <div class="sheet-head"><h2>Куда добавить?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-      <div class="meal-pick">${MEALS.map((m) => `<button type="button" class="meal-pick-btn${m.id === cur ? " cur" : ""}" data-meal="${m.id}"><span class="meal-ic ${m.id}">${svgIcon(m.icon)}</span><span>${m.name}</span></button>`).join("")}</div>`);
+      <div class="meal-pick">${MEALS.map((m) => `<button type="button" class="meal-pick-btn${m.id === cur ? " cur" : ""}" data-meal="${m.id}"><span class="meal-ic ${m.id}">${m.emoji}</span><span>${m.name}</span></button>`).join("")}</div>`);
     ov.addEventListener("click", (e) => {
       const b = e.target.closest("[data-meal]");
       if (!b) return;
@@ -3523,6 +3646,12 @@ const actions = {
     try { localStorage.removeItem(AI_KEY); } catch { /* ignore */ }
     aiModelsCache = null;
     render();
+  },
+  applyPlanGoal() {
+    const pl = computePlan(state.profile);
+    if (!pl) return;
+    setDoc(docRef("settings", "profile"), { goalKcal: pl.kcal, goalProtein: pl.protein, goalFat: pl.fat, goalCarbs: pl.carbs, waterBaseMl: pl.water, planUpdatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
+    toast("Цель обновлена по расчёту");
   },
   saveGoal() {
     const g = num($("#goal-input").value);

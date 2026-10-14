@@ -730,3 +730,39 @@ button.lg-row:active { background: var(--accent-soft); }
 .meal .meal-top { border-radius: 16px; background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 10%, transparent), transparent 75%); box-shadow: inset 3px 0 0 var(--mc); padding-bottom: 2px; }
 :root[data-theme="dark"] .meal .meal-top { background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 12%, transparent), transparent 75%); }
 .meal .meal-head { background: none; box-shadow: none; border-radius: 0; }
+
+/* v69: главное на сегодня, свёрнутые пустые приёмы, компактная карточка ИИ */
+.day-tip { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+.day-tip .dt-ic { width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-d); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.day-tip b { font-size: 15px; }
+.day-tip p { margin: 3px 0 0; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
+.meal-empty-card { padding: 4px; }
+.meal-empty { width: 100%; display: flex; align-items: center; gap: 12px; padding: 8px 10px; text-align: left; border-radius: 16px; background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 8%, transparent), transparent 70%); box-shadow: inset 3px 0 0 var(--mc); }
+.meal-empty .me-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.meal-empty .me-main b { font-size: 16px; font-weight: 600; }
+.meal-empty .me-main small { font-size: 12px; color: var(--muted); }
+.meal-empty .me-plus { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-d); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+.ai-mini-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ai-mini-row .btn { flex: 0 0 auto; }
+
+/* v70: красивый градиент вместо линий, эмодзи, раскрытие по нажатию на шапку */
+.meal .meal-top { box-shadow: none; cursor: pointer; background: linear-gradient(120deg, color-mix(in srgb, var(--mc) 22%, transparent), color-mix(in srgb, var(--mc) 5%, transparent) 75%); -webkit-tap-highlight-color: transparent; }
+:root[data-theme="dark"] .meal .meal-top { background: linear-gradient(120deg, color-mix(in srgb, var(--mc) 26%, transparent), color-mix(in srgb, var(--mc) 6%, transparent) 75%); }
+.meal .meal-top:active { filter: brightness(.97); }
+.meal-empty { box-shadow: none; background: linear-gradient(120deg, color-mix(in srgb, var(--mc) 16%, transparent), color-mix(in srgb, var(--mc) 3%, transparent) 75%); }
+.meal-ic { font-size: 22px; line-height: 1; }
+.meal-ic svg { display: none; }
+.meal-chev { display: inline-block; margin-left: 8px; color: var(--muted); font-weight: 400; transform: rotate(90deg); transition: transform .18s ease; }
+.meal-chev.open { transform: rotate(-90deg); }
+.meal .entries { margin-top: 4px; }
+.meal-ic, .meal-ic.lunch, .meal-ic.dinner, .meal-ic.snack { background: rgba(255, 255, 255, .6); }
+:root[data-theme="dark"] .meal-ic, :root[data-theme="dark"] .meal-ic.lunch, :root[data-theme="dark"] .meal-ic.dinner, :root[data-theme="dark"] .meal-ic.snack { background: rgba(255, 255, 255, .09); }
+
+/* v71: итог и связи в «Кратких выводах» */
+.in-sum { margin-top: 6px; padding-top: 6px; border-top: 2px solid var(--line-2); }
+.sum-verdict { margin: 4px 0 6px; padding: 12px 14px; border-radius: 14px; font-size: 14px; line-height: 1.45; font-weight: 600; background: var(--accent-soft); color: var(--accent-d); }
+.sum-verdict.lv-warn { background: var(--amber-soft); color: #8A5A00; }
+.sum-verdict.lv-bad { background: var(--red-soft); color: #9B2C30; }
+:root[data-theme="dark"] .sum-verdict { background: rgba(60, 170, 100, .14); color: #8EE0A8; }
+:root[data-theme="dark"] .sum-verdict.lv-warn { background: rgba(240, 190, 80, .14); color: #F2C879; }
+:root[data-theme="dark"] .sum-verdict.lv-bad { background: rgba(230, 90, 90, .15); color: #F5A3A5; }
