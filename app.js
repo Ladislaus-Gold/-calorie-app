@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 86;
+const APP_VERSION = 88;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -195,7 +195,7 @@ const state = {
   health: [],
   workouts: [],
   drinks: [],
-  fav: [],
+  fav: [], customDrinks: [],
   obShown: false,
   ready: { products: false, entries: false, settings: false, water: false, activity: false, drinks: false },
   unsubs: [],
@@ -308,7 +308,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null;
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.customDrinks = []; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null;
 }
 
 function markReady(name) {
@@ -385,6 +385,7 @@ function startData(uid) {
 
   state.unsubs.push(onSnapshot(doc(db, "users", uid, "settings", "drinks"), (snap) => {
     state.fav = snap.exists() && Array.isArray(snap.data().fav) ? snap.data().fav : [];
+    state.customDrinks = snap.exists() && Array.isArray(snap.data().custom) ? snap.data().custom : [];
     render();
   }, (err) => console.warn("Избранные напитки:", err)));
 
@@ -1702,7 +1703,7 @@ function guessDrink(p) {
   if (labelCaf) caf = r1(Number(n.caffeine_100g) * 1000);   // на упаковке указано граммами на 100 мл
   else if (base && base.c > 0) { caf = r1((base.c / 240) * 100); cafGuess = true; }
   else if (mention) { caf = 10; cafGuess = true; }          // кофеин в составе есть, а количество не указано
-  return { drink: true, hydrationPct: base ? base.h : 90, caffeineMg100: caf, cafGuess };
+  return { drink: true, hydrationPct: base ? base.h : 90, caffeineMg100: caf, cafGuess, like };
 }
 const drinkNote = (d) => (d && d.drink
   ? ` Определили, что это напиток: проверьте гидратацию и кофеин ниже.${d.cafGuess ? " Количество кофеина оценено по виду напитка: сверьте с упаковкой." : ""}`
@@ -2160,10 +2161,76 @@ function askLinkBarcode(code) {
   });
 }
 
-// Найти продукт по штрих-коду: сначала у себя, потом в Open Food Facts, иначе ручной ввод.
-async function processBarcode(code, onOwn, onSaved) {
+// Окно «Что создать?»: напиток или продукт. Для нового штрих-кода можно ещё привязать его к уже имеющемуся напитку.
+// Возвращает {kind:"drink"|"product"} | {drink} | null
+function chooseCardKind(code) {
+  return new Promise((resolve) => {
+    let done = false, q = "";
+    const finish = (v) => { if (done) return; done = true; resolve(v); ov.close(); };
+    const mine = code ? customList() : [];
+    const ov = openSheet(`
+      <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Что создать?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+      <div class="lm">
+        <div class="note lk-note">${code ? `Код ${esc(code)} не найден ни среди продуктов, ни среди напитков. ` : ""}Напиток считается как жидкость (и кофеин), а если есть калории, то и как еда. Продукт считается только как еда.</div>
+        <div class="af-btns lk-btns"><button type="button" class="btn primary" id="ck-drink">Напиток</button><button type="button" class="btn primary" id="ck-prod">Продукт</button></div>
+        ${mine.length ? `<p class="foot-note" style="margin:6px 2px 8px">Или это новая упаковка уже имеющегося напитка:</p>
+        <input id="ck-q" class="input search" type="search" placeholder="Найти напиток для привязки" autocomplete="off">
+        <div id="ck-list" class="plist"></div>` : ""}
+      </div>`);
+    ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-close]")) finish(null); });
+    $("#ck-drink", ov).addEventListener("click", () => finish({ kind: "drink" }));
+    $("#ck-prod", ov).addEventListener("click", () => finish({ kind: "product" }));
+    if (mine.length) {
+      const draw = () => {
+        const w = fold(q).split(/\s+/).filter(Boolean);
+        const items = mine.filter((d) => w.every((x) => fold(d.n).includes(x))).slice(0, 30);
+        $("#ck-list", ov).innerHTML = items.length ? items.map((d) => `<button type="button" class="prow" data-pick="${d.id}"><span><span class="p-name">${esc(d.n)}</span></span></button>`).join("") : `<div class="empty"><b>Ничего не найдено</b></div>`;
+      };
+      draw();
+      $("#ck-q", ov).addEventListener("input", (e) => { q = e.target.value; draw(); });
+      $("#ck-list", ov).addEventListener("click", (e) => {
+        const b = e.target.closest("[data-pick]");
+        const d = b && mine.find((x) => x.id === b.dataset.pick);
+        if (d) finish({ drink: d });
+      });
+    }
+  });
+}
+function addDrinkCode(id, code) {
+  state.customDrinks = state.customDrinks.map((x) => (x.id === id ? { ...x, bc: [...(Array.isArray(x.bc) ? x.bc : []), String(code).replace(/\D/g, "")] } : x));
+  saveCustomDrinks();
+}
+// Создание карточки без известного кода: сначала выбор «напиток / продукт»
+async function newCardFlow(prefill, onSaved, onDrink) {
+  const c = await chooseCardKind("");
+  if (!c) return;
+  if (c.kind === "drink") (onDrink || ((id, pre) => openDrinkSheet(null, id, 0, pre)))(null, { card: true, n: (prefill && prefill.name) || "" });
+  else openProductForm(null, onSaved, prefill || {});
+}
+
+// Найти карточку по штрих-коду: напиток или продукт у себя, потом выбор типа, Open Food Facts, ручной ввод.
+// onDrink(id, prefill): открыть напиток (id) или форму нового напитка (prefill)
+async function processBarcode(code, onOwn, onSaved, onDrink) {
+  const openDrink = onDrink || ((id, pre) => openDrinkSheet(null, id, 0, pre));
+  const dr = findDrinkByBarcode(code);
+  if (dr) { openDrink(dr.id); return; }
   const own = findByBarcode(code);
   if (own) { onOwn(own); return; }
+  const c = await chooseCardKind(code);
+  if (!c) return;
+  if (c.drink) { addDrinkCode(c.drink.id, code); toast(`Код добавлен к напитку «${c.drink.n}»`); openDrink(c.drink.id); return; }
+  if (c.kind === "drink") {
+    toast("Ищу в Open Food Facts…");
+    const r = await fetchOFF(code);
+    const pre = { card: true, bc: [code], n: "" };
+    if (r.state === "found") {
+      const d = r.data, like = d.like && DRINK_BY_ID[d.like];
+      Object.assign(pre, { n: d.name || d.brand || "", k: d.kcal === "" ? 0 : d.kcal, p: d.protein || 0, f: d.fat || 0, cb: d.carbs || 0, h: d.drink ? d.hydrationPct : 90, c: d.drink ? r1((Number(d.caffeineMg100) || 0) * 2.4) : 0, cat: like ? like.cat : "other", a: like && like.cat === "alc" ? like.a : "" });
+      toast("Данные найдены. Сверьте их с упаковкой.");
+    } else toast(r.state === "none" ? "В базе нет этого кода. Введите данные с упаковки." : "Не удалось связаться с Open Food Facts.");
+    openDrink(null, pre);
+    return;
+  }
   // неизвестный код: сначала предлагаем привязать его к уже существующему продукту (новая упаковка)
   if (state.products.length) {
     const choice = await askLinkBarcode(code);
@@ -2172,7 +2239,7 @@ async function processBarcode(code, onOwn, onSaved) {
   }
   toast("Ищу в Open Food Facts…");
   const r = await fetchOFF(code);
-  if (r.state === "found") openProductForm(null, onSaved, { ...r.data, source: "off", note: OFF_NOTE + drinkNote(r.data) });
+  if (r.state === "found") openProductForm(null, onSaved, { ...r.data, source: "off", note: OFF_NOTE });
   else if (r.state === "none") openProductForm(null, onSaved, { barcode: code, note: NEW_BC_NOTE });
   else openProductForm(null, onSaved, { barcode: code, note: OFF_FAIL_NOTE });
 }
@@ -2308,7 +2375,7 @@ function openAddFood(mealId, presetProduct) {
     body.innerHTML = `
       <div class="af-btns">
         <button type="button" class="btn primary" id="af-scan">${SCAN_SVG}<span>Скан</span></button>
-        <button type="button" class="btn ghost" id="af-new">+ Продукт</button>
+        <button type="button" class="btn ghost" id="af-new">+ Карточка</button>
         <button type="button" class="btn ghost" id="af-ai">Блюдо (ИИ)</button>
       </div>
       <input id="af-q" class="input search" type="search" placeholder="Найти в общей базе" value="${esc(q)}" autocomplete="off">
@@ -2326,8 +2393,8 @@ function openAddFood(mealId, presetProduct) {
     };
     draw();
     $("#af-q", ov).addEventListener("input", (e) => { q = e.target.value; draw(); });
-    $("#af-scan", ov).addEventListener("click", () => openScanner((code) => processBarcode(code, showDetail, showDetail)));
-    $("#af-new", ov).addEventListener("click", () => openProductForm(null, (p) => showDetail(p), { name: q.trim() }));
+    $("#af-scan", ov).addEventListener("click", () => openScanner((code) => processBarcode(code, showDetail, showDetail, (id, pre) => { ov.close(); openDrinkSheet(null, id, 0, pre); })));
+    $("#af-new", ov).addEventListener("click", () => newCardFlow({ name: q.trim() }, (p) => showDetail(p), (id, pre) => { ov.close(); openDrinkSheet(null, id, 0, pre); }));
     $("#af-ai", ov).addEventListener("click", () => { const meal = $("#af-meal", ov).value; ov.close(); openAiDish(meal); });
     $("#af-list", ov).addEventListener("click", (e) => {
       const b = e.target.closest("[data-pick]");
@@ -2552,16 +2619,10 @@ function openProductForm(product, onSaved, prefill = {}) {
   const barcodeField = ro
     ? `<input id="pf-barcode" class="input" value="${esc(p.barcode || "")}" disabled>`
     : `<div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" maxlength="20" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>`;
-  const drinkBlock = `
-    <label class="check"><input type="checkbox" id="pf-drink" ${p.drink ? "checked" : ""} ${dis}><span>Это напиток: считать жидкость и кофеин</span></label>
-    <div id="pf-drink-box" class="${p.drink ? "" : "hidden"}">
-      <div class="field combo"><span>Похож на (начните печатать или выберите)</span><input id="pf-like" class="input" ${dis} autocomplete="off" placeholder="Например: кола, кофе, айран…"><div id="pf-like-list" class="combo-list hidden"></div></div>
-      <div class="field-grid">
-        <label class="field"><span>Гидратация, %</span><input id="pf-hyd" class="input" inputmode="decimal" ${dis} value="${p.drink ? val(p.hydrationPct) : ""}" autocomplete="off"></label>
-        <label class="field"><span>Кофеин, мг на 100 мл</span><input id="pf-caf" class="input" inputmode="decimal" ${dis} value="${p.drink ? val(p.caffeineMg100) : ""}" autocomplete="off"></label>
-      </div>
-      <p class="foot-note" style="margin:-4px 2px 12px">Такой продукт, добавленный в дневник, сам засчитается и как еда, и как жидкость с кофеином. Повторно вносить его не нужно.</p>
-    </div>`;
+  const drinkBlock = product && !ro
+    ? `${product.drink ? `<div class="note">Этот продукт отмечен как напиток (гидратация ${esc(val(product.hydrationPct))}%). Напитки теперь живут в своём списке: перенесите его туда.</div>` : ""}
+      <button type="button" class="btn soft full" id="pf-todrink" style="margin:4px 0 12px">Это напиток: перенести в напитки</button>`
+    : "";
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
@@ -2600,6 +2661,8 @@ function openProductForm(product, onSaved, prefill = {}) {
       if (k === normBC(product.barcode)) { msg.textContent = "Это уже основной штрих-код продукта."; return; }
       const other = findByBarcode(code);
       if (other && other.id !== product.id) { msg.textContent = `Этот код уже привязан к продукту «${other.name}».`; return; }
+      const cf = bcConflict(code, { productId: product.id });
+      if (cf) { msg.textContent = cf; return; }
       linkBarcode(code, product.id);
       inp.value = "";
       msg.textContent = "Код добавлен. Теперь при сканировании этой упаковки продукт найдётся сразу.";
@@ -2616,40 +2679,19 @@ function openProductForm(product, onSaved, prefill = {}) {
   }
   if (ro) return;
 
-  $("#pf-drink", ov).addEventListener("change", (e) => $("#pf-drink-box", ov).classList.toggle("hidden", !e.target.checked));
-  {
-    const inp = $("#pf-like", ov), list = $("#pf-like-list", ov);
-    const all = DRINKS.slice().sort((a, b) => a.n.localeCompare(b.n, "ru"));
-    const render = () => {
-      const q = fold(inp.value.trim());
-      const hit = all.filter((d) => !q || fold(d.n).includes(q));
-      list.innerHTML = hit.length
-        ? hit.map((d) => `<button type="button" class="combo-item" data-id="${d.id}"><span>${esc(d.n)}</span><small>${d.h}% · ${d.c} мг</small></button>`).join("")
-        : `<div class="combo-empty">Ничего не найдено — введите значения ниже вручную</div>`;
-      list.classList.remove("hidden");
-    };
-    inp.addEventListener("focus", render);
-    inp.addEventListener("input", render);
-    // pointerdown + preventDefault: список не закрывается до выбора
-    list.addEventListener("pointerdown", (e) => e.preventDefault());
-    list.addEventListener("click", (e) => {
-      const b = e.target.closest("[data-id]");
-      if (!b) return;
-      const d = DRINK_BY_ID[b.dataset.id];
-      if (!d) return;
-      inp.value = d.n;
-      $("#pf-hyd", ov).value = String(d.h).replace(".", ",");
-      $("#pf-caf", ov).value = String(r1((d.c / 240) * 100)).replace(".", ",");
-      list.classList.add("hidden");
-      inp.blur();
-    });
-    inp.addEventListener("blur", () => setTimeout(() => list.classList.add("hidden"), 120));
-  }
+  const todrink = $("#pf-todrink", ov);
+  if (todrink) todrink.addEventListener("click", () => {
+    const codes = [product.barcode, ...aliasCodes(product.id)].filter(Boolean);
+    const uniq = []; codes.forEach((c) => { if (!uniq.some((x) => normBC(x) === normBC(c))) uniq.push(c); });
+    ov.close();
+    openDrinkSheet(null, null, 0, { card: true, from: product, n: product.name, k: Number(product.kcal) || 0, p: Number(product.protein) || 0, f: Number(product.fat) || 0, cb: Number(product.carbs) || 0,
+      h: product.drink ? Number(product.hydrationPct) : 90, c: product.drink ? r1((Number(product.caffeineMg100) || 0) * 2.4) : 0, cat: "other", bc: uniq });
+  });
 
   $("#pf-scan", ov).addEventListener("click", () => openScanner(async (code) => {
     $("#pf-barcode", ov).value = code;
-    const dup = findByBarcode(code);
-    if (dup && (!product || dup.id !== product.id)) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
+    const dup = bcConflict(code, { productId: product && product.id });
+    if (dup) { toast(dup); return; }
     const empty = !$("#pf-name", ov).value.trim() && !$("#pf-kcal", ov).value.trim();
     if (product || !empty) return;
     toast("Ищу в Open Food Facts…");
@@ -2679,19 +2721,13 @@ function openProductForm(product, onSaved, prefill = {}) {
     if (kcal > 1000) { toast("Калории на 100 г: не больше 1000"); return; }
     if ([protein, fat, carbs].some((x) => x > 100)) { toast("Белки, жиры и углеводы на 100 г: не больше 100"); return; }
     if (barcode) {
-      const dup = findByBarcode(barcode);
-      if (dup && (!product || dup.id !== product.id)) { toast(`Этот штрих-код уже есть в общей базе: ${dup.name}`); return; }
+      const dup = bcConflict(barcode, { productId: product && product.id });
+      if (dup) { toast(dup); return; }
     }
-    const isDrink = $("#pf-drink", ov).checked;
-    let drinkData = { drink: false, hydrationPct: 0, caffeineMg100: 0 };
-    if (isDrink) {
-      const hyd = numS($("#pf-hyd", ov).value);
-      const cafRaw = $("#pf-caf", ov).value.trim();
-      const caf = cafRaw === "" ? 0 : num(cafRaw);
-      if (!Number.isFinite(hyd) || hyd < -400 || hyd > 200) { toast("Гидратация: число от −400 до 200 процентов"); return; }
-      if (!Number.isFinite(caf) || caf > 1000) { toast("Кофеин: от 0 до 1000 мг на 100 мл"); return; }
-      drinkData = { drink: true, hydrationPct: hyd, caffeineMg100: caf };
-    }
+    // Новые продукты не бывают напитками; у старых напитков-продуктов поля сохраняются, пока их не перенесли в напитки
+    const drinkData = product && product.drink
+      ? { drink: true, hydrationPct: Number(product.hydrationPct) || 0, caffeineMg100: Number(product.caffeineMg100) || 0 }
+      : { drink: false, hydrationPct: 0, caffeineMg100: 0 };
     const data = { name, brand, barcode, kcal, protein, fat, carbs, ...drinkData, updatedAt: serverTimestamp() };
     if (product) {
       updateDoc(prodDoc(product.id), data).catch(writeFail);
@@ -2804,11 +2840,28 @@ function cafWarnings(addMg, replaceMg = 0) {
 const cafWarnHtml = (addMg, replaceMg = 0) => cafWarnings(addMg, replaceMg).map((w) => `<div class="warn ${w.lv === "over" ? "over" : ""}">${esc(w.t)}</div>`).join("");
 const cafToast = (addMg, replaceMg = 0) => { const w = cafWarnings(addMg, replaceMg).filter((x) => x.lv !== "info"); return w.length ? w[0].t : ""; };
 
+// Свои напитки пользователя (хранятся в settings/drinks, поле custom) складываются со справочником
+const customList = () => (state.customDrinks || []).map((x) => ({ id: x.id, n: x.n, h: Number(x.h), c: Number(x.c) || 0, cat: x.cat || "other", a: x.a || "", k: Number(x.k) || 0, p: Number(x.p) || 0, f: Number(x.f) || 0, cb: Number(x.cb) || 0, bc: Array.isArray(x.bc) ? x.bc : [], mine: true }));
+// Штрих-коды напитков хранятся в карточке напитка (bc). Один код не может быть одновременно у напитка и у продукта
+const findDrinkByBarcode = (code) => {
+  const k = normBC(code);
+  return k ? customList().find((d) => d.bc.some((b) => normBC(b) === k)) || null : null;
+};
+const bcConflict = (code, ig = {}) => {
+  const p = findByBarcode(code);
+  if (p && p.id !== ig.productId) return `Этот штрих-код уже есть среди продуктов: ${p.name}`;
+  const dr = findDrinkByBarcode(code);
+  if (dr && dr.id !== ig.drinkId) return `Этот штрих-код уже есть среди напитков: ${dr.n}`;
+  return "";
+};
+const saveCustomDrinks = (extra = {}) => setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { custom: state.customDrinks, ...extra }, { merge: true }).catch(writeFail);
+const allDrinks = () => [...DRINKS, ...customList()];
+const drinkById = (id) => DRINK_BY_ID[id] || customList().find((x) => x.id === id) || null;
 function favDrinks() {
   const counts = {};
-  state.drinks.forEach((x) => { if (x.drinkId && x.drinkId !== "custom" && x.drinkId !== "water" && DRINK_BY_ID[x.drinkId]) counts[x.drinkId] = (counts[x.drinkId] || 0) + 1; });
+  state.drinks.forEach((x) => { if (x.drinkId && x.drinkId !== "custom" && x.drinkId !== "water" && drinkById(x.drinkId)) counts[x.drinkId] = (counts[x.drinkId] || 0) + 1; });
   const freq = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-  return [...state.fav, ...freq.filter((id) => !state.fav.includes(id))].slice(0, 8).map((id) => DRINK_BY_ID[id]).filter(Boolean);
+  return [...state.fav, ...freq.filter((id) => !state.fav.includes(id))].slice(0, 8).map((id) => drinkById(id)).filter(Boolean);
 }
 
 
@@ -3399,7 +3452,7 @@ function toggleFav(id) {
 }
 
 // entry: запись, которую правим; presetId: сразу открыть напиток (из избранного)
-function openDrinkSheet(entry, presetId, presetMl) {
+function openDrinkSheet(entry, presetId, presetMl, prefill) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>Напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div id="dk-body"></div>`);
@@ -3420,12 +3473,13 @@ function openDrinkSheet(entry, presetId, presetMl) {
     body.innerHTML = `
       ${presetMl > 0 ? `<p class="foot-note" style="margin:0 2px 8px">Выберите напиток для ${fmt(presetMl)} мл</p>` : ""}
       <input id="dk-q" class="input search" type="search" placeholder="Найти напиток" value="${esc(st.q)}" autocomplete="off">
+      <button type="button" class="btn soft full" id="dk-custom" style="margin:0 0 10px">+ Новая карточка (напиток или продукт)</button>
       ${favs.length ? `<p class="foot-note" style="margin:0 2px 8px">Избранное и частые</p><div class="chips">${favs.map((d) => `<button type="button" class="chip" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
       <div class="chips cats" id="dk-cats">${DRINK_CATS.map((c) => `<button type="button" class="chip ${st.cat === c.id ? "sel" : ""}" data-cat="${c.id}">${c.t}</button>`).join("")}</div>
       <div id="dk-list" class="plist"></div>
       <p class="foot-note" style="margin:10px 2px 12px">Кофеин указан на 240 мл (стакан) и пересчитывается на ваш объём. Гидратация показывает, сколько мл жидкости засчитывается на каждые 100 мл напитка. У алкоголя значение отрицательное: он уменьшает баланс жидкости.</p>
       <div class="note">Напитки с калориями (капучино, сок, газировка, алкоголь) добавляются и в жидкость, и в калории дневника одной записью. Напиток из магазина можно добавить по штрих-коду.</div>
-      <div class="row"><button type="button" class="btn ghost grow" id="dk-scan">Сканировать код</button><button type="button" class="btn ghost grow" id="dk-custom">+ Свой напиток</button></div>`;
+      <div class="row"><button type="button" class="btn ghost grow" id="dk-scan">Сканировать код</button></div>`;
     draw();
     $("#dk-q", ov).addEventListener("input", (e) => { st.q = e.target.value; draw(); });
     $("#dk-scan", ov).addEventListener("click", () => {
@@ -3433,14 +3487,14 @@ function openDrinkSheet(entry, presetId, presetMl) {
       openAddFood(mealByTime());
       setTimeout(() => { const b = document.querySelector("#af-scan"); if (b) b.click(); }, 250);
     });
-    $("#dk-custom", ov).addEventListener("click", () => showDetail({ id: "custom", n: "", h: 90, c: 0, a: "", cat: "other" }));
+    $("#dk-custom", ov).addEventListener("click", () => newCardFlow({}, () => ov.close(), () => showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [] }, true)));
   }
 
   function draw() {
     const words = fold(st.q).split(/\s+/).filter(Boolean);
-    const list = DRINKS.filter((d) => (st.cat === "all" || d.cat === st.cat) && words.every((w) => fold(d.n).includes(w)))
+    const list = allDrinks().filter((d) => (st.cat === "all" || d.cat === st.cat) && words.every((w) => fold(d.n).includes(w)))
       .sort((a, b) => (a.id === "water" ? -1 : b.id === "water" ? 1 : a.n.localeCompare(b.n, "ru")));
-    $("#dk-list", ov).innerHTML = list.length ? list.map(rowHtml).join("") : `<div class="empty"><b>Ничего не найдено</b>Добавьте свой напиток кнопкой ниже.</div>`;
+    $("#dk-list", ov).innerHTML = list.length ? list.map(rowHtml).join("") : `<div class="empty"><b>Ничего не найдено</b>Создайте карточку кнопкой «+ Новая карточка».</div>`;
   }
 
   body.addEventListener("click", (e) => {
@@ -3454,8 +3508,124 @@ function openDrinkSheet(entry, presetId, presetMl) {
     const star = e.target.closest("[data-star]");
     if (star) { toggleFav(star.dataset.star); star.classList.toggle("on", state.fav.includes(star.dataset.star)); return; }
     const pick = e.target.closest("[data-did]");
-    if (pick && DRINK_BY_ID[pick.dataset.did]) showDetail(DRINK_BY_ID[pick.dataset.did]);
+    if (pick && drinkById(pick.dataset.did)) showDetail(drinkById(pick.dataset.did));
   });
+
+  // Карточка своего напитка: категория, гидратация, кофеин, БЖУ на 100 мл и штрих-коды (несколько упаковок/партий)
+  function showCard(d, isNew, from) {
+    const bcs = [...(d.bc || [])];
+    const v = (x) => (x === "" || x == null ? "" : String(x).replace(".", ","));
+    const cafInit = d.c > 0 ? r1((d.c / 240) * 100) : 0;
+    const alcOpts = [["Слабый алкоголь", "Слабый (пиво, сидр)"], ["Легкий алкоголь", "Лёгкий"], ["Умеренный алкоголь", "Умеренный"], ["Средний алкоголь", "Средний (вино, вермут)"], ["Крепкий алкоголь", "Крепкий (водка, виски, коньяк)"]];
+    const alcSel0 = alcOpts.some((o) => o[0] === d.a) ? d.a : "Средний алкоголь";
+    body.innerHTML = `
+      <div class="picked"><div class="p-name">${isNew ? "Новый напиток" : "Карточка напитка"}</div></div>
+      ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
+      <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
+      <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
+      <label class="field"><span>Название</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
+      <div class="field-grid">
+        <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
+        <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" value="${v(cafInit)}" autocomplete="off"></label>
+      </div>
+      <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dc-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
+      <div class="field"><span>Значения на 100 мл</span></div>
+      <div class="field-grid">
+        <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" value="${v(d.k)}" autocomplete="off"></label>
+        <label class="field"><span>Белки, г</span><input id="dc-p" class="input" inputmode="decimal" value="${v(d.p)}" autocomplete="off"></label>
+        <label class="field"><span>Жиры, г</span><input id="dc-f" class="input" inputmode="decimal" value="${v(d.f)}" autocomplete="off"></label>
+        <label class="field"><span>Углеводы, г</span><input id="dc-cb" class="input" inputmode="decimal" value="${v(d.cb)}" autocomplete="off"></label>
+      </div>
+      <div class="field"><span>Штрих-коды (можно несколько: другие упаковки и партии)</span>
+        <div id="dc-bc-list" class="chips"></div>
+        <div class="inline"><input id="dc-bc-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код" autocomplete="off"><button type="button" class="icon-btn" id="dc-bc-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="dc-bc-add">Добавить</button></div>
+      </div>
+      ${isNew ? "" : `<button type="button" class="btn soft full" id="dc-toprod" style="margin:4px 0 12px">Это продукт: перенести в продукты</button>`}
+      <div class="row">${isNew ? `<button type="button" class="btn ghost" id="dc-back">Назад</button>` : `<button type="button" class="btn danger" id="dc-del">Удалить</button>`}<button type="button" class="btn primary grow" id="dc-save">Сохранить</button></div>`;
+    const list = $("#dc-bc-list", ov), inp = $("#dc-bc-in", ov);
+    const drawBc = () => { list.innerHTML = bcs.map((c) => `<span class="chip alias">${esc(c)}<button type="button" class="alias-x" data-bcdel="${esc(c)}" aria-label="Убрать код">×</button></span>`).join(""); };
+    drawBc();
+    const addBc = (raw) => {
+      const code = String(raw || "").replace(/\D/g, "");
+      if (code.length < 6) { toast("Введите штрих-код полностью (цифры)"); return; }
+      if (bcs.some((c) => normBC(c) === normBC(code))) { toast("Этот код уже добавлен"); return; }
+      const msg = bcConflict(code, { drinkId: d.id, productId: from && from.id });
+      if (msg) { toast(msg); return; }
+      bcs.push(code); inp.value = ""; drawBc();
+    };
+    $("#dc-bc-add", ov).addEventListener("click", () => addBc(inp.value));
+    $("#dc-bc-scan", ov).addEventListener("click", () => openScanner((code) => addBc(code)));
+    list.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-bcdel]");
+      if (!b) return;
+      const i = bcs.findIndex((c) => c === b.dataset.bcdel);
+      if (i >= 0) bcs.splice(i, 1);
+      drawBc();
+    });
+    const catSel = $("#dc-cat", ov), alcSel = $("#dc-alc", ov), alcBox = $("#dc-alc-box", ov), pct = $("#dc-pct", ov);
+    const medianPct = (a) => { const x = DRINKS.filter((y) => y.cat === "alc" && y.a === a).map((y) => y.h).sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : -95; };
+    const sync = () => {
+      const isAlc = catSel.value === "alc";
+      alcBox.classList.toggle("hidden", !isAlc);
+      if (isAlc) pct.value = String(medianPct(alcSel.value)).replace(".", ",");
+      else if (numS(pct.value) < 0) pct.value = "90";
+    };
+    catSel.addEventListener("change", sync);
+    alcSel.addEventListener("change", () => { pct.value = String(medianPct(alcSel.value)).replace(".", ","); });
+    $("#dc-sign", ov).addEventListener("click", () => {
+      const t = String(pct.value).trim(), w = t.replace(/^[−–-]\s*/, "");
+      pct.value = /^[−–-]/.test(t) ? w : (w ? "-" + w : "-");
+    });
+    const back = $("#dc-back", ov);
+    if (back) back.addEventListener("click", showList);
+    const removeFromList = () => {
+      state.customDrinks = state.customDrinks.filter((x) => x.id !== d.id);
+      state.fav = state.fav.filter((x) => x !== d.id);
+      saveCustomDrinks({ fav: state.fav });
+    };
+    const del = $("#dc-del", ov);
+    if (del) del.addEventListener("click", () => {
+      if (!confirm(`Удалить «${d.n}» из списка напитков? Прошлые записи останутся.`)) return;
+      removeFromList();
+      showList();
+    });
+    const toProd = $("#dc-toprod", ov);
+    if (toProd) toProd.addEventListener("click", () => {
+      if (!confirm(`Перенести «${d.n}» в продукты? Гидратация и кофеин учитываться перестанут, напиток пропадёт из списка напитков. Прошлые записи останутся.`)) return;
+      const codes = (d.bc || []).filter(Boolean);
+      for (const c of codes) { const p = findByBarcode(c); if (p) { toast(`Код ${c} уже есть среди продуктов: ${p.name}`); return; } }
+      const barcode = codes[0] || "";
+      const id = productIdFor({ barcode, source: "user", name: d.n });
+      const ref = id ? prodDoc(id) : doc(prodCol());
+      setDoc(ref, { name: d.n, brand: "", barcode, kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0, drink: false, hydrationPct: 0, caffeineMg100: 0, source: "user", ...authorFields(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }).catch(writeFail);
+      codes.slice(1).forEach((c) => linkBarcode(c, ref.id));
+      removeFromList();
+      toast("Перенесено в продукты");
+      showList();
+    });
+    $("#dc-save", ov).addEventListener("click", () => {
+      const name = $("#dc-name", ov).value.trim();
+      const opt = (sel) => { const t = $(sel, ov).value.trim(); return t === "" ? 0 : num(t); };
+      const h = numS(pct.value), caf = opt("#dc-caf"), k = opt("#dc-k"), p = opt("#dc-p"), f = opt("#dc-f"), cb = opt("#dc-cb");
+      if (!name) { toast("Введите название напитка"); return; }
+      if (!Number.isFinite(h) || h < -400 || h > 200) { toast("Гидратация: от −400 до 200 процентов"); return; }
+      if (!Number.isFinite(caf) || caf < 0 || caf > 1000) { toast("Кофеин: от 0 до 1000 мг на 100 мл"); return; }
+      if (![k, p, f, cb].every(Number.isFinite) || k < 0 || p < 0 || f < 0 || cb < 0) { toast("Калории и БЖУ: введите числа"); return; }
+      if (k > 1000) { toast("Калории на 100 мл: не больше 1000"); return; }
+      if ([p, f, cb].some((x) => x > 100)) { toast("Белки, жиры и углеводы на 100 мл: не больше 100"); return; }
+      for (const c of bcs) { const m = bcConflict(c, { drinkId: d.id, productId: from && from.id }); if (m) { toast(m); return; } }
+      const cat = catSel.value;
+      const item = { id: isNew ? "u" + Date.now().toString(36) : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs] };
+      state.customDrinks = isNew ? [...state.customDrinks, item] : state.customDrinks.map((x) => (x.id === d.id ? item : x));
+      saveCustomDrinks();
+      if (from) {
+        aliasCodes(from.id).forEach((c) => { if (state.bcOwner[c] === state.user.uid) unlinkBarcode(c); });
+        deleteDoc(prodDoc(from.id)).catch(writeFail);
+      }
+      toast(from ? "Перенесено в напитки" : "Напиток сохранён");
+      showDetail(drinkById(item.id) || item);
+    });
+  }
 
   function showDetail(d, existing) {
     const isCustom = d.id === "custom";
@@ -3463,14 +3633,17 @@ function openDrinkSheet(entry, presetId, presetMl) {
     const oldCaf = existing ? (Number(existing.ml) * Number(existing.caf100)) / 100 : 0;
     const lastMl = existing ? existing.ml : (presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250));
     body.innerHTML = `
-      <div class="picked"><div class="p-name">${isCustom ? "Свой напиток" : esc(d.n)}</div>${isCustom ? "" : `<div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div>`}</div>
-      ${isCustom ? `<label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
+      <div class="picked"><div class="p-name">${isCustom ? (existing ? "Свой напиток" : "Новый напиток") : esc(d.n)}</div>${isCustom ? "" : `<div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div>`}</div>
+      ${isCustom ? `${existing ? "" : `<label class="field"><span>Категория</span><select id="dk-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
+        <label class="field hidden" id="dk-alc-box"><span>Крепость</span><select id="dk-alc" class="input"><option value="Слабый алкоголь">Слабый (пиво, сидр)</option><option value="Легкий алкоголь">Лёгкий</option><option value="Умеренный алкоголь">Умеренный</option><option value="Средний алкоголь" selected>Средний (вино, вермут)</option><option value="Крепкий алкоголь">Крепкий (водка, виски, коньяк)</option></select></label>`}
+        <label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
         <div class="field-grid">
           <label class="field"><span>Гидратация, %</span><input id="dk-pct" class="input" inputmode="decimal" value="${String(d.h).replace(".", ",")}" autocomplete="off"></label>
           <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dk-caf" class="input" inputmode="decimal" value="${existing ? String(existing.caf100).replace(".", ",") : "0"}" autocomplete="off"></label>
         </div>
         <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dk-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
-        <label class="field"><span>Калории, ккал на 100 мл (если есть)</span><input id="dk-kcal" class="input" inputmode="decimal" value="0" autocomplete="off"></label>` : ""}
+        <label class="field"><span>Калории, ккал на 100 мл (если есть)</span><input id="dk-kcal" class="input" inputmode="decimal" value="0" autocomplete="off"></label>
+        ${existing ? "" : `<label class="check"><input type="checkbox" id="dk-keep" checked> <span>Сохранить в список напитков</span></label>`}` : ""}
       <label class="field"><span>Объём, мл</span><input id="dk-ml" class="input big" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"></label>
       <div class="chips">${[100, 150, 200, 250, 330, 500].map((n) => `<button type="button" class="chip" data-n="${n}">${n}</button>`).join("")}</div>
       <div class="preview" id="dk-prev"></div>
@@ -3478,7 +3651,7 @@ function openDrinkSheet(entry, presetId, presetMl) {
         <div class="note" id="dk-knote">Попадёт и в жидкость, и в калории дневника одной записью. Повторно вносить как еду не нужно.</div>
         <label class="field"><span>Приём пищи</span><select id="dk-meal" class="input">${MEALS.map((m) => `<option value="${m.id}" ${m.id === mealByTime() ? "selected" : ""}>${m.name}</option>`).join("")}</select></label>
       </div>
-      <div class="row">${existing ? `<button type="button" class="btn danger" id="dk-del">Удалить</button>` : `<button type="button" class="btn ghost" id="dk-back">Назад</button>`}<button type="button" class="btn primary grow" id="dk-save">${existing ? "Сохранить" : "Добавить"}</button></div>`;
+      <div class="row">${existing ? `<button type="button" class="btn danger" id="dk-del">Удалить</button>` : `<button type="button" class="btn ghost" id="dk-back">Назад</button>`}${d.mine && !existing ? `<button type="button" class="btn ghost" id="dk-card">Карточка</button>` : ""}<button type="button" class="btn primary grow" id="dk-save">${existing ? "Сохранить" : "Добавить"}</button></div>`;
 
     const read = () => {
       const ml = num($("#dk-ml", ov).value);
@@ -3489,6 +3662,7 @@ function openDrinkSheet(entry, presetId, presetMl) {
       return { ml, pct: d.h, caf100: r1((d.c / 240) * 100), name: d.n, nutr: { kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0 } };
     };
     const upd = () => {
+      if (!$("#dk-prev", ov)) return;
       const r = read();
       const eff = r.ml > 0 && Number.isFinite(r.pct) ? (r.ml * r.pct) / 100 : 0;
       const caf = r.ml > 0 && Number.isFinite(r.caf100) ? (r.ml * r.caf100) / 100 : 0;
@@ -3510,6 +3684,22 @@ function openDrinkSheet(entry, presetId, presetMl) {
       inp.value = /^[−–-]/.test(String(inp.value).trim()) ? v : (v ? "-" + v : "-");
       upd();
     });
+    const catSel = $("#dk-cat", ov), alcSel = $("#dk-alc", ov), alcBox = $("#dk-alc-box", ov);
+    if (catSel) {
+      // Типичная гидратация для крепости: берём медиану среди напитков справочника с такой крепостью
+      const medianPct = (a) => { const v = DRINKS.filter((x) => x.cat === "alc" && x.a === a).map((x) => x.h).sort((p, q) => p - q); return v.length ? v[Math.floor(v.length / 2)] : -95; };
+      const sync = () => {
+        const isAlc = catSel.value === "alc", inp = $("#dk-pct", ov);
+        alcBox.classList.toggle("hidden", !isAlc);
+        if (isAlc) inp.value = String(medianPct(alcSel.value)).replace(".", ",");
+        else if (numS(inp.value) < 0) inp.value = "90";
+        upd();
+      };
+      catSel.addEventListener("change", sync);
+      alcSel.addEventListener("change", sync);
+    }
+    const cardBtn = $("#dk-card", ov);
+    if (cardBtn) cardBtn.addEventListener("click", () => showCard(d, false));
     if (!existing) $("#dk-back", ov).addEventListener("click", showList);
     $("#dk-save", ov).addEventListener("click", () => {
       const r = read();
@@ -3518,12 +3708,26 @@ function openDrinkSheet(entry, presetId, presetMl) {
       if (!Number.isFinite(r.caf100) || r.caf100 > 1000) { toast("Кофеин: от 0 до 1000 мг на 100 мл"); return; }
       lsSet(`dml:${d.id}`, String(r.ml));
       if (isWater) { changeWater(Math.round(r.ml)); ov.close(); return; }
-      const data = { drinkId: existing ? existing.drinkId : d.id, name: r.name, ml: r.ml, pct: r.pct, caf100: r.caf100, alc: existing ? existing.alc || "" : d.a };
+      // Новый свой напиток: категория, крепость и (по желанию) сохранение карточки в список
+      let did = d.id, alcLabel = d.a;
+      if (isCustom && !existing) {
+        const cat = $("#dk-cat", ov).value;
+        alcLabel = cat === "alc" ? $("#dk-alc", ov).value : "";
+        const keep = $("#dk-keep", ov);
+        if (keep && keep.checked) {
+          if (!$("#dk-name", ov).value.trim()) { toast("Введите название напитка"); return; }
+          did = "u" + Date.now().toString(36);
+          const item = { id: did, n: r.name, h: r.pct, c: Math.round(((r.caf100 * 240) / 100) * 10) / 10, cat, a: alcLabel, k: r.nutr.kcal || 0, p: 0, f: 0, cb: 0 };
+          state.customDrinks = [...state.customDrinks, item];
+          setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { custom: state.customDrinks }, { merge: true }).catch(writeFail);
+        }
+      }
+      const data = { drinkId: existing ? existing.drinkId : did, name: r.name, ml: r.ml, pct: r.pct, caf100: r.caf100, alc: existing ? existing.alc || "" : alcLabel };
       if (!existing && r.nutr && r.nutr.kcal > 0) {
         // Напиток с калориями: одна запись в дневнике еды, она же считается жидкостью и кофеином (без двойного учёта)
         const per100 = { kcal: r.nutr.kcal, protein: r.nutr.protein, fat: r.nutr.fat, carbs: r.nutr.carbs };
         addDoc(colRef("entries"), {
-          date: state.date, meal: $("#dk-meal", ov).value, productId: `drink:${d.id}`, name: r.name, brand: "",
+          date: state.date, meal: $("#dk-meal", ov).value, productId: `drink:${did}`, name: r.name, brand: "",
           grams: r.ml, per100, ...calc(per100, r.ml), drink: { pct: r.pct, caf100: r.caf100 }, createdAt: serverTimestamp(),
         }).catch(writeFail);
         const w = cafToast((r.ml * r.caf100) / 100, 0);
@@ -3548,11 +3752,12 @@ function openDrinkSheet(entry, presetId, presetMl) {
   }
 
   if (entry) {
-    const base = DRINK_BY_ID[entry.drinkId];
+    const base = drinkById(entry.drinkId);
     showDetail(entry.drinkId === "custom" || !base
       ? { id: "custom", n: entry.name, h: Number(entry.pct), c: 0, a: "", cat: "other" }
       : { id: base.id, n: entry.name, h: Number(entry.pct), c: (Number(entry.caf100) * 240) / 100, a: entry.alc || "", cat: base.cat }, entry);
-  } else if (presetId && DRINK_BY_ID[presetId]) showDetail(DRINK_BY_ID[presetId]);
+  } else if (prefill && prefill.card) showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [], ...prefill }, !prefill.from, prefill.from);
+  else if (presetId && drinkById(presetId)) showDetail(drinkById(presetId));
   else showList();
 }
 
@@ -3576,7 +3781,7 @@ const actions = {
     });
   },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
-  newProduct() { openProductForm(null); },
+  newProduct() { newCardFlow({}, null); },
   goTab(ds) { state.tab = ds.tab; if (ds.h) { state.hTab = ds.h; lsSet("hTab", ds.h); } render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
   addWater(ds) { const n = Number(ds.ml); if (n > 0) openDrinkSheet(null, null, n); else openRemoveSheet(); },
   addDrink() { openDrinkSheet(); },
