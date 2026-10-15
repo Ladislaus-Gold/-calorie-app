@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 84;
+const APP_VERSION = 85;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2867,6 +2867,7 @@ function viewHealth() {
   const caf = caffeineStatus(day);
   const acts = actOn(day).sort((a, b) => createdMs(a) - createdMs(b));
   const mins = actMinutes(day), burned = actBurned(day);
+  const trainKcal = actOn(day).reduce((t, a) => t + (Number(a.kcal) || 0), 0) + wkKcal(day);
   const hd = healthOn(day), wkts = workoutsOn(day).slice().sort((x, y) => (x.start && x.start.seconds || 0) - (y.start && y.start.seconds || 0));
   const steps = stepsOn(day);
   const wk = weekDays(day);
@@ -2933,6 +2934,8 @@ function viewHealth() {
       <p class="foot-note" style="margin:10px 0 12px">Ориентир ${fmtInt(STEPS_GOAL)} шагов в день.${hd.updatedAt ? ` Обновлено в ${timeOf(hd.updatedAt)}.` : ""}</p>
       <div class="stat-grid">
         <div class="stat"><b>${hd.activeKcal ? fmtInt(hd.activeKcal) : "—"}</b><span>активных ккал</span></div>
+        <div class="stat"><b>${hd.restKcal ? fmtInt(hd.restKcal) : "—"}</b><span>энергия покоя, ккал${hd.restKcal ? "" : "<br>данных пока нет"}</span></div>
+        <div class="stat"><b>${hd.restKcal || hd.activeKcal ? fmtInt((Number(hd.restKcal) || 0) + (Number(hd.activeKcal) || 0)) : "—"}</b><span>всего потрачено, ккал${hd.restKcal ? "" : "<br>без энергии покоя"}</span></div>
         <div class="stat"><b>${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}</b><span>средний пульс${hd.hrMin && hd.hrMax ? `<br>от ${fmtInt(hd.hrMin)} до ${fmtInt(hd.hrMax)}` : ""}</span></div>
         <div class="stat"><b>${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</b><span>пульс в покое</span></div>
         <div class="stat"><b>${fmtInt(wkStepsAvg)}</b><span>шагов в день за неделю</span></div>
@@ -2942,7 +2945,7 @@ function viewHealth() {
       <div class="card-top"><h2 class="h2">Тренировки</h2><button type="button" class="btn ghost sm" data-act="addActivity">+ Добавить</button></div>
       <div class="stat-grid">
         <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
-        <div class="stat"><b>${fmtInt(burned)}</b><span>ккал сожжено</span></div>
+        <div class="stat"><b>${fmtInt(trainKcal)}</b><span>ккал на тренировках</span></div>
       </div>
       ${actRows || wktRows ? `<div class="entries flat">${wktRows}${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
