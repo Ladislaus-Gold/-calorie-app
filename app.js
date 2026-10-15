@@ -11,7 +11,7 @@ import {
   getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=28";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID, DRINK_TYPES, DRINK_TYPE_BY_ID } from "./drinks.js?v=29";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 92;
+const APP_VERSION = 93;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3597,18 +3597,21 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const medianPct = (a) => { const x = DRINKS.filter((y) => y.cat === "alc" && y.a === a).map((y) => y.h).sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : -95; };
     const typeSel = $("#dc-type", ov);
     const fillTypes = () => {
-      const arr = DRINKS.filter((x) => x.cat === catSel.value).sort((a, b) => a.n.localeCompare(b.n, "ru"));
+      const seen = new Set(), arr = [];
+      for (const x of [...DRINKS, ...DRINK_TYPES]) { if (x.cat !== catSel.value || seen.has(fold(x.n))) continue; seen.add(fold(x.n)); arr.push(x); }
+      arr.sort((a, b) => a.n.localeCompare(b.n, "ru"));
       typeSel.innerHTML = `<option value="">Свой вариант (ввести вручную)</option>` + arr.map((x) => `<option value="${x.id}">${esc(x.n)} · ${x.h}%${x.c > 0 ? ` · ${x.c} мг` : ""}</option>`).join("");
     };
     fillTypes();
     typeSel.addEventListener("change", () => {
-      const x = DRINK_BY_ID[typeSel.value];
+      const x = DRINK_BY_ID[typeSel.value] || DRINK_TYPE_BY_ID[typeSel.value];
       if (!x) return;
       pct.value = String(x.h).replace(".", ",");
       $("#dc-caf", ov).value = String(r1((x.c / 240) * 100)).replace(".", ",");
       if (x.cat === "alc" && alcOpts.some((o) => o[0] === x.a)) alcSel.value = x.a;
+      if (!$("#dc-name", ov).value.trim()) $("#dc-name", ov).value = x.n;
       const empty = ["#dc-k", "#dc-p", "#dc-f", "#dc-cb"].every((q) => !num($(q, ov).value));
-      if (empty && x.k > 0) { $("#dc-k", ov).value = v(x.k); $("#dc-p", ov).value = v(x.p || 0); $("#dc-f", ov).value = v(x.f || 0); $("#dc-cb", ov).value = v(x.cb || 0); }
+      if (empty && x.k >= 0) { $("#dc-k", ov).value = v(x.k); $("#dc-p", ov).value = v(x.p || 0); $("#dc-f", ov).value = v(x.f || 0); $("#dc-cb", ov).value = v(x.cb || 0); }
     });
     const sync = () => {
       const isAlc = catSel.value === "alc";
