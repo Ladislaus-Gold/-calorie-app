@@ -10,7 +10,7 @@ import {
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
   getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=49";
+import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=28";
 
 const firebaseConfig = {
@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 78;
+const APP_VERSION = 81;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -935,6 +935,7 @@ function localInsights(a) {
     }
   }
   const rank = { bad: 0, warn: 1, good: 2, info: 3 };
+  if (!a.sleepDays) add("info", "Сон: данных пока нет. Он приходит с Apple Watch через Health Auto Export (метрика «Sleep Analysis», Aggregated). Как только ночи появятся, они войдут в выводы, графики и анализ ИИ.");
   if (a.sleepDays) {
     const sa = a.sleepAvg, nn = a.sleepDays;
     if (sa < 6) add("bad", `Сна мало: в среднем ${fmtDur(sa)} за ночь (ночей с данными ${nn}). Ориентир для взрослых ${SLEEP_MIN}–${SLEEP_MAX} часов.`);
@@ -1120,7 +1121,7 @@ function aiPayload(a) {
       ночей_с_данными: a.sleepDays, среднее_часов_сна: r(a.sleepAvg), ночей_короче_7_часов: a.sleepShort,
       глубокий_сон_в_среднем_ч: r(a.sleepDeepAvg), REM_в_среднем_ч: r(a.sleepRemAvg),
       среднее_время_засыпания: a.bedN ? minToClock(a.bedAvg) : null, разброс_времени_засыпания_мин: a.bedN > 1 ? Math.round(a.bedSd) : null,
-    } : "нет данных о сне",
+    } : "данные о сне в этом периоде не поступили (интеграция с Apple Watch для сна предусмотрена, но ночей пока нет)",
     ...(a.days.length > 120
       ? {
         по_неделям: Array.from({ length: Math.ceil(a.per.length / 7) }, (_, w) => {
@@ -1145,7 +1146,7 @@ function aiPrompt(a) {
 - Пиши простым языком, без воды и без общих фраз про здоровый образ жизни.
 - Формат: заголовки второго уровня («## Общая картина», «## Питание», «## Жидкость и напитки», «## Кофеин», «## Сон», «## Нагрузка», «## Упражнения дома», «## Что получается хорошо», «## На что обратить внимание», «## План на ближайшую неделю»). Внутри разделов короткие абзацы и списки через «- ». Таблицы не используй. «План на ближайшую неделю»: 3–5 конкретных, выполнимых шагов.
 - Раздел «Кофеин» пропусти, если кофеина нет.
-- Раздел «Сон» пропусти, если данных о сне нет. Иначе оцени длительность (ориентир 7–9 часов), глубокий сон и REM, регулярность времени засыпания и свяжи сон с кофеином, алкоголем, нагрузкой и питанием, если это видно в данных. Не ставь диагнозы.
+- Если данных о сне нет, в разделе «Сон» одной-двумя фразами скажи, что сон в этом периоде не поступил с часов (приложение умеет его принимать через Health Auto Export, метрика Sleep Analysis), и не выдумывай цифры. Если данные есть, оцени длительность (ориентир 7–9 часов), глубокий сон и REM, регулярность времени засыпания и свяжи сон с кофеином, алкоголем, нагрузкой и питанием, если это видно в данных. Не ставь диагнозы.
 - В разделе «Нагрузка» учти шаги, пульс и тренировки с часов Apple Watch, если они есть в данных: оцени уровень активности по шагам и пульсу и скажи, как это согласуется с целью. Пульс покоя и средний пульс не трактуй как диагноз.
 - Раздел «Упражнения дома» обязателен: 4–6 конкретных упражнений без оборудования или с минимумом (стул, бутылки с водой, коврик) под цель пользователя, его вес, возраст и текущую нагрузку из данных. Для каждого: название, сколько подходов и повторений (или минут), сколько раз в неделю и короткая подсказка по технике. Если нагрузок в данных нет или мало, начни с лёгкого уровня и укажи, как постепенно усложнять. Учитывай питание: если калорий или белка заметно не хватает, предупреди, что интенсивность лучше повышать позже. Не предлагай экстремальных нагрузок и добавь, что при болях, травмах или хронических заболеваниях стоит посоветоваться с врачом.
 
@@ -1180,11 +1181,12 @@ function crossInsights(a) {
     else { lv = "warn"; head = "В целом неплохо, но кое-что стоит подтянуть."; }
     const names = (arr) => arr.map((x) => x[0].toLowerCase()).join(", ");
     const tail = [good.length ? `в норме: ${names(good)}` : "", warn.length ? `можно лучше: ${names(warn)}` : "", bad.length ? `главное внимание: ${names(bad)}` : ""].filter(Boolean).join("; ");
-    out.verdict = { lv, text: `${head} В норме ${good.length} из ${m.length} показателей (${tail}).` };
+    out.verdict = { lv, text: `${head} В норме ${good.length} из ${m.length} показателей (${tail}).${a.sleepDays ? "" : " Сон пока не учтён: нет данных."}` };
   }
   // --- взаимосвязи ---
   const add = (kind, text) => out.links.push({ kind, text });
   const per = a.per;
+  if (!a.sleepDays) add("info", "Сон и остальные показатели: данных о сне пока нет, поэтому связи сна с едой, кофеином и нагрузкой не посчитаны. Они появятся сами, когда придут ночи с часов.");
   const actD = per.filter((x) => x.actMin > 0 && x.hyd > 0), restD = per.filter((x) => x.actMin === 0 && x.hyd > 0);
   if (actD.length >= 2 && restD.length >= 2) {
     const ra = mean(actD, (x) => x.hyd / x.target), rr = mean(restD, (x) => x.hyd / x.target);
@@ -1452,7 +1454,7 @@ function viewReports() {
         ${kv("нагрузка в неделю", `${fmtInt(a.actTotalMin / a.weeks)} мин`, plan ? `ориентир ${plan.weekly.minutes}` : "")}
         ${kv("сожжено нагрузкой", `${fmtInt(a.actTotalKcal)} ккал`, `активных дней ${a.actDays}`)}
         ${a.stepDays ? kv("шагов в день", fmtInt(a.stepsAvg), sub(`дней с данными ${a.stepDays}`, dlt(a.stepsAvg, prev && prev.stepsAvg, ""))) : ""}
-        ${a.sleepDays ? kv("сон за ночь", `${fmt(a.sleepAvg)} ч`, sub(`ночей с данными ${a.sleepDays}`, dlt(a.sleepAvg * 60, prev && prev.sleepAvg * 60, " мин"))) : ""}
+        ${a.sleepDays ? kv("сон за ночь", `${fmt(a.sleepAvg)} ч`, sub(`ночей с данными ${a.sleepDays}`, dlt(a.sleepAvg * 60, prev && prev.sleepAvg * 60, " мин"))) : kv("сон за ночь", "—", "данных пока нет")}
         ${a.sleepDays ? kv("ночей короче 7 ч", String(a.sleepShort), a.bedN ? `засыпаете около ${minToClock(a.bedAvg)}` : "") : ""}
         ${a.restAvg || a.hrAvgAll ? kv("пульс в покое", a.restAvg ? `${fmtInt(a.restAvg)} уд/мин` : "—", a.hrAvgAll ? `средний за день ${fmtInt(a.hrAvgAll)}` : "") : ""}
       </div>` : `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`;
@@ -1504,7 +1506,7 @@ function viewReports() {
     ${barsCard(`Жидкость ${by}`, chartKeys, gfn(hydrationOn), ggoal(waterTarget), "мл", "water")}
     ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true)}
     ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "")}
-    ${a.sleepDays ? barsCard(`Сон ${by}`, chartKeys, gfn((d) => Math.round(sleepHours(d) * 10) / 10), (() => SLEEP_MIN), "ч", "sleep", false, (v) => fmt(v)) : ""}
+    ${barsCard(`Сон ${by}`, chartKeys, gfn((d) => Math.round(sleepHours(d) * 10) / 10), (() => SLEEP_MIN), "ч", "sleep", false, (v) => fmt(v))}
     ${a.stepDays ? barsCard(`Шаги ${by}`, chartKeys, gfn(stepsOn), (() => STEPS_GOAL), "шагов", "") : ""}
     ${actRows.length ? `<section class="card"><h2 class="h2">Нагрузки по видам</h2>${rankRows(actRows)}</section>` : ""}` : ""}
     <p class="foot-note" style="margin:6px 4px 0">Все записи хранятся в вашем аккаунте без ограничения по времени. Старые периоды подгружаются при выборе.</p>`;
@@ -2175,9 +2177,11 @@ async function processBarcode(code, onOwn, onSaved) {
   else openProductForm(null, onSaved, { barcode: code, note: OFF_FAIL_NOTE });
 }
 
+// Переименованные позиции базового набора: если у человека уже есть старое название, новое не предлагаем второй раз
+const STARTER_OLD = { "Яйцо куриное (жареное, глазунья)": "Яичница-глазунья", "Яйцо куриное (болтунья)": "Яичница-болтунья" };
 const starterMissing = () => {
   const have = new Set(state.products.map((p) => fold(p.name)));
-  return STARTER.filter((x) => !have.has(fold(x[0])));
+  return STARTER.filter((x) => !have.has(fold(x[0])) && !(STARTER_OLD[x[0]] && have.has(fold(STARTER_OLD[x[0]]))));
 };
 
 /* ================= Окна снизу ================= */
@@ -2894,7 +2898,7 @@ function viewHealth() {
     : "";
   const fluidRows = fluidShown.map((i) => `
     <button type="button" class="entry" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
-      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл, засчитано ${signed(Math.round(itemHyd(i)))} мл${i.kind === "food" ? ", из дневника питания" : ""}</span></span>
+      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл${Math.round(i.pct) !== 100 ? ` × ${fmt(i.pct)}% = ${signed(Math.round(itemHyd(i)))} мл` : `, засчитано ${signed(Math.round(itemHyd(i)))} мл`}${i.kind === "food" ? " · из дневника питания" : ""}</span><span class="e-sub">${Math.round(i.pct) > 100 ? "Молоко и подобные напитки по таблице гидратации поят лучше воды." : Math.round(i.pct) < 100 && Math.round(i.pct) >= 0 ? "Не весь объём напитка идёт в зачёт воды (по таблице гидратации)." : ""}</span></span>
       <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
     </button>`).join("");
   const tab = state.hTab || "today";
