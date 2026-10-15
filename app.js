@@ -11,7 +11,7 @@ import {
   getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
-import { DRINKS, DRINK_CATS, DRINK_BY_ID, DRINK_TYPES, DRINK_TYPE_BY_ID } from "./drinks.js?v=29";
+import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 93;
+const APP_VERSION = 94;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3551,9 +3551,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       <div class="picked"><div class="p-name">${isNew ? "Новый напиток" : "Карточка напитка"}</div></div>
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
       <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
-      <label class="field"><span>Тип напитка (подставит гидратацию и кофеин)</span><select id="dc-type" class="input"></select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
-      <p class="foot-note" style="margin:-4px 2px 10px">Гидратация: сколько мл из каждых 100 мл напитка засчитывается в норму жидкости (вода 100%, молочный коктейль около 80%, алкоголь с минусом).</p>
+      <p class="foot-note" id="dc-hint" style="margin:-4px 2px 10px"></p>
       <label class="field"><span>Название</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
@@ -3595,28 +3594,23 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     });
     const catSel = $("#dc-cat", ov), alcSel = $("#dc-alc", ov), alcBox = $("#dc-alc-box", ov), pct = $("#dc-pct", ov);
     const medianPct = (a) => { const x = DRINKS.filter((y) => y.cat === "alc" && y.a === a).map((y) => y.h).sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : -95; };
-    const typeSel = $("#dc-type", ov);
-    const fillTypes = () => {
-      const seen = new Set(), arr = [];
-      for (const x of [...DRINKS, ...DRINK_TYPES]) { if (x.cat !== catSel.value || seen.has(fold(x.n))) continue; seen.add(fold(x.n)); arr.push(x); }
-      arr.sort((a, b) => a.n.localeCompare(b.n, "ru"));
-      typeSel.innerHTML = `<option value="">Свой вариант (ввести вручную)</option>` + arr.map((x) => `<option value="${x.id}">${esc(x.n)} · ${x.h}%${x.c > 0 ? ` · ${x.c} мг` : ""}</option>`).join("");
+    // Подсказка: ориентировочная гидратация типичных напитков выбранной категории
+    const HINT_NAMES = {
+      tea: ["Черный Чай", "Зеленый Чай", "Матча", "Чай Латте", "Бабл Ти"], coffee: ["Эспрессо", "Американо", "Капучино", "Латте", "Флэт Уайт"],
+      milk: ["Молоко", "Молочный Коктейль", "Какао", "Йогурт", "Айран"], sugar: ["Лимонад", "Газировка", "Диетическая Газировка", "Амадзакэ"],
+      fruit: ["Сок", "Смузи", "Суаньмэйтан"], active: ["Спорт. Напиток", "Протеин", "Энергетик"], mock: ["Безалкогольный Мохито", "Ширли Темпл", "Пиво Б/А", "Вино Б/А"],
+      alc: ["Пиво", "Сидр", "Красное Вино", "Мохито", "Виски", "Водка"], other: ["Вода", "Суп", "Костный Бульон", "Борщ"],
     };
-    fillTypes();
-    typeSel.addEventListener("change", () => {
-      const x = DRINK_BY_ID[typeSel.value] || DRINK_TYPE_BY_ID[typeSel.value];
-      if (!x) return;
-      pct.value = String(x.h).replace(".", ",");
-      $("#dc-caf", ov).value = String(r1((x.c / 240) * 100)).replace(".", ",");
-      if (x.cat === "alc" && alcOpts.some((o) => o[0] === x.a)) alcSel.value = x.a;
-      if (!$("#dc-name", ov).value.trim()) $("#dc-name", ov).value = x.n;
-      const empty = ["#dc-k", "#dc-p", "#dc-f", "#dc-cb"].every((q) => !num($(q, ov).value));
-      if (empty && x.k >= 0) { $("#dc-k", ov).value = v(x.k); $("#dc-p", ov).value = v(x.p || 0); $("#dc-f", ov).value = v(x.f || 0); $("#dc-cb", ov).value = v(x.cb || 0); }
-    });
+    const hintEl = $("#dc-hint", ov);
+    const drawHint = () => {
+      const items = (HINT_NAMES[catSel.value] || []).map((n) => DRINKS.find((x) => x.n === n)).filter(Boolean);
+      hintEl.textContent = `Гидратация: сколько мл из каждых 100 мл засчитывается в норму жидкости.${items.length ? " Ориентиры: " + items.map((x) => `${x.n.toLowerCase()} ${x.h < 0 ? "−" + Math.abs(x.h) : x.h}%`).join(", ") + "." : ""}`;
+    };
+    drawHint();
     const sync = () => {
       const isAlc = catSel.value === "alc";
       alcBox.classList.toggle("hidden", !isAlc);
-      fillTypes();
+      drawHint();
       if (isAlc) pct.value = String(medianPct(alcSel.value)).replace(".", ",");
       else if (numS(pct.value) < 0) pct.value = "90";
     };
