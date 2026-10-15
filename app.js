@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 90;
+const APP_VERSION = 91;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -733,8 +733,34 @@ function productListHtml() {
   return items.map((p) => productRow(p, "data-edit-product")).join("");
 }
 
+// Напитки из дневника, чьих карточек больше нет ни в продуктах, ни в списке напитков (например, потерянные при переносе)
+function lostDrinks() {
+  const have = new Set(state.products.map((p) => p.id));
+  const names = new Set(customList().map((d) => fold(d.n)));
+  const by = new Map();
+  for (const e of state.entries) {
+    const id = e.productId;
+    if (!id || String(id).startsWith("drink:") || have.has(id) || !e.drink || !e.per100 || !e.name) continue;
+    const prev = by.get(id);
+    if (!prev || String(e.date) > String(prev.date)) by.set(id, e);
+  }
+  const out = [], seen = new Set();
+  for (const [id, e] of by) {
+    const key = fold(e.name);
+    if (names.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    const pct = Number(e.drink.pct) || 0, caf = Number(e.drink.caf100) || 0, p = e.per100;
+    const alc = pct < 0;
+    const m = /^bc_(\d+)$/.exec(id);
+    out.push({ id: "u" + Date.now().toString(36) + out.length, n: e.name, h: pct, c: Math.round(caf * 2.4 * 10) / 10, cat: alc ? "alc" : "other", a: alc ? (pct <= -200 ? "Крепкий алкоголь" : "Средний алкоголь") : "",
+      k: Number(p.kcal) || 0, p: Number(p.protein) || 0, f: Number(p.fat) || 0, cb: Number(p.carbs) || 0, bc: m ? [m[1]] : [] });
+  }
+  return out;
+}
+
 function viewProducts() {
   const missing = starterMissing().length;
+  const lost = lostDrinks().length;
   return `
     ${pageHead("Общая база", "Продукты", `
       <button type="button" class="iconbtn" data-act="scanProduct" aria-label="Сканировать штрих-код">${SCAN_SVG}</button>
@@ -742,6 +768,11 @@ function viewProducts() {
     <input id="prod-search" class="input search" type="search" placeholder="Название, штрих-код или автор" value="${esc(state.prodSearch)}" autocomplete="off">
     <section class="card list-card"><div id="plist" class="plist">${productListHtml()}</div></section>
     <p class="foot-note">Продукты видят все пользователи. Править или удалять продукт может только тот, кто его добавил.</p>
+    ${lost ? `<section class="card">
+      <h2 class="h2">Напитки из дневника</h2>
+      <p class="foot-note" style="margin:0 0 12px">В дневнике есть ${lost} напитков, которых нет ни в продуктах, ни в списке напитков. Можно вернуть их карточками напитков (название, калории, БЖУ, гидратация и кофеин берутся из записей дневника).</p>
+      <button type="button" class="btn ghost full" data-act="restoreDrinks">Восстановить напитки</button>
+    </section>` : ""}
     ${missing ? `<section class="card">
       <h2 class="h2">Базовые продукты</h2>
       <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный, тушёный. У жареных и тушёных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
@@ -3780,6 +3811,15 @@ const actions = {
   },
   editEntry(ds) { const e = state.entries.find((x) => x.id === ds.id); if (e) openEditEntry(e); },
   newProduct() { newCardFlow({}, null); },
+  restoreDrinks() {
+    const list = lostDrinks();
+    if (!list.length) { toast("Нечего восстанавливать"); return; }
+    if (!confirm(`Восстановить напитки (${list.length}): ${list.slice(0, 12).map((d) => d.n).join(", ")}${list.length > 12 ? "…" : ""}?`)) return;
+    state.customDrinks = [...state.customDrinks, ...list];
+    saveCustomDrinks();
+    toast(`Восстановлено напитков: ${list.length}`);
+    render();
+  },
   goTab(ds) { state.tab = ds.tab; if (ds.h) { state.hTab = ds.h; lsSet("hTab", ds.h); } render(); { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; } },
   addWater(ds) { const n = Number(ds.ml); if (n > 0) openDrinkSheet(null, null, n); else openRemoveSheet(); },
   addDrink() { openDrinkSheet(); },
