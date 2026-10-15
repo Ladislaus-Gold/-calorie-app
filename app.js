@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 85;
+const APP_VERSION = 86;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2965,7 +2965,7 @@ function viewHealth() {
       <p class="foot-note" style="margin:12px 0 0">За ночь на ${esc(shortDate(day))} данных нет. Сон приходит из Apple Health через Health Auto Export: в автоматизации добавьте метрику «Sleep Analysis» (вид «Aggregated») и обновите Worker. Данные появляются после пробуждения, когда часы или телефон закончат запись сна.</p>
     </section>${nights.length ? barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v)) : ""}`;
   } else {
-    const tot = Number(sl.sleepH), deep = Number(sl.sleepDeepH) || 0, rem = Number(sl.sleepRemH) || 0, core = Number(sl.sleepCoreH) || 0, awake = Number(sl.sleepAwakeH) || 0, inBed = Number(sl.sleepInBedH) || 0;
+    const tot = Number(sl.sleepH), deep = Number(sl.sleepDeepH) || 0, rem = Number(sl.sleepRemH) || 0, core = Number(sl.sleepCoreH) || 0, awake = Number(sl.sleepAwakeH) || 0, inBed = Number(sl.sleepInBedH) || (tot + awake);
     const lv = tot < 6 ? "bad" : tot < SLEEP_MIN ? "warn" : tot <= SLEEP_MAX ? "good" : "info";
     const lvTxt = { bad: "мало", warn: "маловато", good: "в норме", info: "много" }[lv];
     const stageTot = deep + rem + core + awake;
