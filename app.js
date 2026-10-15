@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 88;
+const APP_VERSION = 90;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3473,7 +3473,6 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     body.innerHTML = `
       ${presetMl > 0 ? `<p class="foot-note" style="margin:0 2px 8px">Выберите напиток для ${fmt(presetMl)} мл</p>` : ""}
       <input id="dk-q" class="input search" type="search" placeholder="Найти напиток" value="${esc(st.q)}" autocomplete="off">
-      <button type="button" class="btn soft full" id="dk-custom" style="margin:0 0 10px">+ Новая карточка (напиток или продукт)</button>
       ${favs.length ? `<p class="foot-note" style="margin:0 2px 8px">Избранное и частые</p><div class="chips">${favs.map((d) => `<button type="button" class="chip" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
       <div class="chips cats" id="dk-cats">${DRINK_CATS.map((c) => `<button type="button" class="chip ${st.cat === c.id ? "sel" : ""}" data-cat="${c.id}">${c.t}</button>`).join("")}</div>
       <div id="dk-list" class="plist"></div>
@@ -3487,14 +3486,13 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       openAddFood(mealByTime());
       setTimeout(() => { const b = document.querySelector("#af-scan"); if (b) b.click(); }, 250);
     });
-    $("#dk-custom", ov).addEventListener("click", () => newCardFlow({}, () => ov.close(), () => showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [] }, true)));
   }
 
   function draw() {
     const words = fold(st.q).split(/\s+/).filter(Boolean);
     const list = allDrinks().filter((d) => (st.cat === "all" || d.cat === st.cat) && words.every((w) => fold(d.n).includes(w)))
       .sort((a, b) => (a.id === "water" ? -1 : b.id === "water" ? 1 : a.n.localeCompare(b.n, "ru")));
-    $("#dk-list", ov).innerHTML = list.length ? list.map(rowHtml).join("") : `<div class="empty"><b>Ничего не найдено</b>Создайте карточку кнопкой «+ Новая карточка».</div>`;
+    $("#dk-list", ov).innerHTML = list.length ? list.map(rowHtml).join("") : `<div class="empty"><b>Ничего не найдено</b>Создать карточку можно во вкладке «Продукты» кнопкой «+».</div>`;
   }
 
   body.addEventListener("click", (e) => {
@@ -3756,7 +3754,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     showDetail(entry.drinkId === "custom" || !base
       ? { id: "custom", n: entry.name, h: Number(entry.pct), c: 0, a: "", cat: "other" }
       : { id: base.id, n: entry.name, h: Number(entry.pct), c: (Number(entry.caf100) * 240) / 100, a: entry.alc || "", cat: base.cat }, entry);
-  } else if (prefill && prefill.card) showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [], ...prefill }, !prefill.from, prefill.from);
+  } else if (prefill && prefill.card) showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [], ...prefill }, true, prefill.from);
   else if (presetId && drinkById(presetId)) showDetail(drinkById(presetId));
   else showList();
 }
