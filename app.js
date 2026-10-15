@@ -72,7 +72,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 81;
+const APP_VERSION = 84;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2898,7 +2898,7 @@ function viewHealth() {
     : "";
   const fluidRows = fluidShown.map((i) => `
     <button type="button" class="entry" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
-      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл${Math.round(i.pct) !== 100 ? ` × ${fmt(i.pct)}% = ${signed(Math.round(itemHyd(i)))} мл` : `, засчитано ${signed(Math.round(itemHyd(i)))} мл`}${i.kind === "food" ? " · из дневника питания" : ""}</span><span class="e-sub">${Math.round(i.pct) > 100 ? "Молоко и подобные напитки по таблице гидратации поят лучше воды." : Math.round(i.pct) < 100 && Math.round(i.pct) >= 0 ? "Не весь объём напитка идёт в зачёт воды (по таблице гидратации)." : ""}</span></span>
+      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл${Math.round(i.pct) !== 100 ? ` · гидратация ${fmt(i.pct)}% · засчитано ${signed(Math.round(itemHyd(i)))} мл` : ""}${i.kind === "food" ? " · из дневника питания" : ""}</span></span>
       <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
     </button>`).join("");
   const tab = state.hTab || "today";
