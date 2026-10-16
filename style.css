@@ -995,3 +995,36 @@ button[data-act="addDrink"].btn.primary{background:#fff;color:var(--accent-d);bo
 /* v114: число кофеина того же цвета, что и полоска */
 .caf-card .caf-val b{color:hsl(var(--ch,130) 80% 30%)}
 :root[data-theme="dark"] .caf-card .caf-val b{color:hsl(var(--ch,130) 75% 62%)}
+/* v116: яркие объёмные плитки показателей (как кнопки) */
+.stat-grid .stat{--t1:#3CC468;--t2:#1B9D4B;--tb:#14803B;--ts:rgba(20,128,59,.40)}
+.stat-grid .stat:nth-child(6n+2){--t1:#FFB93F;--t2:#F08A00;--tb:#C26E00;--ts:rgba(194,110,0,.40)}
+.stat-grid .stat:nth-child(6n+3){--t1:#55BCF2;--t2:#2A8AD6;--tb:#1D6DAE;--ts:rgba(29,109,174,.40)}
+.stat-grid .stat:nth-child(6n+4){--t1:#E869C6;--t2:#BA3A9C;--tb:#942C7B;--ts:rgba(148,44,123,.40)}
+.stat-grid .stat:nth-child(6n+5){--t1:#9884F2;--t2:#6A4FD6;--tb:#533CAD;--ts:rgba(83,60,173,.40)}
+.stat-grid .stat:nth-child(6n+6){--t1:#35CDBA;--t2:#13988A;--tb:#0D7A6E;--ts:rgba(13,122,110,.40)}
+.stat,.stat-grid .stat{background:linear-gradient(180deg,var(--t1),var(--t2));border:1.5px solid var(--tb);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 6px 14px var(--ts)}
+.stat b,.stat-grid .stat b{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.22)}
+.stat span,.stat-grid .stat span{color:rgba(255,255,255,.92)}
+:root[data-theme="dark"] .stat,:root[data-theme="dark"] .stat-grid .stat{border-color:var(--tb)}
+/* v117: плитки впуклые, цвета мягче (перекрывает v116) */
+.stat-grid .stat{--t1:#9BD6AC;--t2:#C3E8CD;--tb:#8CC79E;--tc:#0B5E2B;--tm:#2F6B45;--ti:rgba(20,100,50,.30)}
+.stat-grid .stat:nth-child(6n+2){--t1:#F5CE85;--t2:#FBE4B4;--tb:#E3BC72;--tc:#6E4600;--tm:#7A5A22;--ti:rgba(150,90,0,.28)}
+.stat-grid .stat:nth-child(6n+3){--t1:#9CCBEC;--t2:#C6E1F4;--tb:#88BCE0;--tc:#0F5683;--tm:#2D6485;--ti:rgba(20,90,140,.28)}
+.stat-grid .stat:nth-child(6n+4){--t1:#E5AFD6;--t2:#F1CDE6;--tb:#D79CC7;--tc:#7A1F66;--tm:#80456F;--ti:rgba(130,40,110,.28)}
+.stat-grid .stat:nth-child(6n+5){--t1:#BCB0EA;--t2:#D6CEF4;--tb:#A99CDD;--tc:#42328F;--tm:#5A4F8C;--ti:rgba(70,50,150,.28)}
+.stat-grid .stat:nth-child(6n+6){--t1:#92D4CB;--t2:#BDE8E2;--tb:#7FC4BA;--tc:#0A5F55;--tm:#2C6B63;--ti:rgba(10,100,90,.28)}
+.stat,.stat-grid .stat{background:linear-gradient(180deg,var(--t1),var(--t2));border:1px solid var(--tb);box-shadow:inset 0 4px 10px var(--ti),inset 0 -2px 0 rgba(255,255,255,.55),0 1px 0 rgba(255,255,255,.8)}
+.stat b,.stat-grid .stat b{color:var(--tc);text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.stat span,.stat-grid .stat span{color:var(--tm)}
+/* v118: переключатели впуклые (углублённая дорожка) */
+.seg,.seg:not(.in-card){background:linear-gradient(180deg,#E3ECE6,#F4F8F5);border:1px solid #C9D8CE;box-shadow:inset 0 3px 8px rgba(20,60,35,.22),inset 0 -1px 0 rgba(255,255,255,.9),0 1px 0 rgba(255,255,255,.7)}
+.seg button.on{box-shadow:0 3px 6px rgba(14,110,50,.35),inset 0 1px 0 rgba(255,255,255,.35)}
+:root[data-theme="dark"] .seg,:root[data-theme="dark"] .seg:not(.in-card){background:linear-gradient(180deg,#141C17,#1B261F);border-color:rgba(255,255,255,.07);box-shadow:inset 0 3px 8px rgba(0,0,0,.55),inset 0 -1px 0 rgba(255,255,255,.05)}
+/* v119: кнопка «+ Напиток» синяя выпуклая */
+button[data-act="addDrink"].btn.primary{background:linear-gradient(180deg,#5CB9F5,#2A86D8);color:#fff;border:1px solid #1F6DB5;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 6px 14px rgba(31,109,181,.40);text-shadow:0 1px 2px rgba(0,0,0,.2)}
+button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-shadow:inset 0 2px 6px rgba(0,0,0,.2),0 2px 6px rgba(31,109,181,.3)}
+:root[data-theme="dark"] button[data-act="addDrink"].btn.primary{background:linear-gradient(180deg,#4AA8E8,#2373C4);color:#fff}
+/* v120: переключатели — полоска (дорожка) выпуклая, выбранная кнопка впуклая */
+.seg,.seg:not(.in-card){background:linear-gradient(180deg,#FFFFFF,#EEF4F0);border:1px solid #D3E0D7;box-shadow:inset 0 1px 0 #fff,0 2px 3px rgba(20,60,35,.12),0 8px 18px rgba(20,60,35,.16)}
+.seg button.on{background:linear-gradient(180deg,#169447,#35B766);color:#fff;box-shadow:inset 0 4px 9px rgba(0,60,25,.50),inset 0 -1px 0 rgba(255,255,255,.28);text-shadow:0 1px 1px rgba(0,0,0,.25)}
+:root[data-theme="dark"] .seg,:root[data-theme="dark"] .seg:not(.in-card){background:linear-gradient(180deg,#26332B,#1C2620);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 3px rgba(0,0,0,.35),0 8px 18px rgba(0,0,0,.35)}

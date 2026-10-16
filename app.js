@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 115;
+const APP_VERSION = 120;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1690,7 +1690,7 @@ function statusHtml() {
     ${row("Синхронизация данных", sync[0], sync[1])}
     ${row("Gemini (ключ)", geminiKey() ? G : N, geminiKey() ? "Подключён" : "Не подключён")}
     <button type="button" class="btn ghost full" style="margin-top:10px" data-act="checkStatus" ${wait ? "disabled" : ""}>${wait ? "Проверяю…" : "Проверить снова"}</button>
-    <button type="button" class="btn soft full" style="margin-top:8px" data-act="reloadApp">Обновить приложение до актуальной версии</button>
+    <button type="button" class="btn primary full" style="margin-top:8px" data-act="reloadApp">Обновить приложение до актуальной версии</button>
   </div>`;
 }
 
