@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 100;
+const APP_VERSION = 101;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3128,6 +3128,7 @@ function viewHealth() {
   }
   const pDyn = `
     ${weightCard(day)}
+    ${trainDynCardHtml(day)}
     ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true)}
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v))}
     ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "") : ""}`;
@@ -4146,6 +4147,39 @@ function trainPlanData(from, to) {
   const feels = logs.map((l) => Number(l.feel)).filter(Boolean);
   const avg = feels.length ? feels.reduce((p, q) => p + q, 0) / feels.length : 0;
   return { st, logs, feels, avg, pct: st.planned ? Math.round((st.plannedDone / st.planned) * 100) : 0 };
+}
+
+// Динамика: как меняются выполнение, тяжесть и вес резинок по тренировкам плана (отдельно от Apple Health)
+function trainDynCardHtml(day) {
+  if (!state.trainCfg) return "";
+  const today = todayStr();
+  const mon0 = TR.mondayOf(addDays(today, -49));
+  const st = trainStats(mon0, today);
+  const logs = finishedLogs().sort((p, q) => (p.date < q.date ? -1 : 1));
+  if (!st.planned && !logs.length) return "";
+  const weeks = Array.from({ length: 8 }, (_, i) => addDays(mon0, i * 7));
+  const wk = weeks.map((w) => ({ w, x: st.weeks[w] || { plan: 0, done: 0 } }));
+  const bars = wk.map(({ w, x }) => { const p = x.plan ? Math.round((x.done / x.plan) * 100) : 0; return `<div class="col"><div class="${x.plan ? "b" : "b zero"}" style="height:${x.plan ? Math.max(3, p) : 2}%" title="${esc(dateShort(w))}: ${p}%"></div></div>`; }).join("");
+  const labels = `<div class="chart-labels">${wk.map(({ w }) => `<span>${esc(dateShort(w).split(" ")[0])}</span>`).join("")}</div>`;
+  const last = logs.slice(-12);
+  const feelBars = last.map((l) => `<div class="col"><div class="b${Number(l.feel) >= 4 ? " over" : ""}" style="height:${Math.max(8, (Number(l.feel) || 0) * 20)}%" title="${esc(dateShort(l.date))}: ${esc(feelLabel(Number(l.feel)))}"></div></div>`).join("");
+  const bandRows = TR.BAND_COLORS.map((c) => {
+    const pts = logs.filter((l) => l.bands && l.bands[c.id] > 0).map((l) => l.bands[c.id]);
+    if (!pts.length) return "";
+    const seq = pts.filter((v, i) => i === 0 || v !== pts[i - 1]).slice(-5);
+    const up = pts[pts.length - 1] - pts[0];
+    return `<div class="tr-band-r"><i style="--c:${c.hex}"></i><span>${c.t}</span><b>${fmt(pts[pts.length - 1])} кг</b><small>${seq.length > 1 ? seq.map((v) => fmt(v)).join(" → ") + " кг" : "вес не менялся"}${seq.length > 1 ? (up > 0 ? ", растёт" : up < 0 ? ", снижен" : "") : ""}</small></div>`;
+  }).join("");
+  const wDone = wk.filter(({ x }) => x.plan);
+  const cmp = wDone.length >= 2 ? Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan - wDone[0].x.done / wDone[0].x.plan) * 100) : null;
+  return `<section class="card">
+    <div class="card-top"><h2 class="h2">Тренировки по плану</h2><span class="pill">не из Apple Health</span></div>
+    <p class="tr-lab" style="margin-top:0">Выполнение плана по неделям, %</p>
+    <div class="chart tr-feel-chart">${bars}</div>${labels}
+    <p class="chart-note">${cmp === null ? "Динамика появится, когда будет хотя бы две недели с тренировками." : `С первой недели выполнение ${cmp > 0 ? "выросло" : cmp < 0 ? "снизилось" : "не изменилось"}${cmp ? ` на ${Math.abs(cmp)} п.п.` : ""}.`}</p>
+    ${last.length ? `<p class="tr-lab" style="margin-top:14px">Тяжесть последних тренировок</p><div class="chart tr-feel-chart">${feelBars}</div><p class="chart-note">Высота столбика: самочувствие после тренировки (1 — очень легко, 5 — очень тяжело). Красным отмечены тяжёлые.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Тяжесть появится после первой завершённой тренировки.</p>`}
+    ${bandRows ? `<p class="tr-lab" style="margin-top:14px">Вес резинок по цветам</p>${bandRows}` : ""}
+  </section>`;
 }
 
 function trainExRowsHtml(st) {
