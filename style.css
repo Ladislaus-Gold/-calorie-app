@@ -927,3 +927,13 @@ body{background-image:radial-gradient(120% 30% at 50% 0,#E6F5EA 0,transparent 70
 .card{border:1px solid rgba(20,50,32,.04);box-shadow:var(--sh-2)}
 .mini,.stat,.tr-banner{border:0}
 .nav{box-shadow:0 -6px 22px rgba(20,50,32,.12)}
+/* v109: зелёный фон страницы, белые плашки с тенями */
+:root{--bg:#C9E6D2;--sh-2:0 2px 4px rgba(14,70,36,.10),0 12px 28px rgba(14,70,36,.20);--sh-1:0 1px 3px rgba(14,70,36,.12),0 5px 12px rgba(14,70,36,.14)}
+html{background:#C9E6D2}
+body{background-image:linear-gradient(180deg,#B7DEC4 0,#C9E6D2 260px,#C9E6D2 100%);background-repeat:no-repeat}
+.card{border:0;box-shadow:var(--sh-2)}
+.seg:not(.in-card){background:rgba(14,70,36,.12)}
+.nav{background:rgba(255,255,255,.96);box-shadow:0 -6px 22px rgba(14,70,36,.18)}
+:root[data-theme="dark"] html,:root[data-theme="dark"]{background:#0F1A13}
+:root[data-theme="dark"] body{background-image:radial-gradient(120% 40% at 50% 0,#12301D 0,transparent 70%)}
+:root[data-theme="dark"] .nav{background:rgba(21,29,24,.94)}

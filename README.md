@@ -379,3 +379,6 @@ Open Food Facts (лицензия ODbL), справочные таблицы с�
 
 ## v108
 - Фон снова светлый, блоки отделены тенью. Обновить на GitHub: app.js, index.html, style.css.
+
+## v109
+- Зелёный фон, белые плашки с тенями. Обновить на GitHub: app.js, index.html, style.css.
