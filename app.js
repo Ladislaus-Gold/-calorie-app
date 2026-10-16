@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 103;
+const APP_VERSION = 104;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3968,22 +3968,21 @@ function trainCardHtml(day) {
     const { n, k, done } = trainProgress(day, ses);
     const m = trainMinutes(day);
     const from = TR.movedFrom(cfg, day);
-    const groups = [["warm", "Разминка", 32], ["main", "Основная часть", 148], ["cardio", "Кардио", 350], ["cool", "Растяжка", 205]];
-    const MGH = { legs: 215, glutes: 325, back: 262, chest: 8, shoulders: 38, biceps: 172, triceps: 285, core: 95 };
-    const rows = groups.map(([g, t, h]) => {
+    const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
+    const rows = groups.map(([g, t]) => {
       const list = ses.items.filter((i) => i.group === g);
       if (!list.length) return "";
       const kk = list.filter((i) => done[i.key]).length;
       const head = `<p class="tr-g"><b>${t}</b><span>${kk}/${list.length}</span></p>`;
-      if (g !== "main") return `<div class="tr-blk" style="--h:${h}">${head}<div class="tr-in">${list.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
+      if (g !== "main") return `<div class="tr-blk">${head}<div class="tr-in">${list.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
       // Основная часть разделена по группам мышц: Ноги, Ягодицы, Спина, Бицепс, Трицепс, Кор…
       const order = [];
       list.forEach((i) => { if (!order.includes(i.mg)) order.push(i.mg); });
-      return `<div class="tr-blk" style="--h:${h}">${head}` + order.map((mg) => {
+      return `<div class="tr-blk">${head}<div class="tr-subs">` + order.map((mg) => {
         const part = list.filter((i) => i.mg === mg);
         const k = part.filter((i) => done[i.key]).length;
-        return `<div class="tr-mgb" style="--h:${MGH[mg] != null ? MGH[mg] : 150}"><p class="tr-mg"><b>${esc(TR.MG[mg] || "Другое")}</b><span>${k}/${part.length}</span></p><div class="tr-in">${part.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
-      }).join("") + `</div>`;
+        return `<div class="tr-mgb"><p class="tr-mg"><b>${esc(TR.MG[mg] || "Другое")}</b><span>${k}/${part.length}</span></p><div class="tr-in">${part.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
+      }).join("") + `</div></div>`;
     }).join("");
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>

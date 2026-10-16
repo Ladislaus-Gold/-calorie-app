@@ -882,24 +882,26 @@ button.lg-row:active { background: var(--accent-soft); }
 .tr-feel-chart{height:80px}
 .tr-band span small{display:block;font-size:12px;color:var(--muted)}
 
-/* Цветное разделение плана тренировки (v103) */
+
+/* v104: блоки отделены мягкими тенями по всему приложению */
+:root{--sh-1:0 1px 2px rgba(23,60,36,.07),0 4px 12px rgba(23,60,36,.06);--sh-2:0 1px 3px rgba(23,60,36,.08),0 10px 28px rgba(23,60,36,.10)}
+.card{border:1px solid var(--line);box-shadow:var(--sh-2)}
+.mini,.stat,.tr-banner,.entry,.meal,.row-card{box-shadow:var(--sh-1)}
+.stat{border:1px solid rgba(23,60,36,.05)}
+.nav{box-shadow:0 -6px 24px rgba(23,60,36,.10)}
 .tr-list{display:flex;flex-direction:column;gap:14px;margin-top:14px}
-.tr-blk{--c1:hsl(var(--h) 62% 46%);--c2:hsl(calc(var(--h) + 24) 70% 58%);--bg:hsl(var(--h) 70% 96%);border-radius:18px;background:var(--bg);border:1px solid hsl(var(--h) 55% 88%);overflow:hidden}
-.tr-blk>.tr-g{display:flex;justify-content:space-between;align-items:center;margin:0;padding:10px 14px;font-size:13px;letter-spacing:.05em;color:#fff;background:linear-gradient(100deg,var(--c1),var(--c2))}
-.tr-blk>.tr-g span{font-weight:700;background:rgba(255,255,255,.25);border-radius:999px;padding:1px 9px;letter-spacing:0}
-.tr-blk .tr-in{padding:2px 14px 4px}
-.tr-blk .tr-row{border-bottom-color:hsl(var(--h) 40% 86%)}
-.tr-blk .tr-check{background:#fff;border-color:hsl(var(--h) 45% 80%)}
-.tr-blk .tr-row.on .tr-check{background:var(--c1);border-color:var(--c1)}
-.tr-blk .tr-mgb{--c1:hsl(var(--h) 60% 44%);--bg:hsl(var(--h) 80% 95%);margin:10px 10px 0;border-radius:14px;background:var(--bg);border:1px solid hsl(var(--h) 55% 86%);border-left:5px solid var(--c1)}
-.tr-blk .tr-mgb:last-child{margin-bottom:10px}
-.tr-blk .tr-mgb .tr-mg{margin:0;padding:8px 12px 2px;background:none;border-radius:0;color:var(--c1);font-size:14px}
-.tr-blk .tr-mgb .tr-mg span{background:var(--c1);color:#fff;border-radius:999px;padding:0 9px;font-size:12px}
-.tr-blk .tr-mgb .tr-in{padding:0 12px 4px}
-.tr-blk .tr-mgb .tr-row{border-bottom-color:hsl(var(--h) 45% 85%)}
-:root[data-theme="dark"] .tr-blk{--bg:hsl(var(--h) 28% 15%);border-color:hsl(var(--h) 30% 24%)}
-:root[data-theme="dark"] .tr-blk .tr-row{border-bottom-color:hsl(var(--h) 22% 25%)}
-:root[data-theme="dark"] .tr-blk .tr-check{background:transparent;border-color:hsl(var(--h) 25% 38%)}
-:root[data-theme="dark"] .tr-blk .tr-mgb{--c1:hsl(var(--h) 65% 62%);--bg:hsl(var(--h) 30% 19%);border-color:hsl(var(--h) 28% 27%);border-left-color:var(--c1)}
-:root[data-theme="dark"] .tr-blk .tr-mgb .tr-mg span{color:#10201A}
-:root[data-theme="dark"] .tr-blk .tr-mgb .tr-row{border-bottom-color:hsl(var(--h) 22% 28%)}
+.tr-blk{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh-2);overflow:hidden}
+.tr-blk>.tr-g{display:flex;justify-content:space-between;align-items:center;margin:0;padding:11px 14px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-d);background:var(--field);border-bottom:1px solid var(--line)}
+.tr-blk>.tr-g span{letter-spacing:0;background:var(--card);border-radius:999px;padding:1px 9px;box-shadow:var(--sh-1)}
+.tr-blk .tr-in{padding:0 14px}
+.tr-subs{display:flex;flex-direction:column;gap:10px;padding:10px}
+.tr-mgb{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh-1)}
+.tr-mgb .tr-mg{margin:0;padding:8px 12px;background:none;border-bottom:1px solid var(--line-2);border-radius:0;color:var(--text);font-size:14px}
+.tr-mgb .tr-mg span{color:var(--accent-d);font-size:12px;font-weight:700}
+.tr-mgb .tr-in{padding:0 12px}
+:root[data-theme="dark"]{--sh-1:0 1px 2px rgba(0,0,0,.35),0 4px 12px rgba(0,0,0,.28);--sh-2:0 1px 3px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.38)}
+:root[data-theme="dark"] .card{border-color:rgba(255,255,255,.06)}
+:root[data-theme="dark"] .tr-blk,:root[data-theme="dark"] .tr-mgb{border-color:rgba(255,255,255,.07)}
+:root[data-theme="dark"] .tr-blk>.tr-g{background:rgba(255,255,255,.04);border-bottom-color:rgba(255,255,255,.07)}
+:root[data-theme="dark"] .tr-blk>.tr-g span{background:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .tr-mgb .tr-mg{border-bottom-color:rgba(255,255,255,.07)}
