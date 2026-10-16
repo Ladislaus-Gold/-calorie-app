@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 101;
+const APP_VERSION = 103;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -197,7 +197,7 @@ const state = {
   health: [],
   workouts: [],
   drinks: [],
-  fav: [], customDrinks: [],
+  fav: [], customDrinks: [], sharedDrinks: [], drinkdbReady: false, drinkSetReady: false,
   obShown: false,
   ready: { products: false, entries: false, settings: false, water: false, activity: false, drinks: false },
   unsubs: [],
@@ -310,7 +310,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.customDrinks = []; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null; state.trainCfg = null; state.trainLog = [];
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.customDrinks = []; state.sharedDrinks = []; state.drinkdbReady = false; state.drinkSetReady = false; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null; state.trainCfg = null; state.trainLog = [];
 }
 
 function markReady(name) {
@@ -388,8 +388,18 @@ function startData(uid) {
   state.unsubs.push(onSnapshot(doc(db, "users", uid, "settings", "drinks"), (snap) => {
     state.fav = snap.exists() && Array.isArray(snap.data().fav) ? snap.data().fav : [];
     state.customDrinks = snap.exists() && Array.isArray(snap.data().custom) ? snap.data().custom : [];
+    state.drinkSetReady = true;
+    maybeMigrateDrinks();
     render();
   }, (err) => console.warn("Избранные напитки:", err)));
+
+  // Общая база напитков: видят и добавляют все пользователи
+  state.unsubs.push(onSnapshot(collection(db, "drinkdb"), (snap) => {
+    state.sharedDrinks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    state.drinkdbReady = true;
+    maybeMigrateDrinks();
+    render();
+  }, (err) => console.warn("Общая база напитков:", err)));
 
   // Дополнительные штрих-коды упаковок: код -> id продукта (общая база, видна всем)
   // План тренировок: анкета и отметки (отдельно от workouts/activity, в статистику не попадают)
@@ -2266,7 +2276,10 @@ function chooseCardKind(code) {
   });
 }
 function addDrinkCode(id, code) {
-  state.customDrinks = state.customDrinks.map((x) => (x.id === id ? { ...x, bc: [...(Array.isArray(x.bc) ? x.bc : []), String(code).replace(/\D/g, "")] } : x));
+  const c = String(code).replace(/\D/g, "");
+  const sh = (state.sharedDrinks || []).find((x) => x.id === id);
+  if (sh) { updateDoc(doc(db, "drinkdb", id), { bc: [...(Array.isArray(sh.bc) ? sh.bc : []), c].slice(0, 12), updatedAt: serverTimestamp() }).catch(writeFail); return; }
+  state.customDrinks = state.customDrinks.map((x) => (x.id === id ? { ...x, bc: [...(Array.isArray(x.bc) ? x.bc : []), c] } : x));
   saveCustomDrinks();
 }
 // Создание карточки без известного кода: сначала выбор «напиток / продукт»
@@ -2910,7 +2923,50 @@ const cafWarnHtml = (addMg, replaceMg = 0) => cafWarnings(addMg, replaceMg).map(
 const cafToast = (addMg, replaceMg = 0) => { const w = cafWarnings(addMg, replaceMg).filter((x) => x.lv !== "info"); return w.length ? w[0].t : ""; };
 
 // Свои напитки пользователя (хранятся в settings/drinks, поле custom) складываются со справочником
-const customList = () => (state.customDrinks || []).map((x) => ({ id: x.id, n: x.n, h: Number(x.h), c: Number(x.c) || 0, cat: x.cat || "other", a: x.a || "", k: Number(x.k) || 0, p: Number(x.p) || 0, f: Number(x.f) || 0, cb: Number(x.cb) || 0, bc: Array.isArray(x.bc) ? x.bc : [], mine: true }));
+const shapeDrink = (x, mine, by) => ({ id: x.id, n: x.n, h: Number(x.h), c: Number(x.c) || 0, cat: x.cat || "other", a: x.a || "", k: Number(x.k) || 0, p: Number(x.p) || 0, f: Number(x.f) || 0, cb: Number(x.cb) || 0, bc: Array.isArray(x.bc) ? x.bc : [], mine, by: by || "" });
+const customList = () => {
+  const uid = state.user && state.user.uid;
+  const shared = (state.sharedDrinks || []).map((x) => shapeDrink(x, !!uid && x.createdBy === uid, x.createdByName)).sort((p, q) => String(p.n).localeCompare(String(q.n), "ru"));
+  const ids = new Set(shared.map((x) => x.id));
+  // Личные напитки старой версии, пока не перенесены в общую базу
+  const legacy = (state.customDrinks || []).filter((x) => !ids.has(x.id)).map((x) => shapeDrink(x, true, ""));
+  return [...shared, ...legacy];
+};
+// Общая база напитков (drinkdb): запись и удаление карточек
+const drinkData = (it, existingCreatedAt) => ({
+  n: String(it.n).slice(0, 120), h: Number(it.h) || 0, c: Number(it.c) || 0, cat: String(it.cat || "other").slice(0, 20), a: String(it.a || "").slice(0, 40),
+  k: Number(it.k) || 0, p: Number(it.p) || 0, f: Number(it.f) || 0, cb: Number(it.cb) || 0, bc: (Array.isArray(it.bc) ? it.bc : []).filter(Boolean).slice(0, 12).map(String),
+  ...authorFields(), createdAt: existingCreatedAt || serverTimestamp(), updatedAt: serverTimestamp(),
+});
+const saveSharedDrink = (it) => {
+  const cur = (state.sharedDrinks || []).find((x) => x.id === it.id);
+  if (cur && cur.createdBy !== state.user.uid) { toast("Менять карточку может только её автор"); return Promise.resolve(); }
+  return setDoc(doc(db, "drinkdb", it.id), drinkData(it, cur && cur.createdAt)).catch(writeFail);
+};
+const deleteSharedDrink = (id) => deleteDoc(doc(db, "drinkdb", id)).catch(writeFail);
+const newDrinkId = () => "u" + Date.now().toString(36) + state.user.uid.slice(0, 3).toLowerCase();
+// Один раз переносит личные напитки в общую базу (повторы по названию не добавляются, избранное переносится на уже существующий)
+async function maybeMigrateDrinks() {
+  if (!state.drinkdbReady || !state.drinkSetReady || !state.user || state.drinkMigrated === state.user.uid) return;
+  if (!state.customDrinks.length) return;
+  state.drinkMigrated = state.user.uid;
+  try {
+    const have = new Map((state.sharedDrinks || []).map((x) => [fold(x.n), x.id]));
+    const fav = state.fav.slice();
+    for (const x of state.customDrinks) {
+      const key = fold(x.n);
+      if (have.has(key)) {
+        const to = have.get(key), k = fav.indexOf(x.id);
+        if (k >= 0 && to !== x.id) fav[k] = to;
+        continue;
+      }
+      if (state.sharedDrinks.some((s) => s.id === x.id)) continue;
+      await setDoc(doc(db, "drinkdb", x.id), drinkData(shapeDrink(x, true))).catch((e) => console.warn("Перенос напитка", x.n, e));
+      have.set(key, x.id);
+    }
+    await setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { custom: [], fav: [...new Set(fav)] }, { merge: true });
+  } catch (e) { state.drinkMigrated = null; console.warn("Перенос напитков в общую базу:", e); }
+}
 // Штрих-коды напитков хранятся в карточке напитка (bc). Один код не может быть одновременно у напитка и у продукта
 const findDrinkByBarcode = (code) => {
   const k = normBC(code);
@@ -3666,6 +3722,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const removeFromList = () => {
       state.customDrinks = state.customDrinks.filter((x) => x.id !== d.id);
       state.fav = state.fav.filter((x) => x !== d.id);
+      if ((state.sharedDrinks || []).some((x) => x.id === d.id)) deleteSharedDrink(d.id);
       saveCustomDrinks({ fav: state.fav });
     };
     const del = $("#dc-del", ov);
@@ -3700,9 +3757,9 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       if ([p, f, cb].some((x) => x > 100)) { toast("Белки, жиры и углеводы на 100 мл: не больше 100"); return; }
       for (const c of bcs) { const m = bcConflict(c, { drinkId: d.id, productId: from && from.id }); if (m) { toast(m); return; } }
       const cat = catSel.value;
-      const item = { id: isNew ? "u" + Date.now().toString(36) : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs] };
-      state.customDrinks = isNew ? [...state.customDrinks, item] : state.customDrinks.map((x) => (x.id === d.id ? item : x));
-      saveCustomDrinks();
+      const item = { id: isNew ? newDrinkId() : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs] };
+      state.customDrinks = state.customDrinks.filter((x) => x.id !== item.id);
+      saveSharedDrink(item);
       if (from) {
         aliasCodes(from.id).forEach((c) => { if (state.bcOwner[c] === state.user.uid) unlinkBarcode(c); });
         deleteDoc(prodDoc(from.id)).catch(writeFail);
@@ -3801,10 +3858,9 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         const keep = $("#dk-keep", ov);
         if (keep && keep.checked) {
           if (!$("#dk-name", ov).value.trim()) { toast("Введите название напитка"); return; }
-          did = "u" + Date.now().toString(36);
+          did = newDrinkId();
           const item = { id: did, n: r.name, h: r.pct, c: Math.round(((r.caf100 * 240) / 100) * 10) / 10, cat, a: alcLabel, k: r.nutr.kcal || 0, p: 0, f: 0, cb: 0 };
-          state.customDrinks = [...state.customDrinks, item];
-          setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { custom: state.customDrinks }, { merge: true }).catch(writeFail);
+          saveSharedDrink(item);
         }
       }
       const data = { drinkId: existing ? existing.drinkId : did, name: r.name, ml: r.ml, pct: r.pct, caf100: r.caf100, alc: existing ? existing.alc || "" : alcLabel };
@@ -3912,19 +3968,22 @@ function trainCardHtml(day) {
     const { n, k, done } = trainProgress(day, ses);
     const m = trainMinutes(day);
     const from = TR.movedFrom(cfg, day);
-    const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
-    const rows = groups.map(([g, t]) => {
+    const groups = [["warm", "Разминка", 32], ["main", "Основная часть", 148], ["cardio", "Кардио", 350], ["cool", "Растяжка", 205]];
+    const MGH = { legs: 215, glutes: 325, back: 262, chest: 8, shoulders: 38, biceps: 172, triceps: 285, core: 95 };
+    const rows = groups.map(([g, t, h]) => {
       const list = ses.items.filter((i) => i.group === g);
       if (!list.length) return "";
-      if (g !== "main") return `<p class="tr-g">${t}</p>${list.map((i) => trainRowHtml(day, i, done)).join("")}`;
+      const kk = list.filter((i) => done[i.key]).length;
+      const head = `<p class="tr-g"><b>${t}</b><span>${kk}/${list.length}</span></p>`;
+      if (g !== "main") return `<div class="tr-blk" style="--h:${h}">${head}<div class="tr-in">${list.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
       // Основная часть разделена по группам мышц: Ноги, Ягодицы, Спина, Бицепс, Трицепс, Кор…
       const order = [];
       list.forEach((i) => { if (!order.includes(i.mg)) order.push(i.mg); });
-      return `<p class="tr-g">${t}</p>` + order.map((mg) => {
+      return `<div class="tr-blk" style="--h:${h}">${head}` + order.map((mg) => {
         const part = list.filter((i) => i.mg === mg);
         const k = part.filter((i) => done[i.key]).length;
-        return `<p class="tr-mg"><b>${esc(TR.MG[mg] || "Другое")}</b><span>${k}/${part.length}</span></p>${part.map((i) => trainRowHtml(day, i, done)).join("")}`;
-      }).join("");
+        return `<div class="tr-mgb" style="--h:${MGH[mg] != null ? MGH[mg] : 150}"><p class="tr-mg"><b>${esc(TR.MG[mg] || "Другое")}</b><span>${k}/${part.length}</span></p><div class="tr-in">${part.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
+      }).join("") + `</div>`;
     }).join("");
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
@@ -4389,8 +4448,7 @@ const actions = {
     const list = lostDrinks();
     if (!list.length) { toast("Нечего восстанавливать"); return; }
     if (!confirm(`Восстановить напитки (${list.length}): ${list.slice(0, 12).map((d) => d.n).join(", ")}${list.length > 12 ? "…" : ""}?`)) return;
-    state.customDrinks = [...state.customDrinks, ...list];
-    saveCustomDrinks();
+    list.forEach((d) => saveSharedDrink({ ...d, id: d.id || newDrinkId() }));
     toast(`Восстановлено напитков: ${list.length}`);
     render();
   },

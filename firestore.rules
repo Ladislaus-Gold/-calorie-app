@@ -21,6 +21,23 @@ service cloud.firestore {
         && (!('caffeineMg100' in d) || (d.caffeineMg100 is number && d.caffeineMg100 >= 0 && d.caffeineMg100 <= 1000));
     }
 
+    // Проверка напитка общей базы
+    function validDrink(d) {
+      return d.keys().hasOnly(['n', 'h', 'c', 'cat', 'a', 'k', 'p', 'f', 'cb', 'bc',
+                               'createdBy', 'createdByName', 'createdAt', 'updatedAt'])
+        && d.n is string && d.n.size() > 0 && d.n.size() <= 120
+        && d.h is number && d.h >= -400 && d.h <= 200
+        && d.c is number && d.c >= 0 && d.c <= 2400
+        && d.cat is string && d.cat.size() <= 20
+        && d.a is string && d.a.size() <= 40
+        && d.k is number && d.k >= 0 && d.k <= 1000
+        && d.p is number && d.p >= 0 && d.p <= 100
+        && d.f is number && d.f >= 0 && d.f <= 100
+        && d.cb is number && d.cb >= 0 && d.cb <= 100
+        && d.bc is list && d.bc.size() <= 12
+        && d.createdByName is string && d.createdByName.size() <= 60;
+    }
+
     // Личные данные (дневник, цель): видит и меняет только владелец
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
@@ -37,6 +54,23 @@ service cloud.firestore {
         && resource.data.createdBy == request.auth.uid
         && request.resource.data.createdBy == resource.data.createdBy
         && validProduct(request.resource.data);
+      allow delete: if request.auth != null
+        && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Общая база напитков (как и продукты): читают все вошедшие, добавляет любой,
+    // менять и удалять может только автор; добавить штрих-код к чужому напитку может любой
+    match /drinkdb/{drinkId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && validDrink(request.resource.data);
+      allow update: if request.auth != null && (
+        (resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdBy == resource.data.createdBy
+          && validDrink(request.resource.data))
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bc', 'updatedAt'])
+          && request.resource.data.bc is list && request.resource.data.bc.size() <= 12));
       allow delete: if request.auth != null
         && resource.data.createdBy == request.auth.uid;
     }

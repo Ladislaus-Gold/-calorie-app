@@ -881,3 +881,25 @@ button.lg-row:active { background: var(--accent-soft); }
 .tr-bar{grid-template-columns:104px 1fr 28px}
 .tr-feel-chart{height:80px}
 .tr-band span small{display:block;font-size:12px;color:var(--muted)}
+
+/* Цветное разделение плана тренировки (v103) */
+.tr-list{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.tr-blk{--c1:hsl(var(--h) 62% 46%);--c2:hsl(calc(var(--h) + 24) 70% 58%);--bg:hsl(var(--h) 70% 96%);border-radius:18px;background:var(--bg);border:1px solid hsl(var(--h) 55% 88%);overflow:hidden}
+.tr-blk>.tr-g{display:flex;justify-content:space-between;align-items:center;margin:0;padding:10px 14px;font-size:13px;letter-spacing:.05em;color:#fff;background:linear-gradient(100deg,var(--c1),var(--c2))}
+.tr-blk>.tr-g span{font-weight:700;background:rgba(255,255,255,.25);border-radius:999px;padding:1px 9px;letter-spacing:0}
+.tr-blk .tr-in{padding:2px 14px 4px}
+.tr-blk .tr-row{border-bottom-color:hsl(var(--h) 40% 86%)}
+.tr-blk .tr-check{background:#fff;border-color:hsl(var(--h) 45% 80%)}
+.tr-blk .tr-row.on .tr-check{background:var(--c1);border-color:var(--c1)}
+.tr-blk .tr-mgb{--c1:hsl(var(--h) 60% 44%);--bg:hsl(var(--h) 80% 95%);margin:10px 10px 0;border-radius:14px;background:var(--bg);border:1px solid hsl(var(--h) 55% 86%);border-left:5px solid var(--c1)}
+.tr-blk .tr-mgb:last-child{margin-bottom:10px}
+.tr-blk .tr-mgb .tr-mg{margin:0;padding:8px 12px 2px;background:none;border-radius:0;color:var(--c1);font-size:14px}
+.tr-blk .tr-mgb .tr-mg span{background:var(--c1);color:#fff;border-radius:999px;padding:0 9px;font-size:12px}
+.tr-blk .tr-mgb .tr-in{padding:0 12px 4px}
+.tr-blk .tr-mgb .tr-row{border-bottom-color:hsl(var(--h) 45% 85%)}
+:root[data-theme="dark"] .tr-blk{--bg:hsl(var(--h) 28% 15%);border-color:hsl(var(--h) 30% 24%)}
+:root[data-theme="dark"] .tr-blk .tr-row{border-bottom-color:hsl(var(--h) 22% 25%)}
+:root[data-theme="dark"] .tr-blk .tr-check{background:transparent;border-color:hsl(var(--h) 25% 38%)}
+:root[data-theme="dark"] .tr-blk .tr-mgb{--c1:hsl(var(--h) 65% 62%);--bg:hsl(var(--h) 30% 19%);border-color:hsl(var(--h) 28% 27%);border-left-color:var(--c1)}
+:root[data-theme="dark"] .tr-blk .tr-mgb .tr-mg span{color:#10201A}
+:root[data-theme="dark"] .tr-blk .tr-mgb .tr-row{border-bottom-color:hsl(var(--h) 22% 28%)}
