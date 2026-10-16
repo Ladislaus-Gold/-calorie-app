@@ -800,3 +800,48 @@ button.lg-row:active { background: var(--accent-soft); }
 :root[data-theme="dark"] .in-grp.k-good { background: rgba(60, 170, 100, .13); }
 :root[data-theme="dark"] .in-grp .in { border-bottom-color: rgba(255, 255, 255, .08); }
 :root[data-theme="dark"] .in-grp .in-h b { background: rgba(255, 255, 255, .12); }
+
+/* ===== Тренировки по плану ===== */
+.tr-banner{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;border:1px solid var(--line);font:inherit;color:inherit}
+.tr-banner.done{opacity:.85}
+.tr-ban-ic{flex:none;width:40px;height:40px;border-radius:12px;background:var(--accent-soft);color:var(--accent-d);display:grid;place-items:center}
+.tr-ban-ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.tr-ban-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.tr-ban-main b{font-size:16px}
+.tr-ban-main>span:not(.track){font-size:13px;color:var(--muted)}
+.tr-ban-main .track{margin-top:4px}
+.tr-ban-go{flex:none;color:var(--muted-2);width:18px}
+.tr-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px}
+.tr-d{border:1px solid var(--line);background:var(--field);border-radius:12px;padding:8px 0;font:inherit;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.tr-d span{font-size:13px;font-weight:600}
+.tr-d em{height:16px;width:16px;display:grid;place-items:center;font-style:normal}
+.tr-d em i{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.tr-d em svg{width:16px;height:16px;color:var(--accent-d)}
+.tr-d.plan{color:var(--text)}
+.tr-d.today span{text-decoration:underline}
+.tr-d.sel{border-color:var(--accent);background:var(--accent-soft)}
+.tr-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.tr-title{display:block;font-size:16px}
+.tr-meta{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.tr-lab{margin:6px 2px 6px;font-size:13px;color:var(--muted)}
+.tr-times{margin-bottom:12px}
+.tr-g{margin:16px 2px 4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tr-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-2)}
+.tr-row:last-child{border-bottom:0}
+.tr-check{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:transparent;color:transparent;display:grid;place-items:center;cursor:pointer;padding:0}
+.tr-check svg{width:18px;height:18px}
+.tr-row.on .tr-check{background:var(--accent);border-color:var(--accent);color:#fff}
+.tr-row.on .tr-name{text-decoration:line-through;color:var(--muted)}
+.tr-main{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.tr-name{font-weight:600}
+.tr-sub{font-size:13px;color:var(--muted)}
+.tr-go{flex:none;background:none;border:0;color:var(--muted-2);width:24px;padding:0;cursor:pointer}
+.tr-moves{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+.ex-fig{background:var(--field);border:1px solid var(--line);border-radius:14px;padding:6px;margin-bottom:10px}
+.ex-fig svg{display:block;width:100%;height:auto}
+.ex-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.ex-do{margin:0 0 8px;line-height:1.45}
+.ex-note{margin:0 0 8px;font-size:13px;color:var(--muted);line-height:1.45}
+.ex-h{margin:16px 0 6px;font-size:15px}
+.ex-list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.4}
+.ex-bad li::marker{color:var(--red)}

@@ -12,6 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
+import * as TR from "./train.js?v=1";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -72,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 94;
+const APP_VERSION = 95;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -169,6 +170,7 @@ function computePlan(p) {
 }
 
 const state = {
+  trainCfg: null, trainLog: [],
   user: null,
   tab: "diary",
   date: todayStr(),
@@ -308,7 +310,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.customDrinks = []; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null;
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.customDrinks = []; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null; state.trainCfg = null; state.trainLog = [];
 }
 
 function markReady(name) {
@@ -390,6 +392,16 @@ function startData(uid) {
   }, (err) => console.warn("Избранные напитки:", err)));
 
   // Дополнительные штрих-коды упаковок: код -> id продукта (общая база, видна всем)
+  // План тренировок: анкета и отметки (отдельно от workouts/activity, в статистику не попадают)
+  state.unsubs.push(onSnapshot(doc(db, "users", uid, "settings", "training"), (snap) => {
+    state.trainCfg = snap.exists() ? snap.data() : null;
+    render();
+  }, (err) => console.error(err)));
+  state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "trainlog"), where("date", ">=", addDays(todayStr(), -60))), (snap) => {
+    state.trainLog = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    render();
+  }, (err) => console.error(err)));
+
   state.unsubs.push(onSnapshot(collection(db, "barcodes"), (snap) => {
     const m = {}, o = {};
     snap.docs.forEach((d) => { const v = d.data(); if (v && v.productId) { m[d.id] = v.productId; o[d.id] = v.createdBy; } });
@@ -687,6 +699,7 @@ function viewDiary() {
       <button type="button" class="chip-btn" data-act="today">${dateShort(day)}</button>
       <button type="button" class="iconbtn" data-act="nextDay" aria-label="Следующий день">${CHEV_R}</button>`)}
     <section class="card week"><div class="week-row">${weekHtml}</div><p class="streak">${streakText}</p></section>
+    ${trainBannerHtml(day)}
     ${miniTiles(day)}
     <section class="card balance">
       <div class="card-top"><h2 class="h2">Баланс БЖУ</h2><span class="pill">цель ${fmtInt(state.goal)} ккал</span></div>
@@ -3033,6 +3046,7 @@ function viewHealth() {
       </div>
       ${actRows || wktRows ? `<div class="entries flat">${wktRows}${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
+    ${trainCardHtml(day)}
     <section class="card">
       <div class="card-top"><h2 class="h2">Неделя</h2><span class="pill">${fmtInt(wkMin)} из ${wt.minutes} мин</span></div>
       <div class="track"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
@@ -3805,11 +3819,242 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
   else showList();
 }
 
+/* ================= Домашние тренировки: план по анкете ================= */
+// Отметки «выполнено» хранятся отдельно (users/{uid}/trainlog) и не попадают ни в тренировки, ни в отчёты, ни в ИИ-анализ.
+const DUMBBELL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>';
+const trainCfg = () => TR.normCfg(state.trainCfg, todayStr());
+const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
+const trainMinutes = (d) => { const l = trainLogOn(d); return l && Number(l.minutes) > 0 ? Number(l.minutes) : trainCfg().minutes; };
+const trainSession = (d) => (state.trainCfg ? TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d)) : null);
+function trainProgress(d, ses) {
+  const l = trainLogOn(d), done = (l && l.done) || {};
+  return { n: ses.items.length, k: ses.items.filter((i) => done[i.key]).length, done };
+}
+function nextTrainDay(from) {
+  const cfg = trainCfg();
+  for (let i = 1; i <= 21; i++) { const d = addDays(from, i); if (TR.sessionType(cfg, d)) return d; }
+  return null;
+}
+const trainDayName = (d) => `${TR.DAY_NAMES[TR.dowOf(d)]}, ${dateShort(d)}`;
+
+// Плашка в дневнике: «Сегодня тренировка»
+function trainBannerHtml(day) {
+  const ses = trainSession(day);
+  if (!ses) return "";
+  const { n, k } = trainProgress(day, ses);
+  const today = todayStr();
+  const head = k >= n ? "Тренировка выполнена" : day === today ? "Сегодня тренировка" : day < today ? "Тренировка в этот день" : `Тренировка: ${dayLabel(day).toLowerCase()}`;
+  return `<button type="button" class="card tr-banner${k >= n ? " done" : ""}" data-act="goTab" data-tab="health" data-h="train">
+    <span class="tr-ban-ic">${DUMBBELL_SVG}</span>
+    <span class="tr-ban-main"><b>${head}</b><span>${esc(ses.title)} · около ${ses.est} мин · выполнено ${k} из ${n}</span><span class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></span></span>
+    <span class="tr-ban-go">${CHEV_R}</span></button>`;
+}
+
+function trainRowHtml(day, it, done) {
+  const on = !!done[it.key];
+  const sub = it.group === "cardio" || it.group === "warm" ? `${it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}`;
+  return `<div class="tr-row${on ? " on" : ""}">
+    <button type="button" class="tr-check" data-act="trainTick" data-date="${day}" data-key="${esc(it.key)}" aria-pressed="${on}" aria-label="Отметить выполненным">${CHECK}</button>
+    <button type="button" class="tr-main" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}"><span class="tr-name">${esc(it.name)}</span><span class="tr-sub">${esc(sub)}</span></button>
+    <button type="button" class="tr-go" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}" aria-label="Как выполнять">${CHEV_R}</button>
+  </div>`;
+}
+
+// Карточка во вкладке «Здоровье → Тренировки»
+function trainCardHtml(day) {
+  if (!state.trainCfg) {
+    return `<section class="card">
+      <div class="card-top"><h2 class="h2">План тренировок</h2></div>
+      <p class="foot-note" style="margin:0 4px 12px">Составлю план на неделю под ваш инвентарь, время и выбранные дни: разминка, упражнения с рисунками техники, кардио и растяжка. Отметки «выполнено» нужны только вам и в общую статистику тренировок не попадают.</p>
+      <button type="button" class="btn primary full" data-act="trainForm">Заполнить анкету</button>
+    </section>`;
+  }
+  const cfg = trainCfg();
+  const placeName = TR.PLACES.find((p) => p.v === cfg.place).t.toLowerCase();
+  const wk = TR.weekPlan(state.trainCfg, day);
+  const today = todayStr();
+  const strip = wk.map((d) => {
+    let mark = "";
+    if (d.type) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? CHECK : "<i></i>"; }
+    return `<button type="button" class="tr-d${d.type ? " plan" : ""}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="pickDay" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
+  }).join("");
+  const ses = trainSession(day);
+  let body = "";
+  if (ses) {
+    const { n, k, done } = trainProgress(day, ses);
+    const m = trainMinutes(day);
+    const from = TR.movedFrom(cfg, day);
+    const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
+    const rows = groups.map(([g, t]) => {
+      const list = ses.items.filter((i) => i.group === g);
+      return list.length ? `<p class="tr-g">${t}</p>${list.map((i) => trainRowHtml(day, i, done)).join("")}` : "";
+    }).join("");
+    body = `
+      <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
+        <button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button></div>
+      <p class="tr-lab">Сколько времени на тренировку, мин</p>
+      <div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>
+      <div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div>
+      <p class="foot-note" style="margin:8px 2px 0">${k >= n ? "Тренировка выполнена, отличная работа!" : `Выполнено ${k} из ${n}. Нажмите на кружок, когда упражнение сделано, а на название, чтобы увидеть технику.`}</p>
+      <div class="tr-list">${rows}</div>
+      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}`;
+  } else {
+    const nx = nextTrainDay(day);
+    body = `<p class="foot-note" style="margin:4px 4px 12px">${day === today ? "Сегодня" : "В этот день"} по плану отдых.${nx ? ` Ближайшая тренировка: ${esc(trainDayName(nx))}, ${esc(TR.typeShort(TR.sessionType(cfg, nx)).toLowerCase())}.` : ""}</p>
+      <div class="row">${nx ? `<button type="button" class="btn ghost sm" data-act="pickDay" data-date="${nx}">Показать</button>` : ""}<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Позаниматься в этот день</button></div>`;
+  }
+  return `<section class="card">
+    <div class="card-top"><h2 class="h2">План тренировок</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
+    <p class="foot-note" style="margin:-4px 4px 10px">${esc(placeName.charAt(0).toUpperCase() + placeName.slice(1))} · ${cfg.days.map((d) => TR.DAY_SHORT[d]).join(", ")} · от ${TR.TIMES[0]} до ${TR.TIMES[TR.TIMES.length - 1]} минут. Отметки только для вас, в статистику не попадают.</p>
+    <div class="tr-week">${strip}</div>
+    ${body}
+  </section>`;
+}
+
+const pluralSets = (n) => (n === 1 ? "подход" : "подхода");
+function trainDetail(it) {
+  if (it.group === "warm" || it.group === "cardio") return `${it.minutes} мин, ${it.sub}.`;
+  if (it.group === "cool") return `${it.text}. ${it.sub}.`;
+  if (it.reps) return `${it.sets} ${pluralSets(it.sets)} по ${it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`} повторений${it.side ? " на каждую сторону" : ""}, отдых ${it.rest} сек.`;
+  return `${it.sets} ${pluralSets(it.sets)} по ${it.secs[0]}–${it.secs[1]} секунд${it.side ? " на каждую сторону" : ""}, отдых ${it.rest} сек.`;
+}
+
+// Окно упражнения: рисунок «старт и финиш», как выполнять, типичные ошибки
+function openTrainExercise(date, key) {
+  const ses = trainSession(date);
+  const it = ses && ses.items.find((i) => i.key === key);
+  if (!it) return;
+  const ex = TR.EXERCISES[it.id];
+  const cfg = trainCfg();
+  const isDone = () => !!((trainLogOn(date) || {}).done || {})[key];
+  const res = it.vk === "band" || it.vk === "cable"
+    ? `<p class="ex-note">Подберите сопротивление так, чтобы последние 2–3 повторения давались тяжело, но техника не ломалась. Когда верхняя граница диапазона даётся легко, возьмите резинку потяжелее или добавьте паузу внизу.</p>`
+    : it.vk === "db" ? `<p class="ex-note">Вес гантелей подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая.${cfg.dumbbellKg ? ` Ваши гантели: ${fmt(cfg.dumbbellKg)} кг. Если легко, замедлите движение: 3 секунды вниз.` : ""}</p>` : "";
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>${esc(it.name)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="ex-fig">${TR.illustration(it.id, it.vk)}</div>
+    <div class="ex-meta"><span class="pill">${esc(it.vlabel)}</span><span class="pill">${esc(ex.muscles)}</span></div>
+    <p class="ex-do"><b>${esc(trainDetail(it))}</b>${it.cue ? ` ${esc(it.cue)}` : ""}</p>
+    ${res}
+    <h3 class="ex-h">Как выполнять</h3>
+    <ol class="ex-list">${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+    <h3 class="ex-h">Частые ошибки</h3>
+    <ul class="ex-list ex-bad">${ex.mistakes.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
+    <p class="foot-note" style="margin:14px 2px 12px">Рисунки схематичные: слева начало движения, справа конец. При боли в суставах, головокружении или боли в груди остановитесь.</p>
+    <button type="button" class="btn primary full" id="tx-done">${isDone() ? "Снять отметку" : "Отметить выполненным"}</button>`);
+  $("#tx-done", ov).addEventListener("click", () => { actions.trainTick({ date, key }); ov.close(); });
+}
+
+// Анкета: место, дни, время, уровень, инвентарь, ограничения
+function openTrainForm() {
+  const cur = trainCfg();
+  const f = { place: cur.place, days: new Set(cur.days), equip: JSON.parse(JSON.stringify(cur.equip)), minutes: cur.minutes, level: cur.level, limits: new Set(cur.limits), kg: cur.dumbbellKg ? String(cur.dumbbellKg).replace(".", ",") : "" };
+  const ov = openSheet(`<div class="sheet-head"><h2>Анкета тренировок</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="tf-body"></div>`);
+  const body = $("#tf-body", ov);
+  const draw = () => {
+    const eq = new Set(f.equip[f.place]);
+    const list = TR.EQUIP_BY_PLACE[f.place].map((id) => TR.EQUIP.find((e) => e.id === id));
+    const placeHint = { home: "Отметьте, что есть у вас дома.", outdoor: "Отметьте, что вы берёте с собой или что есть на площадке.", gym: "Свободные веса и блоки есть почти в любом зале, отметьте нужное." }[f.place];
+    body.innerHTML = `
+      <p class="foot-note" style="margin:-4px 2px 12px">После сохранения план на неделю соберётся заново. Анкету можно менять в любой момент.</p>
+      <div class="field"><span>Где занимаетесь</span><div class="seg full" data-tf="place">${TR.PLACES.map((p) => `<button type="button" data-v="${p.v}" class="${p.v === f.place ? "on" : ""}">${p.t}</button>`).join("")}</div></div>
+      <div class="field"><span>Дни тренировок</span><div class="chips" data-tf="days" style="margin:0">${TR.DAY_SHORT.map((d, i) => `<button type="button" data-v="${i}" class="chip${f.days.has(i) ? " sel" : " muted"}">${d}</button>`).join("")}</div>
+        <small class="foot-note" id="tf-days-hint" style="margin:2px 4px 0">${f.days.size === 3 ? "Три дня в неделю: хороший ритм, между тренировками остаётся день отдыха." : f.days.size < 3 ? "Можно и меньше, но три раза в неделю даёт заметно больше." : "Следите за самочувствием: между силовыми тренировками нужен отдых."}</small></div>
+      <div class="field"><span>Времени на тренировку, мин</span><div class="chips" data-tf="minutes" style="margin:0">${TR.TIMES.map((t) => `<button type="button" data-v="${t}" class="chip${t === f.minutes ? " sel" : " muted"}">${t}</button>`).join("")}</div>
+        <small class="foot-note" style="margin:2px 4px 0">В любой день время можно поменять прямо в плане, упражнения подстроятся.</small></div>
+      <div class="field"><span>Уровень</span><div class="seg full" data-tf="level">${TR.TRAIN_LEVELS.map((l) => `<button type="button" data-v="${l.v}" class="${l.v === f.level ? "on" : ""}">${l.t}</button>`).join("")}</div></div>
+      <div class="field"><span>Инвентарь · ${placeHint}</span>${list.map((e) => `<label class="check"><input type="checkbox" data-eq="${e.id}" ${eq.has(e.id) ? "checked" : ""}>${esc(e.t)}</label>`).join("")}
+        ${eq.has("dumbbell") ? `<label class="field" style="margin-top:6px"><span>Вес гантелей, кг (необязательно)</span><input id="tf-kg" class="input" inputmode="decimal" value="${esc(f.kg)}" autocomplete="off"></label>` : ""}</div>
+      <div class="field"><span>Есть ограничения? Такие упражнения заменим</span><div class="chips" data-tf="limits" style="margin:0">${TR.LIMITS.map((l) => `<button type="button" data-v="${l.id}" class="chip${f.limits.has(l.id) ? " sel" : " muted"}">${l.t}</button>`).join("")}</div></div>
+      <div class="warn" style="margin:0 0 14px">Это общий ориентир для здоровых взрослых, а не лечебная программа. При болезнях сердца, травмах, беременности и других состояниях согласуйте нагрузку с врачом.</div>
+      <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="tf-save">Сохранить и собрать план</button></div>`;
+  };
+  draw();
+  const toggle = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); };
+  ov.addEventListener("input", (e) => { if (e.target.id === "tf-kg") f.kg = e.target.value; });
+  ov.addEventListener("change", (e) => {
+    const id = e.target.dataset && e.target.dataset.eq;
+    if (!id) return;
+    const arr = new Set(f.equip[f.place]);
+    if (e.target.checked) arr.add(id); else arr.delete(id);
+    f.equip[f.place] = TR.EQUIP.map((x) => x.id).filter((x) => arr.has(x));
+    draw();
+  });
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tf] [data-v]");
+    if (b) {
+      const grp = b.parentElement.dataset.tf, v = b.dataset.v;
+      if (grp === "place") f.place = v;
+      else if (grp === "level") f.level = v;
+      else if (grp === "minutes") f.minutes = Number(v);
+      else if (grp === "days") { const i = Number(v); if (!f.days.has(i) && f.days.size >= 6) return; toggle(f.days, i); }
+      else if (grp === "limits") toggle(f.limits, v);
+      draw();
+      return;
+    }
+    if (e.target.closest("#tf-save")) {
+      if (!f.days.size) { $("#tf-days-hint", ov).textContent = "Выберите хотя бы один день."; return; }
+      const kg = num($("#tf-kg", ov) ? $("#tf-kg", ov).value : f.kg);
+      const mv = {};
+      const keepFrom = addDays(todayStr(), -14);
+      for (const [a, b] of Object.entries(cur.moves || {})) if (a >= keepFrom) mv[a] = b;
+      setDoc(docRef("settings", "training"), {
+        place: f.place, days: [...f.days].sort((a, b) => a - b), equip: f.equip, minutes: f.minutes, level: f.level, limits: [...f.limits],
+        dumbbellKg: Number.isFinite(kg) && f.equip[f.place].includes("dumbbell") ? kg : 0,
+        startedAt: (state.trainCfg && state.trainCfg.startedAt) || todayStr(), moves: mv, updatedAt: serverTimestamp(),
+      }).catch(writeFail);
+      ov.close();
+    }
+  });
+}
+
+// Разовый перенос тренировки на другой день этой недели
+function openTrainMove(day) {
+  const cfg = trainCfg();
+  const wk = TR.weekPlan(state.trainCfg, day);
+  const has = TR.sessionType(cfg, day);
+  const from = TR.movedFrom(cfg, day);
+  let opts = "";
+  if (has) {
+    opts = wk.filter((d) => !d.type).map((d) => `<button type="button" class="btn ghost full" data-from="${day}" data-to="${d.date}">${esc(trainDayName(d.date))}</button>`).join("");
+    if (from) opts = `<button type="button" class="btn primary full" data-from="${day}" data-to="${from}">Вернуть на ${esc(trainDayName(from))}</button>` + opts;
+  } else {
+    opts = wk.filter((d) => d.type).map((d) => `<button type="button" class="btn ghost full" data-from="${d.date}" data-to="${day}">${esc(trainDayName(d.date))}: ${esc(d.title.toLowerCase())}</button>`).join("");
+  }
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>${has ? "Перенести тренировку" : "Позаниматься в этот день"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <p class="foot-note" style="margin:-4px 2px 12px">${has ? "Выберите свободный день этой недели. Перенос действует один раз, расписание в анкете не меняется." : "Выберите тренировку этой недели, которую перенести на этот день. Перенос действует один раз."}</p>
+    <div class="tr-moves">${opts || `<p class="foot-note">На этой неделе нет подходящих дней.</p>`}</div>`);
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-from][data-to]");
+    if (!b) return;
+    const a = b.dataset.from, to = b.dataset.to;
+    const mv = { ...(cfg.moves || {}) };
+    const base = TR.movedFrom(cfg, a) || a;        // исходная дата тренировки по расписанию
+    delete mv[base];
+    if (to !== base) mv[base] = to;
+    updateDoc(docRef("settings", "training"), { moves: mv }).catch(writeFail);
+    state.date = to;
+    ov.close();
+  });
+}
+
 /* ================= Обработчики ================= */
 const actions = {
   prevDay() { if (state.date > FLOOR_DATE) { state.date = addDays(state.date, -1); if (state.date < (state.histFrom || state.liveFrom || "0")) loadHistory(addDays(state.date, -60)); render(); } },
   nextDay() { state.date = addDays(state.date, 1); render(); },
   today() { state.date = todayStr(); render(); },
+  trainForm() { openTrainForm(); },
+  trainOpen(ds) { openTrainExercise(ds.date, ds.key); },
+  trainMove(ds) { openTrainMove(ds.date); },
+  trainTick(ds) {
+    const cur = !!((trainLogOn(ds.date) || {}).done || {})[ds.key];
+    setDoc(docRef("trainlog", ds.date), { date: ds.date, done: { [ds.key]: !cur }, updatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
+  },
+  trainMinutes(ds) {
+    setDoc(docRef("trainlog", ds.date), { date: ds.date, minutes: Number(ds.v), updatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
+  },
+  trainReset(ds) { updateDoc(docRef("trainlog", ds.date), { done: {}, updatedAt: serverTimestamp() }).catch(writeFail); },
   pickDay(ds) { if (ds.date >= FLOOR_DATE) { state.date = ds.date; render(); } },
   addFood(ds) { openAddFood(ds.meal); },
   pickMeal() {
