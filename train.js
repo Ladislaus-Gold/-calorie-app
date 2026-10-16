@@ -903,11 +903,23 @@ export function movedFrom(cfg, date) {
 }
 export const typeShort = (t) => (BLUEPRINT[t] ? BLUEPRINT[t].short : "");
 
+
+// Группа мышц для разделения плана: основная нагрузка упражнения
+export const MG = { legs: "Ноги", glutes: "Ягодицы", back: "Спина", chest: "Грудь", shoulders: "Плечи", biceps: "Бицепс", triceps: "Трицепс", core: "Кор" };
+const MG_OF = {
+  squat: "legs", lunge: "legs", stepup: "legs", calf: "legs",
+  rdl: "glutes", bridge: "glutes", donkey: "glutes",
+  row: "back", bentrow: "back", pulldown: "back", pullup: "back", superman: "back", facepull: "shoulders",
+  curl: "biceps", triext: "triceps", pushdown: "triceps", dips: "triceps",
+  pushup: "chest", chestpress: "chest", floorpress: "chest", shoulderpress: "shoulders",
+  plank: "core", deadbug: "core", crunch: "core", legraise: "core", mtnclimber: "core", birddog: "core",
+};
+
 function itemFor(ex, ctx, group, sets, cardioMin) {
   const v = pickVariant(ex, ctx);
   const prog = Math.min(3, ctx.weeks);
   const adj = { n: -2, m: 0, a: 2 }[ctx.level] || 0;
-  const it = { key: `${group}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, muscles: ex.muscles };
+  const it = { key: `${group}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, muscles: ex.muscles, mg: MG_OF[ex.id] || "" };
   const rest = Math.max(20, (ex.rest || 40) + (ctx.goal === "gain" ? 20 : ctx.goal === "lose" ? -5 : 0));
   if (ex.kind === "cardio") {
     it.minutes = cardioMin;

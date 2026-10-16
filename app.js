@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=1";
+import * as TR from "./train.js?v=2";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 95;
+const APP_VERSION = 96;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3887,7 +3887,16 @@ function trainCardHtml(day) {
     const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
     const rows = groups.map(([g, t]) => {
       const list = ses.items.filter((i) => i.group === g);
-      return list.length ? `<p class="tr-g">${t}</p>${list.map((i) => trainRowHtml(day, i, done)).join("")}` : "";
+      if (!list.length) return "";
+      if (g !== "main") return `<p class="tr-g">${t}</p>${list.map((i) => trainRowHtml(day, i, done)).join("")}`;
+      // Основная часть разделена по группам мышц: Ноги, Ягодицы, Спина, Бицепс, Трицепс, Кор…
+      const order = [];
+      list.forEach((i) => { if (!order.includes(i.mg)) order.push(i.mg); });
+      return `<p class="tr-g">${t}</p>` + order.map((mg) => {
+        const part = list.filter((i) => i.mg === mg);
+        const k = part.filter((i) => done[i.key]).length;
+        return `<p class="tr-mg"><b>${esc(TR.MG[mg] || "Другое")}</b><span>${k}/${part.length}</span></p>${part.map((i) => trainRowHtml(day, i, done)).join("")}`;
+      }).join("");
     }).join("");
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>

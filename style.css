@@ -845,3 +845,9 @@ button.lg-row:active { background: var(--accent-soft); }
 .ex-h{margin:16px 0 6px;font-size:15px}
 .ex-list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.4}
 .ex-bad li::marker{color:var(--red)}
+
+.tr-mg{display:flex;justify-content:space-between;align-items:center;margin:12px 0 2px;padding:4px 10px;border-radius:10px;background:var(--accent-soft);color:var(--accent-d);font-size:13px}
+.tr-mg span{font-weight:600}
+.tr-check svg{opacity:0}
+.tr-row.on .tr-check svg{opacity:1;stroke:#fff}
+.tr-go svg,.tr-ban-go svg{stroke:currentColor}
