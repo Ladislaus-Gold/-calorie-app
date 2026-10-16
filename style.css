@@ -913,3 +913,11 @@ button.lg-row:active { background: var(--accent-soft); }
 :root[data-theme="dark"] .more-btn.red{background:rgba(214,69,69,.16);color:#FF8A8A;border-color:rgba(214,69,69,.35)}
 /* v106: отступ под вкладками «Здоровья» */
 .seg.full.htabs{margin-bottom:16px}
+/* v107: больше контраста между фоном и блоками */
+:root{--bg:#DCE6DF;--line:#CBD8CF;--line-2:#D9E4DC;--sh-1:0 1px 2px rgba(20,50,32,.10),0 4px 12px rgba(20,50,32,.10);--sh-2:0 1px 2px rgba(20,50,32,.10),0 8px 22px rgba(20,50,32,.14)}
+body{background-image:radial-gradient(120% 30% at 50% 0,#EAF4ED 0,transparent 70%)}
+.card{border:1px solid #C6D4CB;box-shadow:var(--sh-2);margin-bottom:16px}
+.mini,.stat,.tr-banner{border:1px solid rgba(20,50,32,.10)}
+.nav{box-shadow:0 -8px 24px rgba(20,50,32,.14)}
+:root[data-theme="dark"] .card{border-color:rgba(255,255,255,.09);box-shadow:var(--sh-2)}
+:root[data-theme="dark"] body{background-image:radial-gradient(120% 40% at 50% 0,#12301D 0,transparent 70%)}
