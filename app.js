@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=3";
+import * as TR from "./train.js?v=4";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 99;
+const APP_VERSION = 100;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4246,7 +4246,7 @@ function openTrainFinish(date) {
   };
   const have = cfg.equip[cfg.place] || [];
   const list = have.map((id) => TR.EQUIP.find((e) => e.id === id)).filter(Boolean);
-  const hasBand = f.used.has("tube") || f.used.has("loop");
+  const eff = (id) => Number(cfg.bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
   const { k, n } = trainProgress(date, ses);
   const ov = openSheet(`<div class="sheet-head"><h2>Завершить тренировку</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="fn-body"></div>`);
   const body = $("#fn-body", ov);
@@ -4259,10 +4259,11 @@ function openTrainFinish(date) {
         <small class="foot-note" style="margin:2px 4px 0">1 — совсем легко, 5 — на пределе.</small></div>
       <div class="field"><span>Какой инвентарь использовали</span>
         ${list.map((e) => `<label class="check"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}>${esc(e.t)}</label>`).join("")}</div>
-      ${band ? `<div class="field"><span>Резинки: отметьте цвета и впишите вес, кг (можно несколько)</span>
+      ${band ? `<div class="field"><span>Резинки: отметьте цвета и поправьте вес, кг (можно несколько)</span>
+        <small class="foot-note" style="margin:0 4px 4px">Вес подставлен по типовому набору из 5 трубок: жёлтая 10, красная 15, синяя 20, зелёная 25, чёрная 30 фунтов (4,5 · 6,8 · 9,1 · 11,3 · 13,6 кг). Точные значения зависят от продавца: поправьте один раз, приложение запомнит.</small>
         ${TR.BAND_COLORS.map((c) => {
           const on = c.id in f.bands;
-          return `<div class="tr-band${on ? " on" : ""}"><button type="button" data-band="${c.id}" class="tr-dot${on ? " on" : ""}" style="--c:${c.hex}" aria-pressed="${on}" aria-label="${c.t}"></button><span>${c.t}</span>${on ? `<input class="input" data-bkg="${c.id}" inputmode="decimal" placeholder="вес, кг" value="${f.bands[c.id] ? esc(String(f.bands[c.id]).replace(".", ",")) : (cfg.bandKg[c.id] ? esc(String(cfg.bandKg[c.id]).replace(".", ",")) : "")}" autocomplete="off">` : ""}</div>`;
+          return `<div class="tr-band${on ? " on" : ""}"><button type="button" data-band="${c.id}" class="tr-dot${on ? " on" : ""}" style="--c:${c.hex}" aria-pressed="${on}" aria-label="${c.t}"></button><span>${c.t}<small>${cfg.bandKg[c.id] ? "ваш вес" : "ориентир"} ${fmt(eff(c.id))} кг</small></span>${on ? `<input class="input" data-bkg="${c.id}" inputmode="decimal" placeholder="вес, кг" value="${f.bands[c.id] ? esc(String(f.bands[c.id]).replace(".", ",")) : esc(String(eff(c.id)).replace(".", ","))}" autocomplete="off">` : ""}</div>`;
         }).join("")}</div>` : ""}
       ${f.used.has("dumbbell") ? `<label class="field"><span>Вес гантелей, кг</span><input id="fn-kg" class="input" inputmode="decimal" value="${esc(String(f.kg).replace(".", ","))}" autocomplete="off"></label>` : ""}
       <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="fn-save" ${f.feel ? "" : "disabled"}>Сохранить итоги</button></div>`;
@@ -4283,7 +4284,7 @@ function openTrainFinish(date) {
     const fb = e.target.closest("[data-feel]");
     if (fb) { f.feel = Number(fb.dataset.feel); draw(); return; }
     const bb = e.target.closest("[data-band]");
-    if (bb) { const c = bb.dataset.band; if (c in f.bands) delete f.bands[c]; else f.bands[c] = Number(cfg.bandKg[c]) || 0; draw(); return; }
+    if (bb) { const c = bb.dataset.band; if (c in f.bands) delete f.bands[c]; else f.bands[c] = eff(c); draw(); return; }
     if (!e.target.closest("#fn-save") || !f.feel) return;
     const kg = num(f.kg);
     const useBand = f.used.has("tube") || f.used.has("loop");
