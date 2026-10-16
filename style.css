@@ -921,3 +921,9 @@ body{background-image:radial-gradient(120% 30% at 50% 0,#EAF4ED 0,transparent 70
 .nav{box-shadow:0 -8px 24px rgba(20,50,32,.14)}
 :root[data-theme="dark"] .card{border-color:rgba(255,255,255,.09);box-shadow:var(--sh-2)}
 :root[data-theme="dark"] body{background-image:radial-gradient(120% 40% at 50% 0,#12301D 0,transparent 70%)}
+/* v108: фон снова светлый, отделение блоков — тенью */
+:root{--bg:#F1F6F2;--line:#E3EBE5;--line-2:#EDF2EE;--sh-1:0 1px 2px rgba(20,50,32,.08),0 4px 10px rgba(20,50,32,.08);--sh-2:0 2px 4px rgba(20,50,32,.07),0 10px 26px rgba(20,50,32,.15)}
+body{background-image:radial-gradient(120% 30% at 50% 0,#E6F5EA 0,transparent 70%)}
+.card{border:1px solid rgba(20,50,32,.04);box-shadow:var(--sh-2)}
+.mini,.stat,.tr-banner{border:0}
+.nav{box-shadow:0 -6px 22px rgba(20,50,32,.12)}
