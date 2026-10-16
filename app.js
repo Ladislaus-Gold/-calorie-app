@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=2";
+import * as TR from "./train.js?v=3";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 96;
+const APP_VERSION = 99;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -397,7 +397,7 @@ function startData(uid) {
     state.trainCfg = snap.exists() ? snap.data() : null;
     render();
   }, (err) => console.error(err)));
-  state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "trainlog"), where("date", ">=", addDays(todayStr(), -60))), (snap) => {
+  state.unsubs.push(onSnapshot(query(collection(db, "users", uid, "trainlog"), where("date", ">=", addDays(todayStr(), -400))), (snap) => {
     state.trainLog = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     render();
   }, (err) => console.error(err)));
@@ -996,6 +996,15 @@ function localInsights(a) {
     if (a.bedN >= 4 && a.bedSd > 60) add("warn", `Время отхода ко сну плавает: в среднем ${minToClock(a.bedAvg)}, разброс около ${fmtInt(a.bedSd)} мин. Регулярный режим улучшает качество сна.`);
     else if (a.bedN >= 2) add("info", `Обычно вы засыпаете около ${minToClock(a.bedAvg)}.`);
   }
+  const tp = trainPlanData(a.days[0], a.days[a.days.length - 1]);
+  if (tp && tp.st.planned) {
+    const sk = tp.st.list.filter((e) => e.plan >= 2 && e.done / e.plan <= 0.5).slice(0, 3).map((e) => e.name.toLowerCase());
+    add(tp.pct >= 80 ? "good" : tp.pct >= 50 ? "warn" : "bad", `План тренировок: выполнено ${tp.st.plannedDone} из ${tp.st.planned} упражнений (${tp.pct}%), завершено тренировок ${tp.st.daysDone} из ${tp.st.days}.${sk.length ? ` Чаще пропускаете: ${sk.join(", ")}.` : ""}`);
+  }
+  if (tp && tp.feels.length >= 2) {
+    const r = Math.round(tp.avg);
+    add(r <= 2 ? "info" : r >= 4 ? "warn" : "good", `Тяжесть тренировок по плану в среднем «${feelLabel(r).toLowerCase()}» (${fmt(Math.round(tp.avg * 10) / 10)} из 5).${r <= 2 ? " Можно брать резинку потяжелее." : r >= 4 ? " Нагрузка тяжёлая: не повышайте вес и следите за восстановлением." : ""}`);
+  }
   return out.map((x, i) => ({ ...x, i })).sort((x, y) => rank[x.kind] - rank[y.kind] || x.i - y.i);
 }
 
@@ -1158,6 +1167,20 @@ function aiPayload(a) {
       силовых_тренировок: a.strengthSessions, минут_всего: a.actTotalMin, активных_дней: a.actDays, минут_в_неделю: r(a.actTotalMin / a.weeks), сожжено_ккал_всего: r(a.actTotalKcal),
       виды: a.actTypes.map((t) => ({ вид: t.name, раз: t.n, мин: t.min, ккал: t.kcal })),
     },
+    тренировки_по_плану_приложения: (() => {
+      const t = trainPlanData(a.days[0], a.days[a.days.length - 1]);
+      if (!t) return "план тренировок в этом периоде не вёлся";
+      const cfg = trainCfg();
+      return {
+        примечание: "Это личный план домашних тренировок из приложения, он НЕ связан с данными Apple Health и не входит в блок нагрузка",
+        место: TR.PLACES.find((p) => p.v === cfg.place).t, дни_недели: cfg.days.map((d) => TR.DAY_SHORT[d]), уровень: (TR.TRAIN_LEVELS.find((l) => l.v === cfg.level) || {}).t,
+        запланировано_тренировок: t.st.days, завершено_тренировок: t.st.daysDone, упражнений_запланировано: t.st.planned, упражнений_выполнено: t.st.plannedDone, выполнено_проц: t.pct,
+        серия_без_пропусков: t.st.streak,
+        тяжесть_по_оценке_1_легко_5_тяжело: t.feels.length ? { средняя: Math.round(t.avg * 10) / 10, оценки_по_тренировкам: t.logs.filter((l) => l.feel).map((l) => [l.date.slice(5), Number(l.feel)]) } : "оценок нет",
+        резинки_и_инвентарь: t.logs.map((l) => [l.date.slice(5), bandsText(l) || null, (l.used || []).length ? l.used.map((id) => (TR.EQUIP.find((e) => e.id === id) || {}).t).filter(Boolean).join(", ") : null]).filter((x) => x[1] || x[2]).slice(-12),
+        упражнения: t.st.list.map((e) => ({ упражнение: e.name, группа_мышц: TR.MG[e.mg] || null, выполнено: e.done, запланировано: e.plan })),
+      };
+    })(),
     данные_с_часов_Apple_Health: a.stepDays || a.hrAvgAll || a.workoutCount ? {
       шагов_в_день_среднее: r(a.stepsAvg), дней_с_данными_о_шагах: a.stepDays,
       средний_пульс_уд_мин: r(a.hrAvgAll), пульс_покоя_уд_мин: r(a.restAvg), тренировок_записано_часами: a.workoutCount,
@@ -1193,6 +1216,7 @@ function aiPrompt(a) {
 - Раздел «Кофеин» пропусти, если кофеина нет.
 - Если данных о сне нет, в разделе «Сон» одной-двумя фразами скажи, что сон в этом периоде не поступил с часов (приложение умеет его принимать через Health Auto Export, метрика Sleep Analysis), и не выдумывай цифры. Если данные есть, оцени длительность (ориентир 7–9 часов), глубокий сон и REM, регулярность времени засыпания и свяжи сон с кофеином, алкоголем, нагрузкой и питанием, если это видно в данных. Не ставь диагнозы.
 - В разделе «Нагрузка» учти шаги, пульс и тренировки с часов Apple Watch, если они есть в данных: оцени уровень активности по шагам и пульсу и скажи, как это согласуется с целью. Пульс покоя и средний пульс не трактуй как диагноз.
+- Если в данных есть «тренировки_по_плану_приложения», в разделе «Нагрузка» отдельным абзацем оцени выполнение плана (процент, серия, какие упражнения и группы мышц пропускаются) и тяжесть (оценки 1–5, резинки и вес): скажи, пора ли усложнять или облегчать. Не смешивай эти данные с данными часов Apple Health: это разные источники.
 - Раздел «Упражнения дома» обязателен: 4–6 конкретных упражнений без оборудования или с минимумом (стул, бутылки с водой, коврик) под цель пользователя, его вес, возраст и текущую нагрузку из данных. Для каждого: название, сколько подходов и повторений (или минут), сколько раз в неделю и короткая подсказка по технике. Если нагрузок в данных нет или мало, начни с лёгкого уровня и укажи, как постепенно усложнять. Учитывай питание: если калорий или белка заметно не хватает, предупреди, что интенсивность лучше повышать позже. Не предлагай экстремальных нагрузок и добавь, что при болях, травмах или хронических заболеваниях стоит посоветоваться с врачом.
 
 Данные (JSON):
@@ -1516,6 +1540,7 @@ function viewReports() {
       <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${wtp.last ? `${fmt(wtp.last.kg)} кг` : "нет записей"}</span></div>
       ${wtp.svg}<p class="chart-note" style="margin:8px 0 0">${wtp.note}</p>
     </section>
+    ${trainReportHtml(days[0], days[n - 1])}
     <section class="card">
       <h2 class="h2">Калории ${by}</h2>
       <div class="chart">${bars}<div class="goal" style="bottom:${goalBottom}%"></div></div>
@@ -3047,6 +3072,7 @@ function viewHealth() {
       ${actRows || wktRows ? `<div class="entries flat">${wktRows}${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
     ${trainCardHtml(day)}
+    ${trainProgressCardHtml()}
     <section class="card">
       <div class="card-top"><h2 class="h2">Неделя</h2><span class="pill">${fmtInt(wkMin)} из ${wt.minutes} мин</span></div>
       <div class="track"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
@@ -3825,7 +3851,7 @@ const DUMBBELL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 
 const trainCfg = () => TR.normCfg(state.trainCfg, todayStr());
 const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
 const trainMinutes = (d) => { const l = trainLogOn(d); return l && Number(l.minutes) > 0 ? Number(l.minutes) : trainCfg().minutes; };
-const trainSession = (d) => (state.trainCfg ? TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d)) : null);
+const trainSession = (d) => (state.trainCfg ? TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), d >= todayStr() ? trainBump() : 0) : null);
 function trainProgress(d, ses) {
   const l = trainLogOn(d), done = (l && l.done) || {};
   return { n: ses.items.length, k: ses.items.filter((i) => done[i.key]).length, done };
@@ -3843,8 +3869,9 @@ function trainBannerHtml(day) {
   if (!ses) return "";
   const { n, k } = trainProgress(day, ses);
   const today = todayStr();
-  const head = k >= n ? "Тренировка выполнена" : day === today ? "Сегодня тренировка" : day < today ? "Тренировка в этот день" : `Тренировка: ${dayLabel(day).toLowerCase()}`;
-  return `<button type="button" class="card tr-banner${k >= n ? " done" : ""}" data-act="goTab" data-tab="health" data-h="train">
+  const fin = k >= n || trainFinished(day);
+  const head = fin ? "Тренировка выполнена" : day === today ? "Сегодня тренировка" : day < today ? "Тренировка в этот день" : `Тренировка: ${dayLabel(day).toLowerCase()}`;
+  return `<button type="button" class="card tr-banner${fin ? " done" : ""}" data-act="goTab" data-tab="health" data-h="train">
     <span class="tr-ban-ic">${DUMBBELL_SVG}</span>
     <span class="tr-ban-main"><b>${head}</b><span>${esc(ses.title)} · около ${ses.est} мин · выполнено ${k} из ${n}</span><span class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></span></span>
     <span class="tr-ban-go">${CHEV_R}</span></button>`;
@@ -3906,6 +3933,7 @@ function trainCardHtml(day) {
       <div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div>
       <p class="foot-note" style="margin:8px 2px 0">${k >= n ? "Тренировка выполнена, отличная работа!" : `Выполнено ${k} из ${n}. Нажмите на кружок, когда упражнение сделано, а на название, чтобы увидеть технику.`}</p>
       <div class="tr-list">${rows}</div>
+      ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button></div>` : `<button type="button" class="btn primary full" style="margin-top:14px" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
       ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}`;
   } else {
     const nx = nextTrainDay(day);
@@ -4048,12 +4076,254 @@ function openTrainMove(day) {
   });
 }
 
+/* ===== Завершение тренировки, анализ выполненного и прогресс ===== */
+const feelLabel = (n) => TR.FEEL[n] || "";
+const trainFinished = (d) => { const l = trainLogOn(d); return !!(l && l.finished); };
+const finishedLogs = () => state.trainLog.filter((l) => l.finished).sort((a, b) => (a.date < b.date ? 1 : -1));
+// Две последние тренировки подряд «легко» → чуть больше повторов, подряд «тяжело» → чуть меньше
+function trainBump() {
+  const f = finishedLogs().slice(0, 2).map((l) => Number(l.feel) || 3);
+  if (f.length < 2) return 0;
+  if (f.every((x) => x <= 2)) return 2;
+  if (f.every((x) => x >= 4)) return -2;
+  return 0;
+}
+const bandsText = (l) => {
+  const parts = TR.BAND_COLORS.filter((c) => l.bands && c.id in l.bands).map((c) => `${c.t.toLowerCase()}${l.bands[c.id] ? ` ${fmt(l.bands[c.id])} кг` : ""}`);
+  if (l.dumbbellKg) parts.push(`гантели ${fmt(l.dumbbellKg)} кг`);
+  return parts.join(", ");
+};
+
+// Что было запланировано и что выполнено за последние 4 недели
+function trainStats(fromArg, toArg) {
+  const cfg = trainCfg(), today = todayStr();
+  const from = fromArg || addDays(today, -41);
+  const end = toArg && toArg < today ? toArg : today;
+  const start = cfg.startedAt > from ? cfg.startedAt : from;
+  const ex = {}, weeks = {};
+  let planned = 0, plannedDone = 0, days = 0, daysDone = 0;
+  for (let d = start; d <= end; d = addDays(d, 1)) {
+    if (!TR.sessionType(cfg, d)) continue;
+    const l = trainLogOn(d), done = (l && l.done) || {};
+    const started = l && (l.finished || Object.values(done).some(Boolean));
+    if (d === today && !started) continue;
+    let keys;
+    if (l && Array.isArray(l.plan)) keys = l.plan;
+    else { const s = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), 0); keys = s ? s.items.map((i) => i.key) : []; }
+    const wk = TR.mondayOf(d);
+    weeks[wk] = weeks[wk] || { plan: 0, done: 0 };
+    days++;
+    if (l && l.finished) daysDone++;
+    for (const key of keys) {
+      const [g, id] = key.split(":");
+      const ok = !!done[key];
+      weeks[wk].plan++; if (ok) weeks[wk].done++;
+      planned++; if (ok) plannedDone++;
+      if (g !== "main" || !TR.EXERCISES[id]) continue;
+      const e = ex[id] = ex[id] || { id, name: TR.EXERCISES[id].name, mg: TR.mgOf(id), plan: 0, done: 0, last: "" };
+      e.plan++; if (ok) { e.done++; if (d > e.last) e.last = d; }
+    }
+  }
+  const list = Object.values(ex);
+  const byMg = {};
+  list.forEach((e) => { (byMg[e.mg] = byMg[e.mg] || []).push(e); });
+  // Серия: подряд идущие запланированные тренировки без пропусков
+  let streak = 0;
+  for (let d = today, n = 0; n < 120 && d >= cfg.startedAt; d = addDays(d, -1), n++) {
+    if (!TR.sessionType(cfg, d)) continue;
+    if (trainFinished(d)) streak++;
+    else if (d !== today) break;
+  }
+  return { planned, plannedDone, days, daysDone, list, byMg, weeks, streak };
+}
+
+// Данные плана тренировок за период для анализа и выводов (отдельно от Apple Health)
+function trainPlanData(from, to) {
+  if (!state.trainCfg) return null;
+  const st = trainStats(from, to);
+  const logs = finishedLogs().filter((l) => l.date >= from && l.date <= to).sort((p, q) => (p.date < q.date ? -1 : 1));
+  if (!st.planned && !logs.length) return null;
+  const feels = logs.map((l) => Number(l.feel)).filter(Boolean);
+  const avg = feels.length ? feels.reduce((p, q) => p + q, 0) / feels.length : 0;
+  return { st, logs, feels, avg, pct: st.planned ? Math.round((st.plannedDone / st.planned) * 100) : 0 };
+}
+
+function trainExRowsHtml(st) {
+  const pct = (x, y) => (y ? Math.round((x / y) * 100) : 0);
+  return Object.keys(TR.MG).filter((m) => st.byMg[m]).map((m) => {
+    const arr = st.byMg[m].sort((p, q) => q.plan - p.plan);
+    const sumP = arr.reduce((t, e) => t + e.plan, 0), sumD = arr.reduce((t, e) => t + e.done, 0);
+    return `<p class="tr-mg"><b>${esc(TR.MG[m])}</b><span>${sumD} из ${sumP}</span></p>` + arr.map((e) => {
+      const p = pct(e.done, e.plan);
+      return `<div class="tr-ex"><div class="tr-ex-top"><span>${esc(e.name)}</span><b class="${p <= 50 ? "low" : ""}">${e.done} из ${e.plan}</b></div><div class="track"><i style="width:${p}%"></i></div>${e.last ? `<small>последний раз ${esc(dateShort(e.last))}</small>` : `<small>ещё не выполняли</small>`}</div>`;
+    }).join("");
+  }).join("");
+}
+
+// Отчёты: выполнение и тяжесть тренировок по плану за выбранный период (отдельно от данных Apple Health)
+function trainReportHtml(from, to) {
+  if (!state.trainCfg) return "";
+  const st = trainStats(from, to);
+  const logs = finishedLogs().filter((l) => l.date >= from && l.date <= to).sort((p, q) => (p.date < q.date ? -1 : 1));
+  if (!st.planned && !logs.length) return "";
+  const pct = (x, y) => (y ? Math.round((x / y) * 100) : 0);
+  const feels = logs.map((l) => Number(l.feel)).filter(Boolean);
+  const avg = feels.length ? feels.reduce((p, q) => p + q, 0) / feels.length : 0;
+  const dist = [1, 2, 3, 4, 5].map((v) => ({ v, n: feels.filter((x) => x === v).length }));
+  const mx = Math.max(1, ...dist.map((x) => x.n));
+  const distRows = dist.map((x) => `<div class="tr-bar"><span>${x.v} ${esc(feelLabel(x.v).toLowerCase())}</span><div class="track"><i style="width:${Math.round((x.n / mx) * 100)}%"></i></div><b>${x.n}</b></div>`).join("");
+  const line = logs.slice(-24).map((l) => `<div class="col"><div class="b${Number(l.feel) >= 4 ? " over" : ""}" style="height:${Math.max(8, (Number(l.feel) || 0) * 20)}%" title="${esc(dateShort(l.date))}: ${esc(feelLabel(Number(l.feel)))}"></div></div>`).join("");
+  const bandRows = TR.BAND_COLORS.map((c) => {
+    const withC = logs.filter((l) => l.bands && c.id in l.bands);
+    if (!withC.length) return "";
+    const kgs = withC.map((l) => l.bands[c.id]).filter((v) => v > 0);
+    const lastKg = kgs.length ? kgs[kgs.length - 1] : 0;
+    return `<div class="tr-band-r"><i style="--c:${c.hex}"></i><span>${c.t}</span><b>${withC.length} ${withC.length === 1 ? "тренировка" : "тренировок"}</b><small>${kgs.length ? (Math.min(...kgs) === Math.max(...kgs) ? `${fmt(lastKg)} кг` : `${fmt(Math.min(...kgs))}–${fmt(Math.max(...kgs))} кг, последний ${fmt(lastKg)} кг`) : "вес не указан"}</small></div>`;
+  }).join("");
+  return `<section class="card">
+    <div class="card-top"><h2 class="h2">Тренировки по плану</h2><span class="pill">не из Apple Health</span></div>
+    <div class="stat-grid">
+      <div class="stat"><b>${st.plannedDone} из ${st.planned}</b><span>упражнений выполнено${st.planned ? `, ${pct(st.plannedDone, st.planned)}%` : ""}</span></div>
+      <div class="stat"><b>${st.daysDone} из ${st.days}</b><span>тренировок завершено</span></div>
+      <div class="stat"><b>${avg ? esc(feelLabel(Math.round(avg))) : "—"}</b><span>тяжесть в среднем${avg ? `, ${fmt(Math.round(avg * 10) / 10)} из 5` : ""}</span></div>
+      <div class="stat"><b>${st.streak}</b><span>серия без пропусков</span></div>
+    </div>
+    ${feels.length ? `<h3 class="ex-h">Тяжесть тренировок</h3>${distRows}<div class="chart tr-feel-chart">${line}</div><p class="chart-note">Высота столбика: самочувствие после тренировки (1 — очень легко, 5 — очень тяжело). Красным отмечены тяжёлые.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Тяжесть появится после того, как вы завершите тренировку и оцените самочувствие.</p>`}
+    ${bandRows ? `<h3 class="ex-h">Резинки по цветам</h3>${bandRows}` : ""}
+    ${st.list.length ? `<h3 class="ex-h">Выполнение упражнений</h3>${trainExRowsHtml(st)}` : ""}
+    <p class="chart-note">Данные только из плана тренировок. С тренировками и активностью из Apple Health они не смешиваются и в их счётчики не входят.</p>
+  </section>`;
+}
+
+function trainProgressCardHtml() {
+  if (!state.trainCfg) return "";
+  const st = trainStats();
+  const fin = finishedLogs();
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const feels = fin.slice(0, 5).map((l) => Number(l.feel)).filter(Boolean);
+  const avg = feels.length ? feels.reduce((a, b) => a + b, 0) / feels.length : 0;
+  const empty = !st.planned && !fin.length;
+  const wkKeys = Object.keys(st.weeks).sort().slice(-6);
+  const wkBars = wkKeys.map((w) => { const x = st.weeks[w]; return `<div class="tr-bar"><span>${esc(dateShort(w))}</span><div class="track"><i style="width:${pct(x.done, x.plan)}%"></i></div><b>${pct(x.done, x.plan)}%</b></div>`; }).join("");
+  const mgRows = trainExRowsHtml(st);
+  const skipped = st.list.filter((e) => e.plan >= 2 && e.done / e.plan <= 0.5).sort((a, b) => a.done / a.plan - b.done / b.plan).slice(0, 4);
+  const last2 = fin.slice(0, 2).map((l) => Number(l.feel) || 3);
+  let tip = "Нагрузка в самый раз: держите ритм.";
+  if (last2.length < 2) tip = "Завершайте тренировки кнопкой «Завершить тренировку»: после двух оценок приложение начнёт подбирать нагрузку.";
+  else if (last2.every((x) => x <= 2)) tip = "Две тренировки подряд были лёгкими. Повторы в следующих планах увеличены, а резинку можно взять потяжелее.";
+  else if (last2.every((x) => x >= 4)) tip = "Две тренировки подряд были тяжёлыми. Повторы в следующих планах уменьшены: держите вес и не торопитесь.";
+  const hist = fin.slice(0, 5).map((l) => `<div class="tr-h"><b>${esc(trainDayName(l.date))}</b><span>${esc(feelLabel(Number(l.feel)))}${bandsText(l) ? ` · ${esc(bandsText(l))}` : ""}</span></div>`).join("");
+  return `<section class="card">
+    <div class="card-top"><h2 class="h2">Прогресс тренировок</h2><span class="pill">4–6 недель</span></div>
+    ${empty ? `<p class="foot-note" style="margin:0 4px">Пока нет данных. Отмечайте упражнения и завершайте тренировки, и здесь появится анализ.</p>` : `
+    <div class="stat-grid">
+      <div class="stat"><b>${st.plannedDone} из ${st.planned}</b><span>упражнений выполнено${st.planned ? `, ${pct(st.plannedDone, st.planned)}%` : ""}</span></div>
+      <div class="stat"><b>${st.daysDone} из ${st.days}</b><span>тренировок завершено</span></div>
+      <div class="stat"><b>${st.streak}</b><span>подряд без пропусков</span></div>
+      <div class="stat"><b>${avg ? esc(feelLabel(Math.round(avg))) : "—"}</b><span>самочувствие в среднем</span></div>
+    </div>
+    <p class="tr-tip">${esc(tip)}</p>
+    ${wkBars ? `<p class="tr-lab" style="margin-top:14px">Выполнено по неделям</p>${wkBars}` : ""}
+    ${skipped.length ? `<p class="tr-skip"><b>Чаще всего пропускаете:</b> ${skipped.map((e) => esc(e.name.toLowerCase())).join(", ")}. Если они не подходят, поменяйте инвентарь или ограничения в анкете.</p>` : ""}
+    ${mgRows ? `<h3 class="ex-h">Какие упражнения выполнены</h3>${mgRows}` : ""}
+    ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}`}
+    <button type="button" class="more-btn" data-act="trainResetAll">Сбросить весь прогресс</button>
+  </section>`;
+}
+
+// Итоги тренировки: самочувствие, инвентарь, резинки по цветам и вес
+function openTrainFinish(date) {
+  const ses = trainSession(date);
+  if (!ses) return;
+  const cfg = trainCfg();
+  const old = trainLogOn(date) || {};
+  const prev = finishedLogs().find((l) => l.date !== date) || {};
+  const f = {
+    feel: Number(old.feel) || 0,
+    used: new Set(Array.isArray(old.used) ? old.used : prev.used || []),
+    bands: { ...(old.finished ? old.bands : prev.bands) || {} },
+    kg: old.dumbbellKg || cfg.dumbbellKg || "",
+  };
+  const have = cfg.equip[cfg.place] || [];
+  const list = have.map((id) => TR.EQUIP.find((e) => e.id === id)).filter(Boolean);
+  const hasBand = f.used.has("tube") || f.used.has("loop");
+  const { k, n } = trainProgress(date, ses);
+  const ov = openSheet(`<div class="sheet-head"><h2>Завершить тренировку</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="fn-body"></div>`);
+  const body = $("#fn-body", ov);
+  const draw = () => {
+    const band = f.used.has("tube") || f.used.has("loop");
+    body.innerHTML = `
+      <p class="foot-note" style="margin:-4px 2px 12px">Выполнено упражнений: ${k} из ${n}. Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p>
+      <div class="field"><span>Как вы себя чувствуете?</span>
+        <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="${f.feel === v ? "on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div>
+        <small class="foot-note" style="margin:2px 4px 0">1 — совсем легко, 5 — на пределе.</small></div>
+      <div class="field"><span>Какой инвентарь использовали</span>
+        ${list.map((e) => `<label class="check"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}>${esc(e.t)}</label>`).join("")}</div>
+      ${band ? `<div class="field"><span>Резинки: отметьте цвета и впишите вес, кг (можно несколько)</span>
+        ${TR.BAND_COLORS.map((c) => {
+          const on = c.id in f.bands;
+          return `<div class="tr-band${on ? " on" : ""}"><button type="button" data-band="${c.id}" class="tr-dot${on ? " on" : ""}" style="--c:${c.hex}" aria-pressed="${on}" aria-label="${c.t}"></button><span>${c.t}</span>${on ? `<input class="input" data-bkg="${c.id}" inputmode="decimal" placeholder="вес, кг" value="${f.bands[c.id] ? esc(String(f.bands[c.id]).replace(".", ",")) : (cfg.bandKg[c.id] ? esc(String(cfg.bandKg[c.id]).replace(".", ",")) : "")}" autocomplete="off">` : ""}</div>`;
+        }).join("")}</div>` : ""}
+      ${f.used.has("dumbbell") ? `<label class="field"><span>Вес гантелей, кг</span><input id="fn-kg" class="input" inputmode="decimal" value="${esc(String(f.kg).replace(".", ","))}" autocomplete="off"></label>` : ""}
+      <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="fn-save" ${f.feel ? "" : "disabled"}>Сохранить итоги</button></div>`;
+  };
+  draw();
+  ov.addEventListener("input", (e) => {
+    const c = e.target.dataset && e.target.dataset.bkg;
+    if (c) { const v = num(e.target.value); f.bands[c] = Number.isFinite(v) ? v : 0; }
+    if (e.target.id === "fn-kg") f.kg = e.target.value;
+  });
+  ov.addEventListener("change", (e) => {
+    const id = e.target.dataset && e.target.dataset.used;
+    if (!id) return;
+    if (e.target.checked) f.used.add(id); else f.used.delete(id);
+    draw();
+  });
+  ov.addEventListener("click", (e) => {
+    const fb = e.target.closest("[data-feel]");
+    if (fb) { f.feel = Number(fb.dataset.feel); draw(); return; }
+    const bb = e.target.closest("[data-band]");
+    if (bb) { const c = bb.dataset.band; if (c in f.bands) delete f.bands[c]; else f.bands[c] = Number(cfg.bandKg[c]) || 0; draw(); return; }
+    if (!e.target.closest("#fn-save") || !f.feel) return;
+    const kg = num(f.kg);
+    const useBand = f.used.has("tube") || f.used.has("loop");
+    const bands = useBand ? f.bands : {};
+    const rec = {
+      date, finished: true, finishedAt: Date.now(), feel: f.feel, used: [...f.used], bands,
+      dumbbellKg: f.used.has("dumbbell") && Number.isFinite(kg) ? kg : 0,
+      plan: ses.items.map((i) => i.key), updatedAt: serverTimestamp(),
+    };
+    // updateDoc заменяет карты bands целиком, а setDoc с merge — только дополняет
+    (trainLogOn(date) ? updateDoc(docRef("trainlog", date), rec) : setDoc(docRef("trainlog", date), rec)).catch(writeFail);
+    const kgs = { ...cfg.bandKg };
+    for (const [c, v] of Object.entries(bands)) if (v > 0) kgs[c] = v;
+    if (JSON.stringify(kgs) !== JSON.stringify(cfg.bandKg)) updateDoc(docRef("settings", "training"), { bandKg: kgs }).catch(writeFail);
+    ov.close();
+  });
+}
+
+async function resetTrainProgress() {
+  if (!confirm("Сбросить весь прогресс тренировок? Отметки выполненных упражнений, итоги и оценки самочувствия будут удалены. Анкета и расписание останутся.")) return;
+  try {
+    const snap = await getDocs(collection(db, "users", state.user.uid, "trainlog"));
+    for (let i = 0; i < snap.docs.length; i += 400) {
+      const b = writeBatch(db);
+      snap.docs.slice(i, i + 400).forEach((d) => b.delete(d.ref));
+      await b.commit();
+    }
+    state.trainLog = [];
+    render();
+  } catch (e) { writeFail(e); }
+}
+
 /* ================= Обработчики ================= */
 const actions = {
   prevDay() { if (state.date > FLOOR_DATE) { state.date = addDays(state.date, -1); if (state.date < (state.histFrom || state.liveFrom || "0")) loadHistory(addDays(state.date, -60)); render(); } },
   nextDay() { state.date = addDays(state.date, 1); render(); },
   today() { state.date = todayStr(); render(); },
   trainForm() { openTrainForm(); },
+  trainFinish(ds) { openTrainFinish(ds.date); },
+  trainResetAll() { resetTrainProgress(); },
   trainOpen(ds) { openTrainExercise(ds.date, ds.key); },
   trainMove(ds) { openTrainMove(ds.date); },
   trainTick(ds) {

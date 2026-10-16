@@ -213,6 +213,14 @@ export function exerciseSvg(ex, vk) {
 
 /* ================= Справочники ================= */
 export const PLACES = [{ v: "home", t: "Дома" }, { v: "outdoor", t: "На улице" }, { v: "gym", t: "В зале" }];
+export const BAND_COLORS = [
+  { id: "yellow", t: "Жёлтая", hex: "#F2C230" },
+  { id: "red", t: "Красная", hex: "#E5484D" },
+  { id: "blue", t: "Синяя", hex: "#3E7BE0" },
+  { id: "green", t: "Зелёная", hex: "#2FA866" },
+  { id: "black", t: "Чёрная", hex: "#2B2B2B" },
+];
+export const FEEL = ["", "Очень легко", "Легко", "Нормально", "Тяжело", "Очень тяжело"];
 export const EQUIP = [
   { id: "mat", t: "Коврик" },
   { id: "tube", t: "Трубчатые эспандеры с ручками" },
@@ -824,6 +832,12 @@ function cleanMoves(m) {
   if (m && typeof m === "object") for (const [a, b] of Object.entries(m)) if (DATE_RE.test(a) && DATE_RE.test(String(b)) && a !== b) out[a] = String(b);
   return out;
 }
+function cleanBands(b) {
+  const o = {};
+  if (b && typeof b === "object") for (const c of BAND_COLORS) { const n = Number(b[c.id]); if (n > 0) o[c.id] = n; }
+  return o;
+}
+export const mgOf = (id) => MG_OF[id] || "";
 export function normCfg(raw, today) {
   const r = raw || {};
   const place = PLACES.some((p) => p.v === r.place) ? r.place : "home";
@@ -839,6 +853,7 @@ export function normCfg(raw, today) {
     level: TRAIN_LEVELS.some((l) => l.v === r.level) ? r.level : "m",
     limits: Array.isArray(r.limits) ? r.limits.filter((x) => LIMITS.some((l) => l.id === x)) : [],
     dumbbellKg: Number(r.dumbbellKg) > 0 ? Number(r.dumbbellKg) : 0,
+    bandKg: cleanBands(r.bandKg),
     startedAt: /^\d{4}-\d{2}-\d{2}$/.test(r.startedAt || "") ? r.startedAt : today,
     moves: cleanMoves(r.moves),
   };
@@ -918,7 +933,7 @@ const MG_OF = {
 function itemFor(ex, ctx, group, sets, cardioMin) {
   const v = pickVariant(ex, ctx);
   const prog = Math.min(3, ctx.weeks);
-  const adj = { n: -2, m: 0, a: 2 }[ctx.level] || 0;
+  const adj = ({ n: -2, m: 0, a: 2 }[ctx.level] || 0) + (ctx.bump || 0);
   const it = { key: `${group}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, muscles: ex.muscles, mg: MG_OF[ex.id] || "" };
   const rest = Math.max(20, (ex.rest || 40) + (ctx.goal === "gain" ? 20 : ctx.goal === "lose" ? -5 : 0));
   if (ex.kind === "cardio") {
@@ -957,13 +972,14 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
 }
 
 // minutesOverride: время на сегодня (15–60); профиль даёт цель (goal)
-export function buildSession(cfgRaw, date, profile, minutesOverride) {
+export function buildSession(cfgRaw, date, profile, minutesOverride, bump) {
   const cfg = normCfg(cfgRaw, date);
   const type = sessionType(cfg, date);
   if (!type) return null;
   const M = Math.max(10, Math.min(90, Number(minutesOverride) > 0 ? Number(minutesOverride) : cfg.minutes));
   const ctx = {
     have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(cfg.limits), goal: (profile && profile.goal) || "maintain",
+    bump: Math.max(-2, Math.min(2, Number(bump) || 0)),
     weeks: Math.max(0, Math.round((pd(mondayOf(date)).getTime() - pd(mondayOf(cfg.startedAt)).getTime()) / 604800000)),
   };
   const bp = BLUEPRINT[type];
