@@ -421,3 +421,6 @@ Open Food Facts (лицензия ODbL), справочные таблицы с�
 
 ## v122
 - Плитки плоские с обводкой. Обновить на GitHub: app.js, index.html, style.css.
+
+## v123
+- Подписи «Жидкость» и «Нагрузка» чёрные. Обновить на GitHub: app.js, index.html, style.css.

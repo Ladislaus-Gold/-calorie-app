@@ -1046,3 +1046,5 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .stat b,.stat-grid .stat b{text-shadow:none}
 :root[data-theme="dark"] .stat,:root[data-theme="dark"] .stat-grid .stat{background:var(--t1);box-shadow:none}
 :root[data-theme="dark"] .stat b,:root[data-theme="dark"] .stat-grid .stat b{text-shadow:none}
+/* v123: подписи «Жидкость» / «Нагрузка» на плитках Дневника чёрные, как заголовки */
+.mini-label{color:var(--text);font-size:13px;font-weight:700}
