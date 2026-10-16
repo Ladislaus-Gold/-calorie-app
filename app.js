@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 104;
+const APP_VERSION = 106;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1484,6 +1484,10 @@ function viewReports() {
   const INS_EM = { bad: "🚨", warn: "💡", good: "✅", info: "ℹ️" };
   const insGroups = ["bad", "warn", "good", "info"].map((k) => ({ k, list: ins.filter((i) => i.kind === k) })).filter((g) => g.list.length);
   const insHtml = `<div class="ins">${insGroups.map((g) => `<div class="in-grp k-${g.k}"><div class="in-h k-${g.k}"><span class="in-em">${INS_EM[g.k]}</span>${INS_LBL[g.k]}<b>${g.list.length}</b></div>${g.list.map((i) => `<div class="in k-${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div>`).join("")}${crossHtml}</div>`;
+  const badGroup = insGroups.find((g) => g.k === "bad");
+  const insBad = badGroup
+    ? `<div class="ins"><div class="in-grp k-bad"><div class="in-h k-bad"><span class="in-em">🚨</span>${INS_LBL.bad}<b>${badGroup.list.length}</b></div>${badGroup.list.map((i) => `<div class="in k-${i.kind}"><i></i><p>${esc(i.text)}</p></div>`).join("")}</div></div>`
+    : `<p class="foot-note" style="margin:0">Ничего тревожного не найдено.</p>`;
   const plan = a.plan;
   const macroRow = (name, avg, target, cls) => `<div class="rk"><div class="rk-top"><span class="rk-n">${name}</span><span class="rk-v">${fmt(avg)} г${target ? ` из ${target} г` : ""}</span></div><div class="rk-bar"><i class="${cls}" style="width:${target ? Math.min(100, (avg / target) * 100) : Math.min(100, avg)}%"></i></div></div>`;
   const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
@@ -1542,9 +1546,9 @@ function viewReports() {
   return head + `
     <section class="card"><h2 class="h2">Все показатели периода</h2>${kpi}</section>
     ${aiCardHtml(days)}
-    <section class="card">
-      <h2 class="h2">Краткие выводы</h2>
-      ${state.insOpen ? `${insHtml}<button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleIns">Скрыть краткие выводы</button>` : `<button type="button" class="btn ghost full" data-act="toggleIns">Показать краткие выводы</button>`}
+    <section class="card${state.insOpen ? "" : " ins-card"}"${state.insOpen ? "" : ` data-act="toggleIns" role="button"`}>
+      <div class="card-top"><h2 class="h2">Краткие выводы</h2><span class="pill">${state.insOpen ? "все" : `${ins.length} · ${ins.filter((i) => i.kind === "bad").length ? "есть важное" : "всё спокойно"}`}</span></div>
+      ${state.insOpen ? `${insHtml}<button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleIns">Скрыть краткие выводы</button>` : `${insBad}<p class="foot-note ins-more">Нажмите на блок, чтобы открыть все выводы ▾</p>`}
     </section>
     <section class="card">
       <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${wtp.last ? `${fmt(wtp.last.kg)} кг` : "нет записей"}</span></div>
@@ -4319,7 +4323,7 @@ function trainProgressCardHtml() {
     ${skipped.length ? `<p class="tr-skip"><b>Чаще всего пропускаете:</b> ${skipped.map((e) => esc(e.name.toLowerCase())).join(", ")}. Если они не подходят, поменяйте инвентарь или ограничения в анкете.</p>` : ""}
     ${mgRows ? `<h3 class="ex-h">Какие упражнения выполнены</h3>${mgRows}` : ""}
     ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}`}
-    <button type="button" class="more-btn" data-act="trainResetAll">Сбросить весь прогресс</button>
+    <button type="button" class="more-btn red" data-act="trainResetAll">Сбросить весь прогресс</button>
   </section>`;
 }
 
