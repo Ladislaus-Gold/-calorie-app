@@ -1028,3 +1028,21 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .seg,.seg:not(.in-card){background:linear-gradient(180deg,#FFFFFF,#EEF4F0);border:1px solid #D3E0D7;box-shadow:inset 0 1px 0 #fff,0 2px 3px rgba(20,60,35,.12),0 8px 18px rgba(20,60,35,.16)}
 .seg button.on{background:linear-gradient(180deg,#169447,#35B766);color:#fff;box-shadow:inset 0 4px 9px rgba(0,60,25,.50),inset 0 -1px 0 rgba(255,255,255,.28);text-shadow:0 1px 1px rgba(0,0,0,.25)}
 :root[data-theme="dark"] .seg,:root[data-theme="dark"] .seg:not(.in-card){background:linear-gradient(180deg,#26332B,#1C2620);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 3px rgba(0,0,0,.35),0 8px 18px rgba(0,0,0,.35)}
+/* v121: всё выпуклое — плитки и выбранная кнопка переключателя; тёмная тема плиток читаемая */
+.stat,.stat-grid .stat{background:linear-gradient(180deg,var(--t2),var(--t1));border:1px solid var(--tb);box-shadow:inset 0 2px 0 rgba(255,255,255,.75),inset 0 -3px 6px var(--ti),0 3px 4px rgba(20,60,35,.12),0 9px 18px var(--ti)}
+.seg button.on{background:linear-gradient(180deg,#3CC468,#169447);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 4px rgba(0,60,25,.30),0 4px 8px rgba(14,110,50,.40);text-shadow:0 1px 1px rgba(0,0,0,.25)}
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+1){--t1:#2C6E45;--t2:#3E8C5C;--tb:#4FA06E;--tc:#E9FFF0;--tm:#C5E8D1;--ti:rgba(0,0,0,.40)}
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+2){--t1:#8A5A12;--t2:#B07A22;--tb:#C99038;--tc:#FFF3D9;--tm:#F3DDB0}
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+3){--t1:#24608F;--t2:#3480B8;--tb:#4A9AD0;--tc:#EAF6FF;--tm:#BFE0F6}
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+4){--t1:#8A3C78;--t2:#AC5497;--tb:#C06DAA;--tc:#FFEAF8;--tm:#F0C6E3}
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+5){--t1:#4E4396;--t2:#6A5DB8;--tb:#8478CC;--tc:#F0ECFF;--tm:#D0C8F4}
+:root[data-theme="dark"] .stat-grid .stat:nth-child(6n+6){--t1:#1F6F66;--t2:#2D9185;--tb:#44A99C;--tc:#E5FFFB;--tm:#B8EBE5}
+:root[data-theme="dark"] .stat b,:root[data-theme="dark"] .stat-grid .stat b{color:var(--tc);text-shadow:0 1px 2px rgba(0,0,0,.35)}
+:root[data-theme="dark"] .stat span,:root[data-theme="dark"] .stat-grid .stat span{color:var(--tm)}
+:root[data-theme="dark"] .stat,:root[data-theme="dark"] .stat-grid .stat{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -3px 6px rgba(0,0,0,.28),0 6px 14px rgba(0,0,0,.45)}
+:root[data-theme="dark"] .seg button.on{background:linear-gradient(180deg,#34B965,#168F44);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,50,20,.35),0 4px 8px rgba(0,0,0,.45)}
+/* v122: плитки плоские: однотонная заливка и обводка, без выпуклости */
+.stat,.stat-grid .stat{background:var(--t2);border:1.5px solid var(--tb);box-shadow:none}
+.stat b,.stat-grid .stat b{text-shadow:none}
+:root[data-theme="dark"] .stat,:root[data-theme="dark"] .stat-grid .stat{background:var(--t1);box-shadow:none}
+:root[data-theme="dark"] .stat b,:root[data-theme="dark"] .stat-grid .stat b{text-shadow:none}
