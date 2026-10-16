@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 110;
+const APP_VERSION = 115;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1882,7 +1882,7 @@ function eanDigit(w, tables) {
       if (err < bestErr) { bestErr = err; best = { d, kind }; }
     }
   }
-  return bestErr < 1.4 ? best : null;
+  return bestErr < 0.9 ? best : null;
 }
 function eanChecksumOk(c) {
   let sum = 0;
@@ -1964,6 +1964,8 @@ function transposeLuma(L) {
 }
 function scanLuma(L, step) {
   const { w, h, y } = L;
+  // Код принимается только если его независимо прочитали минимум 3 разные строки кадра: одиночные ошибочные чтения (с «прошедшей» контрольной суммой) отбрасываются
+  const votes = new Map();
   for (let r = 0; r < h; r += step) {
     for (const off of [0, 1]) {
       // усредняем две-три соседние строки: меньше шума
@@ -1971,7 +1973,11 @@ function scanLuma(L, step) {
       const r1 = Math.min(h - 1, r + off + 1);
       for (let x = 0; x < w; x++) row[x] = (y[r * w + x] + y[r1 * w + x] + y[Math.min(h - 1, r + off) * w + x]) / 3;
       const c = decodeRow(row);
-      if (c) return c;
+      if (c) {
+        const k = (votes.get(c) || 0) + 1;
+        votes.set(c, k);
+        if (k >= 3) return c;
+      }
     }
   }
   return null;
@@ -2054,6 +2060,7 @@ async function startLiveScan(video, onCode, isDone, onStatus, onTorch) {
   const canvas = document.createElement("canvas");
   let busy = false;
   let n = 0;
+  let lastOwn = null, lastOwnN = 0;
   const timer = setInterval(async () => {
     if (busy || isDone() || video.readyState < 2 || !video.videoWidth) return;
     busy = true;
@@ -2069,7 +2076,13 @@ async function startLiveScan(video, onCode, isDone, onStatus, onTorch) {
         dark = t / 256;
         onTorch({ dark: dark < 70 });
       }
-      let code = ownDecodeCanvas(canvas, 4);
+      let code = null;
+      const own = ownDecodeCanvas(canvas, 3);
+      if (own) {
+        // собственный сканер: нужен один и тот же код в двух кадрах подряд (в пределах 6 кадров)
+        if (own === lastOwn && n - lastOwnN <= 6) code = own;
+        lastOwn = own; lastOwnN = n;
+      }
       if (!code && det) {
         try { code = firstCode(await det.detect(canvas)); } catch (e) { diag.lastErr = String((e && e.message) || e).slice(0, 60); }
       }
@@ -3100,7 +3113,7 @@ function viewHealth() {
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
       ${favs.length ? `<p class="foot-note" style="margin:14px 2px 8px">Избранное и частые напитки</p><div class="chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
       ${fluidRows || legacyRow ? `<div class="entries flat">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}` : ""}
-      <div class="caf-card lv-${caf.level}">
+      <div class="caf-card lv-${caf.level}" style="--ch:${Math.round(130 * (1 - Math.min(1, Math.max(0, caf.ratio))))}">
         <div class="caf-top"><span class="caf-t">Кофеин</span><span class="caf-val"><b>${fmtInt(caf.mg)}</b> из ${fmtInt(caf.limit)} мг</span></div>
         <div class="caf-bar"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
         ${caf.msgs.length ? `<ul class="caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}

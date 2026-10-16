@@ -951,3 +951,47 @@ div.warn.over{background:#FF9C9C;color:#6E0F14;box-shadow:var(--sh-1)}
 :root[data-theme="dark"] #view>p,:root[data-theme="dark"] #view>.foot-note{color:#93A399}
 :root[data-theme="dark"] div.warn{background:#5A4410;color:#FFE29A}
 :root[data-theme="dark"] div.warn.over{background:#5E2326;color:#FFC2C4}
+/* v111: границы у плиток, новый цвет блока кофеина, белая кнопка «+ Напиток» */
+.stat{border:1.5px solid var(--tb,rgba(14,70,36,.16))}
+.stat-grid .stat:nth-child(6n+1){--tb:#A9D8B6}
+.stat-grid .stat:nth-child(6n+2){--tb:#EBC77E}
+.stat-grid .stat:nth-child(6n+3){--tb:#9CCBE8}
+.stat-grid .stat:nth-child(6n+4){--tb:#DDA9CF}
+.stat-grid .stat:nth-child(6n+5){--tb:#BFB2EC}
+.stat-grid .stat:nth-child(6n+6){--tb:#98D2CA}
+.mini,.tr-banner{border:1.5px solid rgba(14,70,36,.16)}
+.caf-card{background:#FFF7E3;border:1.5px solid #E6C173;box-shadow:var(--sh-1)}
+.caf-card.lv-ok{background:#F1F9F3;border-color:#A9D8B6}
+.caf-card.lv-over{background:#FDEBEB;border-color:#E79A9A}
+.caf-bar{background:rgba(0,0,0,.08)}
+button[data-act="addDrink"].btn.primary{background:#fff;color:var(--accent-d);border:1.5px solid var(--accent);box-shadow:var(--sh-1)}
+:root[data-theme="dark"] .stat{border-color:rgba(255,255,255,.12)}
+:root[data-theme="dark"] .caf-card{background:#2A2414;border-color:#6B5520}
+:root[data-theme="dark"] .caf-card.lv-ok{background:#16261C;border-color:#2F5A3E}
+:root[data-theme="dark"] .caf-card.lv-over{background:#2E1A1C;border-color:#6B2D31}
+:root[data-theme="dark"] button[data-act="addDrink"].btn.primary{background:#1F2A23;color:#5BD58A}
+
+/* v112: блок кофеина жёлтый, с ростом приёма темнеет и приближается к красному (--ch: оттенок 50 → 6) */
+.caf-card,.caf-card.lv-ok,.caf-card.lv-warn,.caf-card.lv-over{--cf:hsl(var(--ch,50) 78% 36%);background:hsl(var(--ch,50) 88% var(--cs,92%));border:1.5px solid hsl(var(--ch,50) 62% 58%)}
+.caf-card .caf-bar{background:rgba(0,0,0,.10)}
+.caf-card .caf-bar i{background:linear-gradient(90deg,hsl(calc(var(--ch,50) + 8) 85% 55%),hsl(var(--ch,50) 80% 42%))}
+.caf-card .caf-msgs li{color:#4B3A12}
+:root[data-theme="dark"] .caf-card,:root[data-theme="dark"] .caf-card.lv-ok,:root[data-theme="dark"] .caf-card.lv-warn,:root[data-theme="dark"] .caf-card.lv-over{background:hsl(var(--ch,50) 40% 17%);border-color:hsl(var(--ch,50) 45% 32%);--cf:hsl(var(--ch,50) 85% 62%)}
+:root[data-theme="dark"] .caf-card .caf-msgs li{color:#E7D8B0}
+
+/* v113: блок кофеина всегда янтарный; по норме заполняется полоска от зелёного (--ch 130) к красному (--ch 0) */
+.caf-card,.caf-card.lv-ok,.caf-card.lv-warn,.caf-card.lv-over{--cf:#7A4A00;background:#FFE3A3;border:1.5px solid #E0A23A;box-shadow:var(--sh-1)}
+.caf-card .caf-bar{background:rgba(120,70,0,.22);height:10px}
+.caf-card .caf-bar i{background:hsl(var(--ch,130) 75% 40%)}
+.caf-card .caf-val b{color:#6B3F00}
+.caf-card .caf-msgs li{color:#4B3300}
+.caf-card .caf-msgs li::before{background:#B87500}
+.caf-card .caf-more{color:#7A4A00}
+:root[data-theme="dark"] .caf-card,:root[data-theme="dark"] .caf-card.lv-ok,:root[data-theme="dark"] .caf-card.lv-warn,:root[data-theme="dark"] .caf-card.lv-over{background:#3A2C0E;border-color:#8A6420;--cf:#F2C879}
+:root[data-theme="dark"] .caf-card .caf-val b{color:#F6D58E}
+:root[data-theme="dark"] .caf-card .caf-bar{background:rgba(255,255,255,.14)}
+:root[data-theme="dark"] .caf-card .caf-bar i{background:hsl(var(--ch,130) 70% 52%)}
+:root[data-theme="dark"] .caf-card .caf-msgs li,:root[data-theme="dark"] .caf-card .caf-more{color:#F0DDB0}
+/* v114: число кофеина того же цвета, что и полоска */
+.caf-card .caf-val b{color:hsl(var(--ch,130) 80% 30%)}
+:root[data-theme="dark"] .caf-card .caf-val b{color:hsl(var(--ch,130) 75% 62%)}
