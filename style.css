@@ -937,3 +937,17 @@ body{background-image:linear-gradient(180deg,#B7DEC4 0,#C9E6D2 260px,#C9E6D2 100
 :root[data-theme="dark"] html,:root[data-theme="dark"]{background:#0F1A13}
 :root[data-theme="dark"] body{background-image:radial-gradient(120% 40% at 50% 0,#12301D 0,transparent 70%)}
 :root[data-theme="dark"] .nav{background:rgba(21,29,24,.94)}
+/* v110: выбор — белая строка, активный пункт — зелёная кнопка; контраст надписей на зелёном фоне; заметнее предупреждение */
+.seg,.seg:not(.in-card){background:#fff;box-shadow:var(--sh-1);border:1px solid rgba(14,70,36,.08)}
+.seg button{color:#4D6055}
+.seg button.on{background:linear-gradient(180deg,var(--accent-2),var(--accent));color:#fff;box-shadow:0 4px 10px rgba(14,110,50,.35)}
+.overline{color:#0A4D26}
+#view>p,#view>.foot-note,#view>.chart-note{color:#2F4A3A}
+div.warn{background:#FFD66B;color:#5C3A00;font-weight:600;box-shadow:var(--sh-1)}
+div.warn.over{background:#FF9C9C;color:#6E0F14;box-shadow:var(--sh-1)}
+:root[data-theme="dark"] .seg{background:#1F2A23;border-color:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .seg button{color:#93A399}
+:root[data-theme="dark"] .overline{color:#5BD58A}
+:root[data-theme="dark"] #view>p,:root[data-theme="dark"] #view>.foot-note{color:#93A399}
+:root[data-theme="dark"] div.warn{background:#5A4410;color:#FFE29A}
+:root[data-theme="dark"] div.warn.over{background:#5E2326;color:#FFC2C4}
