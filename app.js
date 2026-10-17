@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 131;
+const APP_VERSION = 132;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4042,11 +4042,10 @@ function trainCardHtml(day) {
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
         <button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button></div>
-      <p class="tr-lab">Сколько времени на тренировку, мин</p>
-      <div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>
-      <div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div>
+      <div class="tr-timerow"><span>Время, мин</span><div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div></div>
+      <div class="tr-prog"><div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><b>${k}/${n}</b></div>
       ${ses.bump || (ses.swapped && ses.swapped.length) ? `<p class="foot-note tr-adapt" style="margin:8px 2px 0">Подстроено по вашим итогам:${ses.bump ? ` повторы ${ses.bump > 0 ? "+" : "−"}${Math.abs(ses.bump)}` : ""}${ses.swapped && ses.swapped.length ? `${ses.bump ? "," : ""} ${ses.swapped.map((s) => `вместо «${esc(TR.EXERCISES[s.from].name.toLowerCase())}» — «${esc(TR.EXERCISES[s.to].name.toLowerCase())}»`).join(", ")}` : ""}.</p>` : ""}
-      <p class="foot-note" style="margin:8px 2px 0">${k >= n ? "Тренировка выполнена, отличная работа!" : `Выполнено ${k} из ${n}. Нажмите на кружок, когда упражнение сделано, а на название, чтобы увидеть технику.`}</p>
+      ${k >= n ? `<p class="foot-note" style="margin:8px 2px 0">Тренировка выполнена, отличная работа!</p>` : ""}
       <div class="tr-list">${rows}</div>
       ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button></div>` : `<button type="button" class="btn primary full" style="margin-top:14px" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
       ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}`;
@@ -4059,10 +4058,10 @@ function trainCardHtml(day) {
   const open = !!state.trainDayOpen;
   return `<section class="card">
     <div class="card-top"><h2 class="h2${ses ? " tr-tog" : ""}"${ses ? ` data-act="trainDayTog" role="button" aria-expanded="${open}"` : ""}>План тренировок${ses ? `<span class="meal-chev${open ? " open" : ""}">›</span>` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
-    <p class="foot-note" style="margin:-4px 4px 10px">${esc(placeName.charAt(0).toUpperCase() + placeName.slice(1))} · ${cfg.days.map((d) => TR.DAY_SHORT[d]).join(", ")} · от ${TR.TIMES[0]} до ${TR.TIMES[TR.TIMES.length - 1]} минут. Отметки только для вас, в статистику не попадают.</p>
+    <p class="foot-note" style="margin:-4px 4px 10px">${esc(placeName.charAt(0).toUpperCase() + placeName.slice(1))} · ${cfg.days.map((d) => TR.DAY_SHORT[d]).join(", ")} · ${TR.TIMES[0]}–${TR.TIMES[TR.TIMES.length - 1]} мин</p>
     <div class="tr-week">${strip}</div>
     ${ses && !open ? sum : ""}
-    ${ses ? `<p class="foot-note tr-more">${open ? "Нажмите на «План тренировок» или на стрелку, чтобы свернуть ▴" : "Нажмите на «План тренировок» или на стрелку, чтобы раскрыть план ▾"}</p>` : ""}
+    ${ses && !open ? `<p class="foot-note tr-more">Нажмите на «План тренировок» или на стрелку, чтобы раскрыть план ▾</p>` : ""}
     ${ses && !open ? "" : body}
   </section>`;
 }

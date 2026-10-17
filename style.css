@@ -1086,3 +1086,12 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .tr-sum b{font-size:16px}
 .tr-sum span{font-size:13px;color:var(--muted)}
 .tr-more{margin:8px 4px 4px;text-align:center}
+
+/* v132: план тренировки компактнее: время в одну строку, прогресс рядом с полоской, без длинных пояснений */
+.tr-timerow{display:flex;align-items:center;gap:10px;margin:2px 0 10px}
+.tr-timerow>span{font-size:13px;color:var(--muted);white-space:nowrap}
+.tr-timerow .tr-times{margin:0;flex-wrap:nowrap;gap:6px}
+.tr-timerow .chip{min-width:0;padding-left:11px;padding-right:11px}
+.tr-prog{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.tr-prog .track{flex:1;margin:0}
+.tr-prog b{font-size:13px;color:var(--muted);font-weight:700}
