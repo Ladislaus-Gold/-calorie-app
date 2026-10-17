@@ -1079,3 +1079,10 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 
 /* v130: стрелка сворачивания плана тренировок: такая же, как у приёмов пищи в Дневнике (просто «›» рядом с названием) */
 .h2 .tr-chev{border:0;background:none;box-shadow:none;padding:0 4px;margin-left:8px;font:inherit;font-weight:400;font-size:inherit;color:var(--muted);cursor:pointer;line-height:1;-webkit-tap-highlight-color:transparent}
+
+/* v131: «План тренировок» раскрывается по нажатию на название или стрелку */
+.h2.tr-tog{cursor:pointer;-webkit-tap-highlight-color:transparent;flex:1}
+.tr-sum{margin:12px 2px 0;display:flex;flex-direction:column;gap:2px}
+.tr-sum b{font-size:16px}
+.tr-sum span{font-size:13px;color:var(--muted)}
+.tr-more{margin:8px 4px 4px;text-align:center}
