@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 127;
+const APP_VERSION = 128;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -181,7 +181,7 @@ const state = {
   repCustom: null,
   ai: { busy: false, error: "", detail: "", step: "" },
   aiLast: null,
-  insOpen: false, trainOpen: false, trainRepOpen: false,
+  insOpen: false, trainOpen: false, trainRepOpen: false, trainDayHidden: false,
   status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
   mealOpen: {},
@@ -4015,7 +4015,7 @@ function trainCardHtml(day) {
   const strip = wk.map((d) => {
     let mark = "";
     if (d.type) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? CHECK : "<i></i>"; }
-    return `<button type="button" class="tr-d${d.type ? " plan" : ""}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="pickDay" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
+    return `<button type="button" class="tr-d${d.type ? " plan" : ""}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="trainDayTap" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
   }).join("");
   const ses = trainSession(day);
   let body = "";
@@ -4042,6 +4042,7 @@ function trainCardHtml(day) {
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
         <button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button></div>
+      ${state.trainDayHidden ? `<div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><p class="foot-note" style="margin:8px 2px 0">Выполнено ${k} из ${n}. Нажмите на выбранный день или на кнопку, чтобы развернуть план.</p><button type="button" class="btn ghost full" style="margin-top:12px" data-act="trainDayTog">Развернуть план ▾</button>` : `
       <p class="tr-lab">Сколько времени на тренировку, мин</p>
       <div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>
       <div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div>
@@ -4049,7 +4050,8 @@ function trainCardHtml(day) {
       <p class="foot-note" style="margin:8px 2px 0">${k >= n ? "Тренировка выполнена, отличная работа!" : `Выполнено ${k} из ${n}. Нажмите на кружок, когда упражнение сделано, а на название, чтобы увидеть технику.`}</p>
       <div class="tr-list">${rows}</div>
       ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button></div>` : `<button type="button" class="btn primary full" style="margin-top:14px" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
-      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}`;
+      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}
+      <button type="button" class="btn ghost full" style="margin-top:12px" data-act="trainDayTog">Свернуть план ▴</button>`}`;
   } else {
     const nx = nextTrainDay(day);
     body = `<p class="foot-note" style="margin:4px 4px 12px">${day === today ? "Сегодня" : "В этот день"} по плану отдых.${nx ? ` Ближайшая тренировка: ${esc(trainDayName(nx))}, ${esc(TR.typeShort(TR.sessionType(cfg, nx)).toLowerCase())}.` : ""}</p>
@@ -4633,6 +4635,8 @@ const actions = {
   toggleWk(ds) { state.openWks[ds.k] = !state.openWks[ds.k]; render(); },
   openDay(ds) { state.date = ds.d; state.tab = "diary"; render(); const v = $("#view"); if (v) v.scrollTop = 0; },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
+  trainDayTog() { state.trainDayHidden = !state.trainDayHidden; render(); },
+  trainDayTap(ds) { if (ds.date === state.date) { state.trainDayHidden = !state.trainDayHidden; render(); } else { state.trainDayHidden = false; actions.pickDay(ds); } },
   toggleTrain() { state.trainOpen = !state.trainOpen; render(); },
   toggleTrainRep() { state.trainRepOpen = !state.trainRepOpen; render(); },
   checkStatus() { checkStatus(true); },
