@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 137;
+const APP_VERSION = 138;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2720,6 +2720,7 @@ function openEditEntry(entry) {
     <label class="field"><span>Приём пищи</span><select id="ee-meal" class="input">${mealOptions(entry.meal)}</select></label>
     <label class="field"><span>${entry.drink ? "Объём, мл" : "Вес, г"}</span><input id="ee-g" class="input big" inputmode="decimal" value="${String(entry.grams).replace(".", ",")}" autocomplete="off"></label>
     <div class="preview" id="ee-prev"></div>
+    <button type="button" class="btn ghost full" id="ee-copy" style="margin-bottom:12px">Копировать запись</button>
     <div class="row"><button type="button" class="btn danger" id="ee-del">Удалить</button><button type="button" class="btn primary grow" id="ee-save">Сохранить</button></div>`);
   const input = $("#ee-g", ov);
   const oldCaf = entry.drink ? (Number(entry.grams) * Number(entry.drink.caf100)) / 100 : 0;
@@ -2733,11 +2734,48 @@ function openEditEntry(entry) {
     updateDoc(docRef("entries", entry.id), { grams, meal: $("#ee-meal", ov).value, per100: p100, ...calc(p100, grams) }).catch(writeFail);
     ov.close();
   });
+  $("#ee-copy", ov).addEventListener("click", () => openCopyEntry(entry, p100, num(input.value) > 0 ? num(input.value) : entry.grams, $("#ee-meal", ov).value));
   $("#ee-del", ov).addEventListener("click", () => {
     if (!confirm(`Удалить «${entry.name}» из дневника?`)) return;
     deleteDoc(docRef("entries", entry.id)).catch(writeFail);
     ov.close();
     toast("Удалено");
+  });
+}
+
+/* ----- Копирование записи дневника: другой день, приём пищи и вес ----- */
+function openCopyEntry(entry, p100, grams0, meal0) {
+  const today = todayStr();
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Копировать запись</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="picked"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>
+    <div class="field"><span>Куда скопировать: день</span>
+      <div class="chips" style="margin:0 0 8px"><button type="button" class="chip" data-cpd="${today}">Сегодня</button><button type="button" class="chip" data-cpd="${addDays(today, -1)}">Вчера</button><button type="button" class="chip" data-cpd="${state.date}">Тот же день</button></div>
+      <input id="cp-date" class="input" type="date" value="${esc(state.date)}" min="${FLOOR_DATE}"></div>
+    <label class="field"><span>Приём пищи</span><select id="cp-meal" class="input">${mealOptions(meal0)}</select></label>
+    <label class="field"><span>${entry.drink ? "Объём, мл" : "Вес, г"}</span><input id="cp-g" class="input big" inputmode="decimal" value="${esc(String(grams0).replace(".", ","))}" autocomplete="off"></label>
+    <div class="preview" id="cp-prev"></div>
+    <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="cp-ok">Копировать</button></div>`);
+  const inp = $("#cp-g", ov), dt = $("#cp-date", ov);
+  const upd = () => { $("#cp-prev", ov).innerHTML = previewHtml(p100, num(inp.value), entry.drink || null, 0); };
+  upd();
+  inp.addEventListener("input", upd);
+  ov.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-cpd]");
+    if (c) { dt.value = c.dataset.cpd; }
+  });
+  $("#cp-ok", ov).addEventListener("click", () => {
+    const grams = num(inp.value), date = dt.value;
+    if (!(grams > 0)) { toast("Введите вес"); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < FLOOR_DATE) { toast("Выберите день"); return; }
+    const meal = $("#cp-meal", ov).value;
+    addDoc(colRef("entries"), {
+      date, meal, productId: entry.productId || "", name: entry.name, brand: entry.brand || "",
+      grams, per100: p100, ...calc(p100, grams), ...(entry.drink ? { drink: entry.drink } : {}), createdAt: serverTimestamp(),
+    }).catch(writeFail);
+    document.querySelectorAll(".overlay").forEach((o) => o.close && o.close());
+    if (date !== state.date) { state.date = date; render(); }
+    toast(`Скопировано: ${dayLabel(date).toLowerCase()}`);
   });
 }
 
