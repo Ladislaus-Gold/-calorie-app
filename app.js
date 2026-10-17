@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 126;
+const APP_VERSION = 127;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -181,7 +181,7 @@ const state = {
   repCustom: null,
   ai: { busy: false, error: "", detail: "", step: "" },
   aiLast: null,
-  insOpen: false, trainOpen: false,
+  insOpen: false, trainOpen: false, trainRepOpen: false,
   status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
   mealOpen: {},
@@ -4383,16 +4383,20 @@ function trainReportHtml(from, to) {
   }).join("");
   return `<section class="card">
     <div class="card-top"><h2 class="h2">Тренировки по плану</h2><span class="pill">не из Apple Health</span></div>
+    <div class="tr-tiles" data-act="toggleTrainRep" role="button" aria-expanded="${!!state.trainRepOpen}">
     <div class="stat-grid">
       <div class="stat"><b>${st.plannedDone} из ${st.planned}</b><span>упражнений выполнено${st.planned ? `, ${pct(st.plannedDone, st.planned)}%` : ""}</span></div>
       <div class="stat"><b>${st.daysDone} из ${st.days}</b><span>тренировок завершено</span></div>
       <div class="stat"><b>${avg ? esc(feelLabel(Math.round(avg))) : "—"}</b><span>тяжесть в среднем${avg ? `, ${fmt(Math.round(avg * 10) / 10)} из 5` : ""}</span></div>
       <div class="stat"><b>${st.streak}</b><span>серия без пропусков</span></div>
     </div>
-    ${feels.length ? `<h3 class="ex-h">Тяжесть тренировок</h3>${distRows}<div class="chart tr-feel-chart">${line}</div><p class="chart-note">Высота столбика: самочувствие после тренировки (1 — очень легко, 5 — очень тяжело). Красным отмечены тяжёлые.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Тяжесть появится после того, как вы завершите тренировку и оцените самочувствие.</p>`}
+    <p class="foot-note tr-more">${state.trainRepOpen ? "Нажмите на плашки, чтобы свернуть ▴" : "Нажмите на плашки, чтобы открыть подробности ▾"}</p>
+    </div>
+    ${!state.trainRepOpen ? "" : `${feels.length ? `<h3 class="ex-h">Тяжесть тренировок</h3>${distRows}<div class="chart tr-feel-chart">${line}</div><p class="chart-note">Высота столбика: самочувствие после тренировки (1 — очень легко, 5 — очень тяжело). Красным отмечены тяжёлые.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Тяжесть появится после того, как вы завершите тренировку и оцените самочувствие.</p>`}
     ${bandRows ? `<h3 class="ex-h">Резинки по цветам</h3>${bandRows}` : ""}
     ${st.list.length ? `<h3 class="ex-h">Выполнение упражнений</h3>${trainExRowsHtml(st)}` : ""}
     <p class="chart-note">Данные только из плана тренировок. С тренировками и активностью из Apple Health они не смешиваются и в их счётчики не входят.</p>
+    <button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleTrainRep">Свернуть</button>`}
   </section>`;
 }
 
@@ -4630,6 +4634,7 @@ const actions = {
   openDay(ds) { state.date = ds.d; state.tab = "diary"; render(); const v = $("#view"); if (v) v.scrollTop = 0; },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
   toggleTrain() { state.trainOpen = !state.trainOpen; render(); },
+  toggleTrainRep() { state.trainRepOpen = !state.trainRepOpen; render(); },
   checkStatus() { checkStatus(true); },
   async reloadApp() {
     try {
