@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 128;
+const APP_VERSION = 130;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4042,7 +4042,7 @@ function trainCardHtml(day) {
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
         <button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button></div>
-      ${state.trainDayHidden ? `<div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><p class="foot-note" style="margin:8px 2px 0">Выполнено ${k} из ${n}. Нажмите на выбранный день или на кнопку, чтобы развернуть план.</p><button type="button" class="btn ghost full" style="margin-top:12px" data-act="trainDayTog">Развернуть план ▾</button>` : `
+      ${state.trainDayHidden ? `<div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><p class="foot-note" style="margin:8px 2px 0">Выполнено ${k} из ${n}.</p>` : `
       <p class="tr-lab">Сколько времени на тренировку, мин</p>
       <div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>
       <div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div>
@@ -4050,15 +4050,14 @@ function trainCardHtml(day) {
       <p class="foot-note" style="margin:8px 2px 0">${k >= n ? "Тренировка выполнена, отличная работа!" : `Выполнено ${k} из ${n}. Нажмите на кружок, когда упражнение сделано, а на название, чтобы увидеть технику.`}</p>
       <div class="tr-list">${rows}</div>
       ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button></div>` : `<button type="button" class="btn primary full" style="margin-top:14px" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
-      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}
-      <button type="button" class="btn ghost full" style="margin-top:12px" data-act="trainDayTog">Свернуть план ▴</button>`}`;
+      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}`}`;
   } else {
     const nx = nextTrainDay(day);
     body = `<p class="foot-note" style="margin:4px 4px 12px">${day === today ? "Сегодня" : "В этот день"} по плану отдых.${nx ? ` Ближайшая тренировка: ${esc(trainDayName(nx))}, ${esc(TR.typeShort(TR.sessionType(cfg, nx)).toLowerCase())}.` : ""}</p>
       <div class="row">${nx ? `<button type="button" class="btn ghost sm" data-act="pickDay" data-date="${nx}">Показать</button>` : ""}<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Позаниматься в этот день</button></div>`;
   }
   return `<section class="card">
-    <div class="card-top"><h2 class="h2">План тренировок</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
+    <div class="card-top"><h2 class="h2">План тренировок${ses ? `<button type="button" class="meal-chev tr-chev${state.trainDayHidden ? "" : " open"}" data-act="trainDayTog" aria-label="${state.trainDayHidden ? "Развернуть план" : "Свернуть план"}" aria-expanded="${!state.trainDayHidden}">›</button>` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
     <p class="foot-note" style="margin:-4px 4px 10px">${esc(placeName.charAt(0).toUpperCase() + placeName.slice(1))} · ${cfg.days.map((d) => TR.DAY_SHORT[d]).join(", ")} · от ${TR.TIMES[0]} до ${TR.TIMES[TR.TIMES.length - 1]} минут. Отметки только для вас, в статистику не попадают.</p>
     <div class="tr-week">${strip}</div>
     ${body}
@@ -4636,7 +4635,7 @@ const actions = {
   openDay(ds) { state.date = ds.d; state.tab = "diary"; render(); const v = $("#view"); if (v) v.scrollTop = 0; },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
   trainDayTog() { state.trainDayHidden = !state.trainDayHidden; render(); },
-  trainDayTap(ds) { if (ds.date === state.date) { state.trainDayHidden = !state.trainDayHidden; render(); } else { state.trainDayHidden = false; actions.pickDay(ds); } },
+  trainDayTap(ds) { if (ds.date !== state.date) { state.trainDayHidden = false; actions.pickDay(ds); } },
   toggleTrain() { state.trainOpen = !state.trainOpen; render(); },
   toggleTrainRep() { state.trainRepOpen = !state.trainRepOpen; render(); },
   checkStatus() { checkStatus(true); },

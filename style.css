@@ -1076,3 +1076,6 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .tr-tiles{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .tr-tiles .tr-more{margin:8px 4px 4px;text-align:center}
 .tr-adapt{color:var(--t2,inherit)}
+
+/* v130: стрелка сворачивания плана тренировок: такая же, как у приёмов пищи в Дневнике (просто «›» рядом с названием) */
+.h2 .tr-chev{border:0;background:none;box-shadow:none;padding:0 4px;margin-left:8px;font:inherit;font-weight:400;font-size:inherit;color:var(--muted);cursor:pointer;line-height:1;-webkit-tap-highlight-color:transparent}
