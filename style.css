@@ -1113,3 +1113,11 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .tr-more:empty{display:none}
 :root[data-theme="dark"] .cv{background:rgba(94,201,126,.18);color:#7FD6A0}
 :root[data-theme="dark"] .caf-card .cv{background:rgba(240,221,176,.18);color:#F0DDB0}
+
+/* v136: стрелка раскрытия выразительнее: насыщенный зелёный круг 30 px с белой жирной стрелкой и тенью */
+.cv{width:30px;height:30px;margin-left:10px;background:linear-gradient(180deg,#3BC774,#1B9A4B);color:#fff;box-shadow:0 2px 6px rgba(27,154,75,.45),inset 0 1px 0 rgba(255,255,255,.4)}
+.cv svg{width:18px;height:18px;stroke-width:3.6}
+.caf-card .cv{background:linear-gradient(180deg,#EDA634,#C77D00);color:#fff;box-shadow:0 2px 6px rgba(199,125,0,.45),inset 0 1px 0 rgba(255,255,255,.4)}
+.dd-row,.dw-row{grid-template-columns:1fr auto 34px}
+:root[data-theme="dark"] .cv{background:linear-gradient(180deg,#43D17C,#23A857);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.3)}
+:root[data-theme="dark"] .caf-card .cv{background:linear-gradient(180deg,#EDA634,#C77D00);color:#fff}
