@@ -36,6 +36,8 @@ try {
 
 /* ================= Утилиты ================= */
 const $ = (sel, root = document) => root.querySelector(sel);
+// Единая стрелка «раскрыть / свернуть» для всего приложения: вниз — закрыто, вверх — открыто
+const chev = (open) => `<span class="cv${open ? " open" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>`;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pad = (n) => String(n).padStart(2, "0");
 const dstr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -73,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 132;
+const APP_VERSION = 135;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -694,7 +696,7 @@ function viewDiary() {
     return `<section class="card meal m-${m.id}">
       <div class="meal-top" role="button" tabindex="0" data-act="toggleMeal" data-key="${mKey}"><div class="meal-head">
         <span class="meal-ic ${m.id}">${m.emoji}</span>
-        <div class="meal-name">${m.name}<span class="meal-chev${mOpen ? " open" : ""}">›</span></div>
+        <div class="meal-name">${m.name}${chev(mOpen)}</div>
         <div class="meal-kcal${mt.kcal > target ? " over" : ""}">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
         <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
       </div>
@@ -1547,8 +1549,8 @@ function viewReports() {
     <section class="card"><h2 class="h2">Все показатели периода</h2>${kpi}</section>
     ${aiCardHtml(days)}
     <section class="card${state.insOpen ? "" : " ins-card"}"${state.insOpen ? "" : ` data-act="toggleIns" role="button"`}>
-      <div class="card-top"><h2 class="h2">Краткие выводы</h2><span class="pill">${state.insOpen ? "все" : `${ins.length} · ${ins.filter((i) => i.kind === "bad").length ? "есть важное" : "всё спокойно"}`}</span></div>
-      ${state.insOpen ? `${insHtml}<button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleIns">Скрыть краткие выводы</button>` : `${insBad}<p class="foot-note ins-more">Нажмите на блок, чтобы открыть все выводы ▾</p>`}
+      <div class="card-top tog" data-act="toggleIns" role="button" aria-expanded="${!!state.insOpen}"><h2 class="h2">Краткие выводы${chev(state.insOpen)}</h2><span class="pill">${state.insOpen ? "все" : `${ins.length} · ${ins.filter((i) => i.kind === "bad").length ? "есть важное" : "всё спокойно"}`}</span></div>
+      ${state.insOpen ? `${insHtml}` : `${insBad}<p class="foot-note ins-more">Нажмите на блок, чтобы открыть все выводы</p>`}
     </section>
     <section class="card">
       <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${wtp.last ? `${fmt(wtp.last.kg)} кг` : "нет записей"}</span></div>
@@ -1567,7 +1569,7 @@ function viewReports() {
       <p class="chart-note">Продукты и блюда с наибольшим вкладом в калории.</p>
     </section>` : ""}
     ${drinkRows.length ? `<section class="card"><h2 class="h2">Что я пью</h2>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
-    <button type="button" class="btn ghost full more-charts" data-act="toggleMoreCharts">${moreOpen ? "Скрыть остальные графики ▲" : "Ещё графики ▼"}</button>
+    <button type="button" class="btn ghost full more-charts fold-row" data-act="toggleMoreCharts" aria-expanded="${moreOpen}">Ещё графики${chev(moreOpen)}</button>
     ${moreOpen ? `
     ${a.L ? `<section class="card">
       <h2 class="h2">Белки, жиры, углеводы в день</h2>
@@ -1623,7 +1625,7 @@ function dayRowHtml(p) {
       <span class="dd-date">${esc(dayLabel(p.d))}</span>
       <span class="dd-kcal ${lvl}">${p.has ? fmtInt(p.kcal) : "—"}<small>ккал</small></span>
       <span class="dd-mini">${p.has ? `Б ${fmtInt(p.protein)} · Ж ${fmtInt(p.fat)} · У ${fmtInt(p.carbs)}` : "еда не записана"}${p.hyd > 0 ? ` · ${fmt(Math.round(p.hyd))} мл` : ""}</span>
-      <span class="dd-arrow">${open ? "▲" : "▼"}</span></button>${open ? dayDetailHtml(p) : ""}</div>`;
+      <span class="dd-arrow">${chev(open)}</span></button>${open ? dayDetailHtml(p) : ""}</div>`;
 }
 
 function reportDetailHtml(a, days) {
@@ -1638,7 +1640,7 @@ function reportDetailHtml(a, days) {
     const logged = list.filter((p) => p.has);
     const avgK = logged.length ? logged.reduce((t, p) => t + p.kcal, 0) / logged.length : 0;
     const open = !!state.openWks[k];
-    return `<div class="dw${open ? " open" : ""}"><button type="button" class="dw-row" data-act="toggleWk" data-k="${k}"><span class="dd-date">${esc(shortDate(k))} — ${esc(shortDate(addDays(k, 6)))}</span><span class="dd-kcal ${logged.length ? levelOf(avgK / state.goal) : ""}">${logged.length ? fmtInt(avgK) : "—"}<small>ккал/день</small></span><span class="dd-mini">${logged.length} дн. с едой</span><span class="dd-arrow">${open ? "▲" : "▼"}</span></button>${open ? list.map(dayRowHtml).join("") : ""}</div>`;
+    return `<div class="dw${open ? " open" : ""}"><button type="button" class="dw-row" data-act="toggleWk" data-k="${k}"><span class="dd-date">${esc(shortDate(k))} — ${esc(shortDate(addDays(k, 6)))}</span><span class="dd-kcal ${logged.length ? levelOf(avgK / state.goal) : ""}">${logged.length ? fmtInt(avgK) : "—"}<small>ккал/день</small></span><span class="dd-mini">${logged.length} дн. с едой</span><span class="dd-arrow">${chev(open)}</span></button>${open ? list.map(dayRowHtml).join("") : ""}</div>`;
   }).join("")}</section>`;
 }
 
@@ -3124,7 +3126,7 @@ function viewHealth() {
   // Вода, записанная раньше суммой за день (до появления истории)
   const legacyRow = waterOn(day) > 0 ? `<div class="entry"><span class="e-main"><span class="e-name">Вода</span><span class="e-sub">${fmt(waterOn(day))} мл, записано суммой за день</span></span><span class="e-kcal">—<small>мг кофеина</small></span></div>` : "";
   const fluidMore = fluidSorted.length > FLUID_SHOW
-    ? `<button type="button" class="more-btn" data-act="toggleFluid">${fluidOpen ? "Свернуть" : `Ещё ${fluidSorted.length - FLUID_SHOW}`}</button>`
+    ? `<button type="button" class="more-btn fold-row" data-act="toggleFluid" aria-expanded="${fluidOpen}">Ещё ${fluidSorted.length - FLUID_SHOW}${chev(fluidOpen)}</button>`
     : "";
   const fluidRows = fluidShown.map((i) => `
     <button type="button" class="entry" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
@@ -3151,7 +3153,7 @@ function viewHealth() {
         <div class="caf-top"><span class="caf-t">Кофеин</span><span class="caf-val"><b>${fmtInt(caf.mg)}</b> из ${fmtInt(caf.limit)} мг</span></div>
         <div class="caf-bar"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
         ${caf.msgs.length ? `<ul class="caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}
-        <button type="button" class="caf-more" data-act="toggleCafInfo">${state.cafInfo ? "Скрыть" : "О норме кофеина"}</button>
+        <button type="button" class="caf-more fold-row" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}">О норме кофеина${chev(state.cafInfo)}</button>
         ${state.cafInfo ? `<p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}
       </div>
     </section>`;
@@ -4053,15 +4055,15 @@ function trainCardHtml(day) {
   } else {
     const nx = nextTrainDay(day);
     body = `<p class="foot-note" style="margin:4px 4px 12px">${day === today ? "Сегодня" : "В этот день"} по плану отдых.${nx ? ` Ближайшая тренировка: ${esc(trainDayName(nx))}, ${esc(TR.typeShort(TR.sessionType(cfg, nx)).toLowerCase())}.` : ""}</p>
-      <div class="row">${nx ? `<button type="button" class="btn ghost sm" data-act="pickDay" data-date="${nx}">Показать</button>` : ""}<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Позаниматься в этот день</button></div>`;
+      <div class="row">${nx ? `<button type="button" class="btn ghost sm" data-act="trainDayTap" data-date="${nx}">Показать</button>` : ""}<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Позаниматься в этот день</button></div>`;
   }
   const open = !!state.trainDayOpen;
   return `<section class="card">
-    <div class="card-top"><h2 class="h2${ses ? " tr-tog" : ""}"${ses ? ` data-act="trainDayTog" role="button" aria-expanded="${open}"` : ""}>План тренировок${ses ? `<span class="meal-chev${open ? " open" : ""}">›</span>` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
+    <div class="card-top"><h2 class="h2${ses ? " tr-tog" : ""}"${ses ? ` data-act="trainDayTog" role="button" aria-expanded="${open}"` : ""}>План тренировок${ses ? `${chev(open)}` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
     <p class="foot-note" style="margin:-4px 4px 10px">${esc(placeName.charAt(0).toUpperCase() + placeName.slice(1))} · ${cfg.days.map((d) => TR.DAY_SHORT[d]).join(", ")} · ${TR.TIMES[0]}–${TR.TIMES[TR.TIMES.length - 1]} мин</p>
     <div class="tr-week">${strip}</div>
     ${ses && !open ? sum : ""}
-    ${ses && !open ? `<p class="foot-note tr-more">Нажмите на «План тренировок» или на стрелку, чтобы раскрыть план ▾</p>` : ""}
+    ${ses && !open ? `<p class="foot-note tr-more">Нажмите на «План тренировок» или на стрелку, чтобы раскрыть план</p>` : ""}
     ${ses && !open ? "" : body}
   </section>`;
 }
@@ -4190,7 +4192,9 @@ function openTrainMove(day) {
     if (to !== base) mv[base] = to;
     updateDoc(docRef("settings", "training"), { moves: mv }).catch(writeFail);
     state.date = to;
+    state.trainDayOpen = true;
     ov.close();
+    render();
   });
 }
 
@@ -4385,7 +4389,7 @@ function trainReportHtml(from, to) {
     return `<div class="tr-band-r"><i style="--c:${c.hex}"></i><span>${c.t}</span><b>${withC.length} ${withC.length === 1 ? "тренировка" : "тренировок"}</b><small>${kgs.length ? (Math.min(...kgs) === Math.max(...kgs) ? `${fmt(lastKg)} кг` : `${fmt(Math.min(...kgs))}–${fmt(Math.max(...kgs))} кг, последний ${fmt(lastKg)} кг`) : "вес не указан"}</small></div>`;
   }).join("");
   return `<section class="card">
-    <div class="card-top"><h2 class="h2">Тренировки по плану</h2><span class="pill">не из Apple Health</span></div>
+    <div class="card-top tog" data-act="toggleTrainRep" role="button" aria-expanded="${!!state.trainRepOpen}"><h2 class="h2">Тренировки по плану${chev(state.trainRepOpen)}</h2><span class="pill">не из Apple Health</span></div>
     <div class="tr-tiles" data-act="toggleTrainRep" role="button" aria-expanded="${!!state.trainRepOpen}">
     <div class="stat-grid">
       <div class="stat"><b>${st.plannedDone} из ${st.planned}</b><span>упражнений выполнено${st.planned ? `, ${pct(st.plannedDone, st.planned)}%` : ""}</span></div>
@@ -4393,13 +4397,12 @@ function trainReportHtml(from, to) {
       <div class="stat"><b>${avg ? esc(feelLabel(Math.round(avg))) : "—"}</b><span>тяжесть в среднем${avg ? `, ${fmt(Math.round(avg * 10) / 10)} из 5` : ""}</span></div>
       <div class="stat"><b>${st.streak}</b><span>серия без пропусков</span></div>
     </div>
-    <p class="foot-note tr-more">${state.trainRepOpen ? "Нажмите на плашки, чтобы свернуть ▴" : "Нажмите на плашки, чтобы открыть подробности ▾"}</p>
+    <p class="foot-note tr-more">${state.trainRepOpen ? "" : "Нажмите на плашки или на стрелку, чтобы открыть подробности"}</p>
     </div>
     ${!state.trainRepOpen ? "" : `${feels.length ? `<h3 class="ex-h">Тяжесть тренировок</h3>${distRows}<div class="chart tr-feel-chart">${line}</div><p class="chart-note">Высота столбика: самочувствие после тренировки (1 — очень легко, 5 — очень тяжело). Красным отмечены тяжёлые.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Тяжесть появится после того, как вы завершите тренировку и оцените самочувствие.</p>`}
     ${bandRows ? `<h3 class="ex-h">Резинки по цветам</h3>${bandRows}` : ""}
     ${st.list.length ? `<h3 class="ex-h">Выполнение упражнений</h3>${trainExRowsHtml(st)}` : ""}
-    <p class="chart-note">Данные только из плана тренировок. С тренировками и активностью из Apple Health они не смешиваются и в их счётчики не входят.</p>
-    <button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleTrainRep">Свернуть</button>`}
+`}
   </section>`;
 }
 
@@ -4423,7 +4426,7 @@ function trainProgressCardHtml() {
   const swapNote = nses && nses.swapped.length ? `<p class="tr-skip"><b>Заменено в ближайшем плане:</b> ${nses.swapped.map((s) => `${esc(exName(s.from).toLowerCase())} → ${esc(exName(s.to).toLowerCase())}`).join(", ")}. Вы стабильно пропускаете эти упражнения, поэтому вместо них ставятся другие для той же группы мышц.</p>` : "";
   const hist = fin.slice(0, 5).map((l) => `<div class="tr-h"><b>${esc(trainDayName(l.date))}</b><span>${esc(feelLabel(Number(l.feel)))}${bandsText(l) ? ` · ${esc(bandsText(l))}` : ""}</span></div>`).join("");
   return `<section class="card">
-    <div class="card-top"><h2 class="h2">Прогресс тренировок</h2><span class="pill">4–6 недель</span></div>
+    <div class="card-top"${empty ? "" : ` data-act="toggleTrain" role="button" aria-expanded="${open}"`}><h2 class="h2">Прогресс тренировок${empty ? "" : chev(open)}</h2><span class="pill">4–6 недель</span></div>
     ${empty ? `<p class="foot-note" style="margin:0 4px">Пока нет данных. Отмечайте упражнения и завершайте тренировки, и здесь появится анализ.</p>` : `
     <div class="tr-tiles" data-act="toggleTrain" role="button" aria-expanded="${open}">
     <div class="stat-grid">
@@ -4432,15 +4435,14 @@ function trainProgressCardHtml() {
       <div class="stat"><b>${st.streak}</b><span>подряд без пропусков</span></div>
       <div class="stat"><b>${avg ? esc(feelLabel(Math.round(avg))) : "—"}</b><span>самочувствие в среднем</span></div>
     </div>
-    <p class="foot-note tr-more">${open ? "Нажмите на плашки, чтобы свернуть ▴" : "Нажмите на плашки, чтобы открыть подробности ▾"}</p>
+    <p class="foot-note tr-more">${open ? "" : "Нажмите на плашки или на стрелку, чтобы открыть подробности"}</p>
     </div>
     ${open ? `<p class="tr-tip">${esc(tip)}</p>
     ${wkBars ? `<p class="tr-lab" style="margin-top:14px">Выполнено по неделям</p>${wkBars}` : ""}
     ${swapNote}
     ${skipped.length ? `<p class="tr-skip"><b>Чаще всего пропускаете:</b> ${skipped.map((e) => esc(e.name.toLowerCase())).join(", ")}. Если они не подходят, поменяйте инвентарь или ограничения в анкете.</p>` : ""}
     ${mgRows ? `<h3 class="ex-h">Какие упражнения выполнены</h3>${mgRows}` : ""}
-    ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}
-    <button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleTrain">Свернуть</button>` : ""}`}
+    ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}` : ""}`}
     <button type="button" class="more-btn red" data-act="trainResetAll">Сбросить весь прогресс</button>
   </section>`;
 }

@@ -1095,3 +1095,21 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .tr-prog{display:flex;align-items:center;gap:10px;margin:0 0 8px}
 .tr-prog .track{flex:1;margin:0}
 .tr-prog b{font-size:13px;color:var(--muted);font-weight:700}
+
+/* v135: единая стрелка раскрытия (.cv): круг с жирной стрелкой; вниз — закрыто, вверх — открыто */
+.cv{display:inline-grid;place-items:center;flex:none;width:26px;height:26px;margin-left:8px;border-radius:50%;background:var(--accent-soft);color:var(--accent-d);vertical-align:middle;transition:transform .2s ease,background .2s ease}
+.cv svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.cv.open{transform:rotate(180deg)}
+.card-top.tog,.h2.tr-tog{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.card-top.tog .h2{display:flex;align-items:center}
+.fold-row{display:flex;align-items:center;justify-content:center}
+.fold-row .cv{margin-left:8px}
+.caf-more.fold-row{justify-content:flex-start;width:100%}
+.caf-card .cv{background:rgba(122,74,0,.16);color:#7A4A00}
+.dd-row,.dw-row{grid-template-columns:1fr auto 30px}
+.dd-arrow{font-size:inherit;display:grid;place-items:center}
+.dd-arrow .cv{margin:0}
+.meal-name .cv{margin-left:10px}
+.tr-more:empty{display:none}
+:root[data-theme="dark"] .cv{background:rgba(94,201,126,.18);color:#7FD6A0}
+:root[data-theme="dark"] .caf-card .cv{background:rgba(240,221,176,.18);color:#F0DDB0}
