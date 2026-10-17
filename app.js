@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=4";
+import * as TR from "./train.js?v=5";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -73,7 +73,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 123;
+const APP_VERSION = 126;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -181,7 +181,7 @@ const state = {
   repCustom: null,
   ai: { busy: false, error: "", detail: "", step: "" },
   aiLast: null,
-  insOpen: false,
+  insOpen: false, trainOpen: false,
   status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
   mealOpen: {},
@@ -2542,6 +2542,7 @@ function openAddFood(mealId, presetProduct) {
     const upd = () => { $("#af-prev", ov).innerHTML = previewHtml(p100, num(input.value), info); };
     upd();
     input.addEventListener("input", upd);
+    attachSubtract(body.querySelector(".chips"), input, info ? "мл" : "г", upd);
     input.focus(); input.select();
     body.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { input.value = c.dataset.g; upd(); }));
     $("#af-back", ov).addEventListener("click", showList);
@@ -2561,6 +2562,38 @@ function openAddFood(mealId, presetProduct) {
   }
 
   if (presetProduct) showDetail(presetProduct); else showList();
+}
+
+/* ----- Калькулятор вычета у поля веса: взвесил с кожурой/упаковкой, вычел её вес ----- */
+function attachSubtract(anchor, input, unit, upd) {
+  const host = document.createElement("div");
+  host.className = "sub-calc";
+  host.innerHTML = `<button type="button" class="btn ghost sub-open">− Вычесть (кожура, упаковка)</button>
+    <div class="sub-panel hidden">
+      <label class="field"><span>Вычесть, ${unit}</span><input class="input big sub-val" inputmode="decimal" autocomplete="off" placeholder="например, 45"></label>
+      <p class="sub-res"></p>
+      <div class="row"><button type="button" class="btn ghost sub-cancel">Отмена</button><button type="button" class="btn primary grow sub-ok">Вычесть</button></div>
+    </div>`;
+  anchor.after(host);
+  const openBtn = $(".sub-open", host), panel = $(".sub-panel", host), val = $(".sub-val", host), res = $(".sub-res", host);
+  const fmtG = (x) => String(Math.round(x * 10) / 10).replace(".", ",");
+  const calc = () => {
+    const cur = num(input.value) || 0, sub = num(val.value) || 0, r = cur - sub;
+    res.textContent = sub > 0 ? (r > 0 ? `${fmtG(cur)} − ${fmtG(sub)} = ${fmtG(r)} ${unit}` : "Вычитаемое должно быть меньше текущего веса") : `Сейчас: ${fmtG(cur)} ${unit}`;
+    res.classList.toggle("bad", sub > 0 && r <= 0);
+    return r;
+  };
+  const close = () => { panel.classList.add("hidden"); openBtn.classList.remove("hidden"); val.value = ""; };
+  openBtn.addEventListener("click", () => { openBtn.classList.add("hidden"); panel.classList.remove("hidden"); calc(); val.focus(); });
+  val.addEventListener("input", calc);
+  $(".sub-cancel", host).addEventListener("click", close);
+  $(".sub-ok", host).addEventListener("click", () => {
+    const sub = num(val.value) || 0, r = calc();
+    if (!(sub > 0) || !(r > 0)) return;
+    input.value = fmtG(r);
+    upd();
+    close();
+  });
 }
 
 /* ----- Блюдо по описанию или фото (Gemini) ----- */
@@ -2691,6 +2724,7 @@ function openEditEntry(entry) {
   const upd = () => { $("#ee-prev", ov).innerHTML = previewHtml(p100, num(input.value), entry.drink || null, oldCaf); };
   upd();
   input.addEventListener("input", upd);
+  attachSubtract(input.closest(".field"), input, entry.drink ? "мл" : "г", upd);
   $("#ee-save", ov).addEventListener("click", () => {
     const grams = num(input.value);
     if (!(grams > 0)) { toast("Введите вес в граммах"); return; }
@@ -3925,7 +3959,11 @@ const DUMBBELL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 
 const trainCfg = () => TR.normCfg(state.trainCfg, todayStr());
 const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
 const trainMinutes = (d) => { const l = trainLogOn(d); return l && Number(l.minutes) > 0 ? Number(l.minutes) : trainCfg().minutes; };
-const trainSession = (d) => (state.trainCfg ? TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), d >= todayStr() ? trainBump() : 0) : null);
+const trainSession = (d) => {
+  if (!state.trainCfg) return null;
+  const adv = d >= todayStr() ? trainAdvice(d) : null;
+  return TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, adv ? adv.avoid : []);
+};
 function trainProgress(d, ses) {
   const l = trainLogOn(d), done = (l && l.done) || {};
   return { n: ses.items.length, k: ses.items.filter((i) => done[i.key]).length, done };
@@ -4007,6 +4045,7 @@ function trainCardHtml(day) {
       <p class="tr-lab">Сколько времени на тренировку, мин</p>
       <div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>
       <div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div>
+      ${ses.bump || (ses.swapped && ses.swapped.length) ? `<p class="foot-note tr-adapt" style="margin:8px 2px 0">Подстроено по вашим итогам:${ses.bump ? ` повторы ${ses.bump > 0 ? "+" : "−"}${Math.abs(ses.bump)}` : ""}${ses.swapped && ses.swapped.length ? `${ses.bump ? "," : ""} ${ses.swapped.map((s) => `вместо «${esc(TR.EXERCISES[s.from].name.toLowerCase())}» — «${esc(TR.EXERCISES[s.to].name.toLowerCase())}»`).join(", ")}` : ""}.</p>` : ""}
       <p class="foot-note" style="margin:8px 2px 0">${k >= n ? "Тренировка выполнена, отличная работа!" : `Выполнено ${k} из ${n}. Нажмите на кружок, когда упражнение сделано, а на название, чтобы увидеть технику.`}</p>
       <div class="tr-list">${rows}</div>
       ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button></div>` : `<button type="button" class="btn primary full" style="margin-top:14px" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
@@ -4156,13 +4195,66 @@ function openTrainMove(day) {
 const feelLabel = (n) => TR.FEEL[n] || "";
 const trainFinished = (d) => { const l = trainLogOn(d); return !!(l && l.finished); };
 const finishedLogs = () => state.trainLog.filter((l) => l.finished).sort((a, b) => (a.date < b.date ? 1 : -1));
-// Две последние тренировки подряд «легко» → чуть больше повторов, подряд «тяжело» → чуть меньше
-function trainBump() {
-  const f = finishedLogs().slice(0, 2).map((l) => Number(l.feel) || 3);
-  if (f.length < 2) return 0;
-  if (f.every((x) => x <= 2)) return 2;
-  if (f.every((x) => x >= 4)) return -2;
-  return 0;
+// Подстройка плана на день d по итогам тренировок ДО этого дня (поэтому день не «прыгает» после завершения):
+// - 3 последних оценки: в среднем легко → больше повторов, тяжело → меньше; при двух оценках нужны обе одинаковые;
+// - легко, но выполнено меньше 60% плана → нагрузку не повышаем;
+// - упражнения, которые пропускают в завершённых тренировках, заменяются другими из той же группы;
+// - совет по резинке и гантелям на основе последних итогов.
+function trainAdvice(d) {
+  const logs = finishedLogs().filter((l) => l.date < d);
+  const last = logs.slice(0, 3);
+  const fs = last.map((l) => Number(l.feel) || 3);
+  const mean = (a) => (a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0);
+  let bump = 0;
+  if (last.length >= 3) {
+    const avg = mean(fs);
+    bump = avg <= 2 ? 2 : avg <= 2.4 ? 1 : avg >= 4 ? -2 : avg >= 3.6 ? -1 : 0;
+  } else if (last.length === 2) {
+    bump = fs.every((x) => x <= 2) ? 2 : fs.every((x) => x >= 4) ? -2 : 0;
+  }
+  const comp = (l) => { const p = Array.isArray(l.plan) ? l.plan : []; const dn = l.done || {}; return p.length ? p.filter((k) => dn[k]).length / p.length : 1; };
+  let lowDone = false;
+  if (bump > 0 && (mean(last.map(comp)) < 0.6 || fs[0] >= 5)) { bump = 0; lowDone = true; }
+  // Пропускаемые упражнения за 6 недель: минимум 3 раза в плане и сделано не больше четверти
+  const from = addDays(todayStr(), -41), ex = {};
+  for (const l of logs) {
+    if (l.date < from || !Array.isArray(l.plan)) continue;
+    for (const key of l.plan) {
+      const [g, id] = key.split(":");
+      if (g !== "main") continue;
+      const e = ex[id] = ex[id] || { p: 0, d: 0 };
+      e.p++; if ((l.done || {})[key]) e.d++;
+    }
+  }
+  const avoid = Object.keys(ex).filter((id) => ex[id].p >= 3 && ex[id].d / ex[id].p <= 0.25);
+  // Резинка: самая тяжёлая, что брали в последний раз
+  const cfg = trainCfg();
+  const eff = (id) => Number(cfg.bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
+  const byKg = [...TR.BAND_COLORS].sort((a, b) => eff(a.id) - eff(b.id));
+  const bl = logs.find((l) => l.bands && Object.keys(l.bands).length);
+  let band = "";
+  if (bl) {
+    const used = Object.keys(bl.bands).filter((c) => byKg.some((x) => x.id === c));
+    const top = used.sort((a, b) => (Number(bl.bands[b]) || eff(b)) - (Number(bl.bands[a]) || eff(a)))[0];
+    const topKg = Number(bl.bands[top]) || eff(top);
+    const nm = (c) => `${c.t.toLowerCase().replace(/ая$/, "ую").replace(/яя$/, "юю")} (${fmt(eff(c.id))} кг)`, loc = (c) => c.t.toLowerCase().replace(/ая$/, "ой").replace(/яя$/, "ей");
+    const topC = TR.BAND_COLORS.find((c) => c.id === top);
+    if (topC) {
+      const up = byKg.find((c) => eff(c.id) > topKg + 0.2), down = [...byKg].reverse().find((c) => eff(c.id) < topKg - 0.2);
+      if (bump > 0) band = up ? `Резинка: в прошлый раз самой тяжёлой была ${topC.t.toLowerCase()}. Попробуйте ${nm(up)} в тех упражнениях, где легко.` : `Вы уже на самой тяжёлой резинке (${topC.t.toLowerCase()}): наращивайте повторы и медленнее опускайте вес.`;
+      else if (bump < 0) band = `Резинку не повышайте: оставайтесь на ${loc(topC)}${down ? `, а если совсем тяжело, возьмите ${nm(down)}` : ""}.`;
+      else band = `Резинка: оставайтесь на ${loc(topC)}, пока оценки не станут «легко».`;
+    }
+  }
+  const dk = Number(logs.find((l) => l.dumbbellKg)?.dumbbellKg) || 0;
+  const bell = dk ? (bump > 0 ? `Гантели: можно прибавить 0,5–1 кг (сейчас ${fmt(dk)} кг).` : bump < 0 ? `Гантели: не прибавляйте вес (сейчас ${fmt(dk)} кг).` : "") : "";
+  let tip;
+  if (last.length < 2) tip = "Завершайте тренировки кнопкой «Завершить тренировку»: после двух оценок приложение начнёт подбирать нагрузку.";
+  else if (lowDone) tip = "Оценки лёгкие, но выполнено меньше 60% плана: нагрузку не повышаем. Сначала доделывайте упражнения до конца.";
+  else if (bump > 0) tip = `Последние тренировки были лёгкими. Повторов в следующих планах больше на ${bump}.`;
+  else if (bump < 0) tip = `Последние тренировки были тяжёлыми. Повторов в следующих планах меньше на ${-bump}: держите вес и не торопитесь.`;
+  else tip = "Нагрузка в самый раз: держите ритм.";
+  return { bump, avoid, tip, band, bell, n: last.length };
 }
 const bandsText = (l) => {
   const parts = TR.BAND_COLORS.filter((c) => l.bands && c.id in l.bands).map((c) => `${c.t.toLowerCase()}${l.bands[c.id] ? ` ${fmt(l.bands[c.id])} кг` : ""}`);
@@ -4316,26 +4408,32 @@ function trainProgressCardHtml() {
   const wkBars = wkKeys.map((w) => { const x = st.weeks[w]; return `<div class="tr-bar"><span>${esc(dateShort(w))}</span><div class="track"><i style="width:${pct(x.done, x.plan)}%"></i></div><b>${pct(x.done, x.plan)}%</b></div>`; }).join("");
   const mgRows = trainExRowsHtml(st);
   const skipped = st.list.filter((e) => e.plan >= 2 && e.done / e.plan <= 0.5).sort((a, b) => a.done / a.plan - b.done / b.plan).slice(0, 4);
-  const last2 = fin.slice(0, 2).map((l) => Number(l.feel) || 3);
-  let tip = "Нагрузка в самый раз: держите ритм.";
-  if (last2.length < 2) tip = "Завершайте тренировки кнопкой «Завершить тренировку»: после двух оценок приложение начнёт подбирать нагрузку.";
-  else if (last2.every((x) => x <= 2)) tip = "Две тренировки подряд были лёгкими. Повторы в следующих планах увеличены, а резинку можно взять потяжелее.";
-  else if (last2.every((x) => x >= 4)) tip = "Две тренировки подряд были тяжёлыми. Повторы в следующих планах уменьшены: держите вес и не торопитесь.";
+  const adv = trainAdvice(addDays(todayStr(), 1));
+  const tip = [adv.tip, adv.band, adv.bell].filter(Boolean).join(" ");
+  const open = state.trainOpen;
+  const exName = (id) => (TR.EXERCISES[id] ? TR.EXERCISES[id].name : id);
+  const nxd = nextTrainDay(todayStr()), nses = nxd ? trainSession(nxd) : null;
+  const swapNote = nses && nses.swapped.length ? `<p class="tr-skip"><b>Заменено в ближайшем плане:</b> ${nses.swapped.map((s) => `${esc(exName(s.from).toLowerCase())} → ${esc(exName(s.to).toLowerCase())}`).join(", ")}. Вы стабильно пропускаете эти упражнения, поэтому вместо них ставятся другие для той же группы мышц.</p>` : "";
   const hist = fin.slice(0, 5).map((l) => `<div class="tr-h"><b>${esc(trainDayName(l.date))}</b><span>${esc(feelLabel(Number(l.feel)))}${bandsText(l) ? ` · ${esc(bandsText(l))}` : ""}</span></div>`).join("");
   return `<section class="card">
     <div class="card-top"><h2 class="h2">Прогресс тренировок</h2><span class="pill">4–6 недель</span></div>
     ${empty ? `<p class="foot-note" style="margin:0 4px">Пока нет данных. Отмечайте упражнения и завершайте тренировки, и здесь появится анализ.</p>` : `
+    <div class="tr-tiles" data-act="toggleTrain" role="button" aria-expanded="${open}">
     <div class="stat-grid">
       <div class="stat"><b>${st.plannedDone} из ${st.planned}</b><span>упражнений выполнено${st.planned ? `, ${pct(st.plannedDone, st.planned)}%` : ""}</span></div>
       <div class="stat"><b>${st.daysDone} из ${st.days}</b><span>тренировок завершено</span></div>
       <div class="stat"><b>${st.streak}</b><span>подряд без пропусков</span></div>
       <div class="stat"><b>${avg ? esc(feelLabel(Math.round(avg))) : "—"}</b><span>самочувствие в среднем</span></div>
     </div>
-    <p class="tr-tip">${esc(tip)}</p>
+    <p class="foot-note tr-more">${open ? "Нажмите на плашки, чтобы свернуть ▴" : "Нажмите на плашки, чтобы открыть подробности ▾"}</p>
+    </div>
+    ${open ? `<p class="tr-tip">${esc(tip)}</p>
     ${wkBars ? `<p class="tr-lab" style="margin-top:14px">Выполнено по неделям</p>${wkBars}` : ""}
+    ${swapNote}
     ${skipped.length ? `<p class="tr-skip"><b>Чаще всего пропускаете:</b> ${skipped.map((e) => esc(e.name.toLowerCase())).join(", ")}. Если они не подходят, поменяйте инвентарь или ограничения в анкете.</p>` : ""}
     ${mgRows ? `<h3 class="ex-h">Какие упражнения выполнены</h3>${mgRows}` : ""}
-    ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}`}
+    ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}
+    <button type="button" class="btn ghost full" style="margin-top:12px" data-act="toggleTrain">Свернуть</button>` : ""}`}
     <button type="button" class="more-btn red" data-act="trainResetAll">Сбросить весь прогресс</button>
   </section>`;
 }
@@ -4531,6 +4629,7 @@ const actions = {
   toggleWk(ds) { state.openWks[ds.k] = !state.openWks[ds.k]; render(); },
   openDay(ds) { state.date = ds.d; state.tab = "diary"; render(); const v = $("#view"); if (v) v.scrollTop = 0; },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
+  toggleTrain() { state.trainOpen = !state.trainOpen; render(); },
   checkStatus() { checkStatus(true); },
   async reloadApp() {
     try {

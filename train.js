@@ -974,7 +974,8 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
 }
 
 // minutesOverride: время на сегодня (15–60); профиль даёт цель (goal)
-export function buildSession(cfgRaw, date, profile, minutesOverride, bump) {
+// avoid: упражнения, которые пользователь стабильно пропускает; в слоте их заменяет другое подходящее
+export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds) {
   const cfg = normCfg(cfgRaw, date);
   const type = sessionType(cfg, date);
   if (!type) return null;
@@ -998,11 +999,16 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump) {
   const main = [];
   const used = new Set();
   let spent = 0;
+  const avoid = new Set(Array.isArray(avoidIds) ? avoidIds : []);
+  const swapped = [];
   for (const slot of bp.slots) {
-    const exId = slot.find((id) => !used.has(id) && usable(EXERCISES[id], ctx));
+    const okId = (id) => !used.has(id) && usable(EXERCISES[id], ctx);
+    const base = slot.find(okId);
+    let exId = slot.find((id) => okId(id) && !avoid.has(id)) || base;
     if (!exId) continue;
+    if (base && base !== exId) swapped.push({ from: base, to: exId });
     const it = itemFor(EXERCISES[exId], ctx, "main", sets, 0);
-    if (spent + it.est > budget + 30 && main.length >= 3) continue;
+    if (spent + it.est > budget + 30 && main.length >= 3) { if (base !== exId) swapped.pop(); continue; }
     main.push(it); used.add(exId); spent += it.est;
   }
   const left = budget - spent;
@@ -1010,7 +1016,7 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump) {
   const fin = cardioEx && cardioMin > 0 ? [itemFor(cardioEx, ctx, "cardio", 1, cardioMin)] : [];
   const items = [...warm, ...main, ...fin, ...cool];
   return {
-    date, type, minutes: M, title: bp.short, focus: bp.focus, items,
+    date, type, minutes: M, title: bp.short, focus: bp.focus, items, bump: ctx.bump, swapped,
     est: Math.round(sec(items) / 60),
     sets, level: ctx.level, place: cfg.place,
   };

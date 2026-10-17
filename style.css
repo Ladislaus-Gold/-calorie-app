@@ -1048,3 +1048,31 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 :root[data-theme="dark"] .stat b,:root[data-theme="dark"] .stat-grid .stat b{text-shadow:none}
 /* v123: подписи «Жидкость» / «Нагрузка» на плитках Дневника чёрные, как заголовки */
 .mini-label{color:var(--text);font-size:13px;font-weight:700}
+
+/* v124: калькулятор вычета под полем веса */
+.sub-calc{margin:6px 0 10px}
+.sub-open{width:100%;border:1.5px dashed var(--accent);color:var(--accent-d);font-weight:700;background:rgba(255,255,255,.7)}
+.sub-panel{background:var(--field);border:1.5px solid var(--accent);border-radius:16px;padding:12px;box-shadow:var(--sh-1)}
+.sub-panel .field{margin:0 0 8px}
+.sub-res{margin:0 2px 10px;font-weight:700;font-size:15px;color:var(--accent-d)}
+.sub-res.bad{color:var(--red)}
+:root[data-theme="dark"] .sub-open{background:transparent}
+/* v125: калькулятор вычета красный (вычитаем): пастельно-бордовый */
+.sub-open{border-color:#B5525C;color:#8E2F3A;background:rgba(255,255,255,.75)}
+.sub-panel{background:#FBE6E8;border:1.5px solid #B5525C}
+.sub-panel .input{border-color:#D9A3A9;background:#fff}
+.sub-panel .input:focus{border-color:#B5525C;box-shadow:0 0 0 3px rgba(181,82,92,.25)}
+.sub-res,.sub-res.bad{color:#8E2F3A}
+.sub-ok{background:linear-gradient(180deg,#C0606A,#9B3B45);border:1px solid #823039;color:#fff;box-shadow:0 4px 10px rgba(130,48,57,.35)}
+.sub-panel .sub-cancel{border-color:#D9A3A9;color:#8E2F3A}
+:root[data-theme="dark"] .sub-open{border-color:#C98089;color:#F0B6BC}
+:root[data-theme="dark"] .sub-panel{background:#3A2125;border-color:#9B4D56}
+:root[data-theme="dark"] .sub-panel .input{background:#2A1A1D;border-color:#6E3A41}
+:root[data-theme="dark"] .sub-res,:root[data-theme="dark"] .sub-res.bad{color:#F0B6BC}
+.sub-panel .sub-ok.btn.primary{background:linear-gradient(180deg,#C0606A,#9B3B45);border:1px solid #823039;color:#fff;box-shadow:0 4px 10px rgba(130,48,57,.35)}
+.sub-panel .input.big:focus{outline:none}
+
+/* v126: карточка прогресса тренировок раскрывается по нажатию на плашки */
+.tr-tiles{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tr-tiles .tr-more{margin:8px 4px 4px;text-align:center}
+.tr-adapt{color:var(--t2,inherit)}
