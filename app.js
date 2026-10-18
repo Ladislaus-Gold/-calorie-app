@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 138;
+const APP_VERSION = 139;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2881,7 +2881,7 @@ function openProductForm(product, onSaved, prefill = {}) {
     }
   }));
 
-  $("#pf-save", ov).addEventListener("click", () => {
+  $("#pf-save", ov).addEventListener("click", async () => {
     const name = $("#pf-name", ov).value.trim();
     const brand = $("#pf-brand", ov).value.trim();
     const barcode = $("#pf-barcode", ov).value.replace(/\D/g, "");
@@ -2911,10 +2911,16 @@ function openProductForm(product, onSaved, prefill = {}) {
       const id = productIdFor({ barcode, source, name });
       const ref = id ? prodDoc(id) : doc(prodCol());
       const full = { ...data, source, ...authorFields(), createdAt: serverTimestamp() };
-      setDoc(ref, full).catch(writeFail);
-      ov.close();
-      toast("Продукт сохранён в общую базу");
-      if (onSaved) onSaved({ id: ref.id, ...full });
+      const sv = $("#pf-save", ov);
+      sv.disabled = true; sv.textContent = "Сохраняю…";
+      const res = await confirmWrite(setDoc(ref, full));
+      if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; toast("Не сохранилось. Проверьте соединение и права базы."); return; }
+      const sheet = ov.querySelector(".sheet");
+      const sub = [brand, `${fmt(kcal)} ккал/100 г`, barcode].filter(Boolean).join(", ");
+      sheet.innerHTML = `<div class="sheet-head"><h2>Продукт</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+        ${savedHtml("product", name, sub, res)}
+        <div class="row"><button type="button" class="btn ghost" data-close>Готово</button><button type="button" class="btn primary grow" id="pf-add">Добавить</button></div>`;
+      $("#pf-add", ov).addEventListener("click", () => { ov.close(); const np = { id: ref.id, ...full }; if (onSaved) onSaved(np); else openAddFood(mealByTime(), np); });
     }
   });
 
@@ -3034,6 +3040,19 @@ const saveSharedDrink = (it) => {
   if (cur && cur.createdBy !== state.user.uid) { toast("Менять карточку может только её автор"); return Promise.resolve(); }
   return setDoc(doc(db, "drinkdb", it.id), drinkData(it, cur && cur.createdAt)).catch(writeFail);
 };
+// Ждём подтверждения записи от сервера: ok — сохранено, slow — нет связи (сохранится позже), fail — отказ
+const confirmWrite = (promise, ms = 9000) => new Promise((res) => {
+  let done = false;
+  const fin = (v) => { if (!done) { done = true; res(v); } };
+  setTimeout(() => fin("slow"), ms);
+  Promise.resolve(promise).then(() => fin("ok"), (e) => { console.error(e); fin("fail"); });
+});
+// Экран «Сохранено»: показывает, что карточка записана, и даёт сразу добавить её
+function savedHtml(kind, name, sub, st) {
+  const ok = st === "ok";
+  return `<div class="saved-ok ${ok ? "" : "warn"}"><span class="saved-ic">${ok ? "✓" : "…"}</span><div><b>${esc(ok ? (kind === "drink" ? "Напиток сохранён в список" : "Продукт сохранён в список") : "Пока не подтверждено сервером")}</b><span>${esc(ok ? "Он уже в вашем списке, его можно выбрать в любой момент." : "Нет связи: карточка сохранится, когда появится интернет.")}</span></div></div>
+    <div class="picked"><div class="p-name">${esc(name)}</div>${sub ? `<div class="p-sub">${esc(sub)}</div>` : ""}</div>`;
+}
 const deleteSharedDrink = (id) => deleteDoc(doc(db, "drinkdb", id)).catch(writeFail);
 const newDrinkId = () => "u" + Date.now().toString(36) + state.user.uid.slice(0, 3).toLowerCase();
 // Один раз переносит личные напитки в общую базу (повторы по названию не добавляются, избранное переносится на уже существующий)
@@ -3836,7 +3855,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       toast("Перенесено в продукты");
       showList();
     });
-    $("#dc-save", ov).addEventListener("click", () => {
+    $("#dc-save", ov).addEventListener("click", async () => {
       const name = $("#dc-name", ov).value.trim();
       const opt = (sel) => { const t = $(sel, ov).value.trim(); return t === "" ? 0 : num(t); };
       const h = numS(pct.value), caf = opt("#dc-caf"), k = opt("#dc-k"), p = opt("#dc-p"), f = opt("#dc-f"), cb = opt("#dc-cb");
@@ -3850,13 +3869,21 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       const cat = catSel.value;
       const item = { id: isNew ? newDrinkId() : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs] };
       state.customDrinks = state.customDrinks.filter((x) => x.id !== item.id);
-      saveSharedDrink(item);
+      const cur = (state.sharedDrinks || []).find((x) => x.id === item.id);
+      if (cur && cur.createdBy !== state.user.uid) { toast("Менять карточку может только её автор"); return; }
+      const sv = $("#dc-save", ov);
+      sv.disabled = true; sv.textContent = "Сохраняю…";
+      const res = await confirmWrite(setDoc(doc(db, "drinkdb", item.id), drinkData(item, cur && cur.createdAt)));
+      if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; toast("Не сохранилось. Проверьте соединение и права базы."); return; }
       if (from) {
         aliasCodes(from.id).forEach((c) => { if (state.bcOwner[c] === state.user.uid) unlinkBarcode(c); });
         deleteDoc(prodDoc(from.id)).catch(writeFail);
       }
-      toast(from ? "Перенесено в напитки" : "Напиток сохранён");
-      showDetail(drinkById(item.id) || item);
+      const sub = [item.k > 0 ? `${item.k} ккал/100 мл` : "", item.c > 0 ? `${item.c} мг кофеина на 240 мл` : "", `гидратация ${item.h}%`].filter(Boolean).join(", ");
+      body.innerHTML = `${savedHtml("drink", item.n, sub, res)}
+        <div class="row"><button type="button" class="btn ghost" id="dc-edit">Изменить</button><button type="button" class="btn primary grow" id="dc-add">Добавить</button></div>`;
+      $("#dc-edit", ov).addEventListener("click", () => showCard(drinkById(item.id) || item, false));
+      $("#dc-add", ov).addEventListener("click", () => showDetail(drinkById(item.id) || item));
     });
   }
 
