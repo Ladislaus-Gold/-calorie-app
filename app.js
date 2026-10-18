@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 149;
+const APP_VERSION = 150;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -223,9 +223,7 @@ const byDateIndex = (() => {
 })();
 // Тема оформления: авто (как в системе) / светлая / тёмная
 const themePref = () => lsGet("theme") || "auto";
-function applyTypo() { document.documentElement.dataset.typo = lsGet("typo") === "ref" ? "ref" : ""; }
 function applyTheme() {
-  applyTypo();
   const p = themePref();
   const dark = p === "dark" || (p === "auto" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -1751,11 +1749,6 @@ function viewMe() {
       <div class="card-top"><h2 class="h2">Оформление</h2></div>
       <div class="seg full" data-seg="theme">${[["auto", "Авто"], ["light", "Светлая"], ["dark", "Тёмная"]].map(([v, t]) => `<button type="button" data-act="setTheme" data-v="${v}" class="${themePref() === v ? "on" : ""}">${t}</button>`).join("")}</div>
       <p class="foot-note" style="margin:10px 2px 0">«Авто» следует настройке iPhone: вечером включается тёмная.</p>
-    </section>
-    <section class="card">
-      <div class="card-top"><h2 class="h2">Шрифты</h2></div>
-      <div class="seg full">${[["", "Как сейчас"], ["ref", "Референс"]].map(([v, t]) => `<button type="button" data-act="setTypo" data-v="${v}" class="${(lsGet("typo") === "ref" ? "ref" : "") === v ? "on" : ""}">${t}</button>`).join("")}</div>
-      <p class="foot-note" style="margin:10px 2px 0">«Референс» — типографика из таблицы: заголовок 28 px, подписи 10 px, названия 14 px, суммы 15 px, крупные числа 34–38 px.</p>
     </section>
     ${planCardHtml()}
     <section class="card">
@@ -4756,7 +4749,6 @@ const actions = {
   addWater(ds) { const n = Number(ds.ml); if (n > 0) openDrinkSheet(null, null, n); else openRemoveSheet(); },
   addDrink() { openDrinkSheet(); },
   macroTop(ds) { openMacroTop(ds.key); },
-  setTypo(ds) { lsSet("typo", ds.v); applyTypo(); render(); },
   setTheme(ds) { lsSet("theme", ds.v); applyTheme(); render(); },
   addWeight() { openWeight(); },
   healthTab(ds) { state.hTab = ds.v; lsSet("hTab", ds.v); render(); const v = $("#view"); if (v) v.scrollTop = 0; },
