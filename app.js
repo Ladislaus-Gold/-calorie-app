@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 139;
+const APP_VERSION = 142;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -696,9 +696,10 @@ function viewDiary() {
     return `<section class="card meal m-${m.id}">
       <div class="meal-top" role="button" tabindex="0" data-act="toggleMeal" data-key="${mKey}"><div class="meal-head">
         <span class="meal-ic ${m.id}">${m.emoji}</span>
-        <div class="meal-name">${m.name}${chev(mOpen)}</div>
+        <div class="meal-name">${m.name}</div>
         <div class="meal-kcal${mt.kcal > target ? " over" : ""}">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
         <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
+        <span class="meal-tog">${chev(mOpen)}</span>
       </div>
       <div class="meal-plan"><div class="track ${target > 0 ? levelOf(mt.kcal / target) : ""}"><i style="width:${mp}%"></i></div></div></div>
       ${rows ? `<div class="entries">${rows}</div>` : ""}
@@ -2810,9 +2811,9 @@ function openProductForm(product, onSaved, prefill = {}) {
     <div class="field"><span>Значения на 100 г</span></div>
     <div class="field-grid">
       <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
-      <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" ${dis} value="${val(p.protein)}" autocomplete="off"></label>
-      <label class="field"><span>Жиры, г</span><input id="pf-fat" class="input" inputmode="decimal" ${dis} value="${val(p.fat)}" autocomplete="off"></label>
-      <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" ${dis} value="${val(p.carbs)}" autocomplete="off"></label>
+      <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.protein) > 0 ? val(p.protein) : ""}" autocomplete="off"></label>
+      <label class="field"><span>Жиры, г</span><input id="pf-fat" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.fat) > 0 ? val(p.fat) : ""}" autocomplete="off"></label>
+      <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.carbs) > 0 ? val(p.carbs) : ""}" autocomplete="off"></label>
     </div>
     ${drinkBlock}
     <div class="row">${ro
@@ -3751,6 +3752,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
   function showCard(d, isNew, from) {
     const bcs = [...(d.bc || [])];
     const v = (x) => (x === "" || x == null ? "" : String(x).replace(".", ","));
+    const v0 = (x) => (Number(x) > 0 ? v(x) : "");
     const cafInit = d.c > 0 ? r1((d.c / 240) * 100) : 0;
     const alcOpts = [["Слабый алкоголь", "Слабый (пиво, сидр)"], ["Легкий алкоголь", "Лёгкий"], ["Умеренный алкоголь", "Умеренный"], ["Средний алкоголь", "Средний (вино, вермут)"], ["Крепкий алкоголь", "Крепкий (водка, виски, коньяк)"]];
     const alcSel0 = alcOpts.some((o) => o[0] === d.a) ? d.a : "Средний алкоголь";
@@ -3763,15 +3765,15 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       <label class="field"><span>Название</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
-        <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" value="${v(cafInit)}" autocomplete="off"></label>
+        <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
       </div>
       <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dc-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
       <div class="field"><span>Значения на 100 мл</span></div>
       <div class="field-grid">
-        <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" value="${v(d.k)}" autocomplete="off"></label>
-        <label class="field"><span>Белки, г</span><input id="dc-p" class="input" inputmode="decimal" value="${v(d.p)}" autocomplete="off"></label>
-        <label class="field"><span>Жиры, г</span><input id="dc-f" class="input" inputmode="decimal" value="${v(d.f)}" autocomplete="off"></label>
-        <label class="field"><span>Углеводы, г</span><input id="dc-cb" class="input" inputmode="decimal" value="${v(d.cb)}" autocomplete="off"></label>
+        <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" placeholder="0" value="${v0(d.k)}" autocomplete="off"></label>
+        <label class="field"><span>Белки, г</span><input id="dc-p" class="input" inputmode="decimal" placeholder="0" value="${v0(d.p)}" autocomplete="off"></label>
+        <label class="field"><span>Жиры, г</span><input id="dc-f" class="input" inputmode="decimal" placeholder="0" value="${v0(d.f)}" autocomplete="off"></label>
+        <label class="field"><span>Углеводы, г</span><input id="dc-cb" class="input" inputmode="decimal" placeholder="0" value="${v0(d.cb)}" autocomplete="off"></label>
       </div>
       <div class="field"><span>Штрих-коды (можно несколько: другие упаковки и партии)</span>
         <div id="dc-bc-list" class="chips"></div>
@@ -3899,10 +3901,10 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
         <div class="field-grid">
           <label class="field"><span>Гидратация, %</span><input id="dk-pct" class="input" inputmode="decimal" value="${String(d.h).replace(".", ",")}" autocomplete="off"></label>
-          <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dk-caf" class="input" inputmode="decimal" value="${existing ? String(existing.caf100).replace(".", ",") : "0"}" autocomplete="off"></label>
+          <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dk-caf" class="input" inputmode="decimal" placeholder="0" value="${existing && Number(existing.caf100) > 0 ? String(existing.caf100).replace(".", ",") : ""}" autocomplete="off"></label>
         </div>
         <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dk-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
-        <label class="field"><span>Калории, ккал на 100 мл (если есть)</span><input id="dk-kcal" class="input" inputmode="decimal" value="0" autocomplete="off"></label>
+        <label class="field"><span>Калории, ккал на 100 мл (если есть)</span><input id="dk-kcal" class="input" inputmode="decimal" placeholder="0" value="" autocomplete="off"></label>
         ${existing ? "" : `<label class="check"><input type="checkbox" id="dk-keep" checked> <span>Сохранить в список напитков</span></label>`}` : ""}
       <label class="field"><span>Объём, мл</span><input id="dk-ml" class="input big" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"></label>
       <div class="chips">${[100, 150, 200, 250, 330, 500].map((n) => `<button type="button" class="chip" data-n="${n}">${n}</button>`).join("")}</div>
@@ -3916,8 +3918,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const read = () => {
       const ml = num($("#dk-ml", ov).value);
       if (isCustom) {
-        const k = num($("#dk-kcal", ov).value);
-        return { ml, pct: numS($("#dk-pct", ov).value), caf100: num($("#dk-caf", ov).value), name: $("#dk-name", ov).value.trim() || "Свой напиток", nutr: { kcal: k, protein: 0, fat: 0, carbs: 0 } };
+        const k = num($("#dk-kcal", ov).value) || 0;
+        return { ml, pct: numS($("#dk-pct", ov).value), caf100: num($("#dk-caf", ov).value) || 0, name: $("#dk-name", ov).value.trim() || "Свой напиток", nutr: { kcal: k, protein: 0, fat: 0, carbs: 0 } };
       }
       return { ml, pct: d.h, caf100: r1((d.c / 240) * 100), name: d.n, nutr: { kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0 } };
     };
