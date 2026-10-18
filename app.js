@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 142;
+const APP_VERSION = 143;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2915,7 +2915,7 @@ function openProductForm(product, onSaved, prefill = {}) {
       const sv = $("#pf-save", ov);
       sv.disabled = true; sv.textContent = "Сохраняю…";
       const res = await confirmWrite(setDoc(ref, full));
-      if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; toast("Не сохранилось. Проверьте соединение и права базы."); return; }
+      if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; saveErrShow(sv); return; }
       const sheet = ov.querySelector(".sheet");
       const sub = [brand, `${fmt(kcal)} ккал/100 г`, barcode].filter(Boolean).join(", ");
       sheet.innerHTML = `<div class="sheet-head"><h2>Продукт</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
@@ -3046,8 +3046,23 @@ const confirmWrite = (promise, ms = 9000) => new Promise((res) => {
   let done = false;
   const fin = (v) => { if (!done) { done = true; res(v); } };
   setTimeout(() => fin("slow"), ms);
-  Promise.resolve(promise).then(() => fin("ok"), (e) => { console.error(e); fin("fail"); });
+  Promise.resolve(promise).then(() => fin("ok"), (e) => { console.error(e); lastWriteErr = (e && e.code) || String((e && e.message) || e); fin("fail"); });
 });
+let lastWriteErr = "";
+// Постоянное сообщение об ошибке над кнопками (тосты быстро исчезают)
+function saveErrShow(btn) {
+  const row = btn.closest(".row") || btn.parentElement;
+  const old = row.parentElement.querySelector(".note.err");
+  if (old) old.remove();
+  const denied = /permission|denied/i.test(lastWriteErr);
+  const box = document.createElement("div");
+  box.className = "note err";
+  box.innerHTML = denied
+    ? "<b>Сервер не принял запись.</b> Правила базы Firebase не разрешают сохранять сюда (permission-denied). Нужно один раз опубликовать файл <b>firestore.rules</b> в консоли Firebase: Firestore Database → Правила → вставить → Опубликовать."
+    : `<b>Не сохранилось.</b> Причина: ${esc(lastWriteErr || "нет связи")}. Проверьте интернет и повторите.`;
+  row.parentElement.insertBefore(box, row);
+  box.scrollIntoView({ block: "center", behavior: "smooth" });
+}
 // Экран «Сохранено»: показывает, что карточка записана, и даёт сразу добавить её
 function savedHtml(kind, name, sub, st) {
   const ok = st === "ok";
@@ -3876,7 +3891,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       const sv = $("#dc-save", ov);
       sv.disabled = true; sv.textContent = "Сохраняю…";
       const res = await confirmWrite(setDoc(doc(db, "drinkdb", item.id), drinkData(item, cur && cur.createdAt)));
-      if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; toast("Не сохранилось. Проверьте соединение и права базы."); return; }
+      if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; saveErrShow(sv); return; }
       if (from) {
         aliasCodes(from.id).forEach((c) => { if (state.bcOwner[c] === state.user.uid) unlinkBarcode(c); });
         deleteDoc(prodDoc(from.id)).catch(writeFail);

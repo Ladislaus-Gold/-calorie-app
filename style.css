@@ -1166,3 +1166,7 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 :root[data-theme="dark"] .cv{background:rgba(94,201,126,.18);color:#7FD6A0;box-shadow:0 1px 3px rgba(0,0,0,.45)}
 :root[data-theme="dark"] .meal .cv{background:rgba(94,201,126,.18)}
 :root[data-theme="dark"] .caf-card .cv{background:rgba(240,221,176,.18);color:#F0DDB0;box-shadow:0 1px 3px rgba(0,0,0,.45)}
+
+/* v143: сообщение об ошибке сохранения */
+.note.err{background:#FDE8E8;color:#A12323;margin:10px 0}
+:root[data-theme="dark"] .note.err{background:#3A1717;color:#FFB4B4}
