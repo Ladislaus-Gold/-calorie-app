@@ -1234,3 +1234,20 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 
 /* v148 */
 .ak-more{margin-top:14px}
+
+/* v149: типографика «Референс» (включается в Профиле, html[data-typo="ref"]) */
+html[data-typo="ref"] body, html[data-typo="ref"] button, html[data-typo="ref"] input, html[data-typo="ref"] select, html[data-typo="ref"] textarea { font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif; }
+html[data-typo="ref"] .title { font-size: 28px; font-weight: 700; letter-spacing: -.034em; line-height: 1.05; }
+html[data-typo="ref"] .overline { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+html[data-typo="ref"] .h2, html[data-typo="ref"] .sheet h2, html[data-typo="ref"] .sheet h3 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+html[data-typo="ref"] .foot-note, html[data-typo="ref"] .chart-note, html[data-typo="ref"] .p-sub, html[data-typo="ref"] .meal-kcal small, html[data-typo="ref"] .stat span, html[data-typo="ref"] .mini-label + *, html[data-typo="ref"] .ak-v span { font-size: 12px; font-weight: 400; }
+html[data-typo="ref"] .e-name, html[data-typo="ref"] .ak-n { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+html[data-typo="ref"] .p-name { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+html[data-typo="ref"] .e-sub { font-size: 11px; font-weight: 400; }
+html[data-typo="ref"] .e-kcal, html[data-typo="ref"] .ak-v b { font-size: 15px; font-weight: 600; }
+html[data-typo="ref"] .e-kcal small, html[data-typo="ref"] .ak-v b small { font-size: 9px; font-weight: 400; }
+html[data-typo="ref"] .field > span { font-size: 12px; font-weight: 600; }
+html[data-typo="ref"] .hero-value, html[data-typo="ref"] .stat b, html[data-typo="ref"] .meal-kcal { font-weight: 700; letter-spacing: -.05em; font-family: ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; }
+html[data-typo="ref"] .hero-value { font-size: 38px; }
+html[data-typo="ref"] .stat b { font-size: 34px; }
+html[data-typo="ref"] .meal-kcal, html[data-typo="ref"] .meal-kcal.over { font-size: 20px; }
