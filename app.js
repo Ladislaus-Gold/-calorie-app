@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 145;
+const APP_VERSION = 148;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1465,12 +1465,35 @@ function rankRows(rows) {
   return `<div class="rank">${rows.map((r) => `<div class="rk"><div class="rk-top"><span class="rk-n">${esc(r.name)}</span><span class="rk-v">${r.text}</span></div><div class="rk-bar"><i class="${r.cls || ""}" style="width:${Math.max(2, (r.v / max) * 100)}%"></i></div></div>`).join("")}</div>`;
 }
 
+// «Нагрузки по видам»: плитка вида (значок, название, раз и ккал), справа минуты и доля, снизу полоска доли
+const ACT_ICONS = [[/ходьб|прогулк|walk/i, "🚶"], [/бег|run/i, "🏃"], [/силов|трен.*зал|strength|функцион/i, "🏋️"], [/интервал|hiit|высок/i, "⚡"], [/велос|cycl|bike/i, "🚴"], [/плав|swim/i, "🏊"], [/йог|растяж|yoga|stretch/i, "🧘"], [/танц|dance/i, "💃"], [/футбол|баскет|теннис|игр/i, "⚽"]];
+const actIcon = (name) => { const m = ACT_ICONS.find(([re]) => re.test(name)); return m ? m[1] : "🔥"; };
+const pluralRaz = (n) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? "раз" : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "раза" : "раз"; };
+function actKindsCard(types) {
+  const list = types.slice().sort((x, y) => y.min - x.min);
+  const tm = list.reduce((t, x) => t + x.min, 0) || 1, tn = list.reduce((t, x) => t + x.n, 0), tk = list.reduce((t, x) => t + x.kcal, 0);
+  const SHOW = 4, open = !!state.actKindsOpen, hidden = Math.max(0, list.length - SHOW);
+  const rows = (open ? list : list.slice(0, SHOW)).map((t) => {
+    const share = Math.round((t.min / tm) * 100);
+    return `<div class="ak">
+      <span class="ak-ic" aria-hidden="true">${actIcon(t.name)}</span>
+      <div class="ak-main"><b class="ak-n">${esc(t.name)}</b><span class="ak-m">${fmtInt(t.n)} ${pluralRaz(t.n)} · ${fmtInt(t.kcal)} ккал</span></div>
+      <div class="ak-v"><b>${fmtInt(t.min)}<small> мин</small></b><span>${share}%</span></div>
+      <div class="ak-bar"><i style="width:${Math.max(3, (t.min / list[0].min) * 100)}%"></i></div>
+    </div>`;
+  }).join("");
+  return `<section class="card"><div class="card-top"><h2 class="h2">Нагрузки по видам</h2><span class="pill">${fmtInt(tm)} мин</span></div>
+    <p class="foot-note" style="margin:-2px 0 12px">Всего ${fmtInt(tn)} ${pluralRaz(tn)}, сожжено ${fmtInt(tk)} ккал. Доля считается от общего времени.</p>
+    <div class="ak-list">${rows}</div>
+    ${hidden ? `<button type="button" class="btn ghost full fold-row ak-more" data-act="toggleActKinds" aria-expanded="${open}">${open ? "Свернуть" : `Ещё ${hidden}`}${chev(open)}</button>` : ""}</section>`;
+}
+
 function viewReports() {
   const days = reportDays();
   const n = days.length;
   const a = analyze(days);
-  // Длинные периоды на графиках показываются по неделям (среднее за неделю), иначе столбики слишком мелкие
-  const step = n > 400 ? 30 : n > 45 ? 7 : 1;
+  // До 180 дней график строится по дням (один столбец = один день); дальше по неделям, а свыше 400 дней по месяцам (среднее)
+  const step = n > 400 ? 30 : n > 180 ? 7 : 1;
   const grouped = step > 1;
   const gIdx = grouped ? Array.from({ length: Math.ceil(n / step) }, (_, i) => i * step) : null;
   const chartKeys = grouped ? gIdx.map((i) => days[i]) : days;
@@ -1482,10 +1505,19 @@ function viewReports() {
   const by = grouped ? (step === 30 ? "по месяцам (среднее)" : "по неделям (среднее)") : "по дням";
   const active = (v) => (!state.repCustom && state.repDays === v ? "on" : "");
   const goalMax = Math.max(state.goal * 1.15, ...kper.map((x) => x.kcal), 1);
+  const rangeTitle = (k) => { const g = gmap[k]; return g && g.length > 1 ? `${shortDate(k)} — ${shortDate(g[g.length - 1])}` : dayLabel(k); };
+  const tipO = { titleFn: rangeTitle, grouped };
   const bars = kper.map((x) => {
     const h = x.has ? Math.max(2, (x.kcal / goalMax) * 100) : 0;
     const cls = !x.has ? "b zero" : x.kcal > state.goal ? "b over" : "b";
-    return `<div class="col"><div class="${cls}" style="height:${x.has ? h : 2}%" title="${dayLabel(x.d)}: ${fmtInt(x.kcal)} ккал"></div></div>`;
+    const diff = x.kcal - state.goal;
+    const lines = x.has ? [
+      diff > 0 ? `перебор +${fmtInt(diff)} ккал (+${Math.round((diff / state.goal) * 100)}%)` : `до цели ${fmtInt(-diff)} ккал`,
+      `цель ${fmtInt(state.goal)} ккал`,
+      !grouped ? `Б ${fmt(x.protein)} · Ж ${fmt(x.fat)} · У ${fmt(x.carbs)} г` : "",
+    ] : [`цель ${fmtInt(state.goal)} ккал`];
+    const tip = tipAttr(rangeTitle(x.d), x.has ? `${grouped ? "≈ " : ""}${fmtInt(x.kcal)} ккал` : "нет записей", lines, x.has && diff > 0);
+    return `<div class="col"${tip}><div class="${cls}" style="height:${x.has ? h : 2}%"></div></div>`;
   }).join("");
   const goalBottom = (state.goal / goalMax) * 100;
 
@@ -1506,9 +1538,6 @@ function viewReports() {
     : `<p class="foot-note" style="margin:0">Ничего тревожного не найдено.</p>`;
   const plan = a.plan;
   const macroRow = (name, avg, target, cls) => `<div class="rk"><div class="rk-top"><span class="rk-n">${name}</span><span class="rk-v">${fmt(avg)} г${target ? ` из ${target} г` : ""}</span></div><div class="rk-bar"><i class="${cls}" style="width:${target ? Math.min(100, (avg / target) * 100) : Math.min(100, avg)}%"></i></div></div>`;
-  const wdAvg = a.wd.map((x) => (x.n ? x.s / x.n : 0));
-  const wdMax = Math.max(...wdAvg, state.goal, 1);
-  const wdBars = wdAvg.map((v, i) => `<div class="wd"><div class="wd-col"><div class="b ${v > state.goal * 1.1 ? "over" : v > 0 ? "" : "zero"}" style="height:${v > 0 ? Math.max(3, (v / wdMax) * 100) : 2}%"></div></div><span>${WD_WEEK[i]}</span><small>${v ? fmtInt(v) : "–"}</small></div>`).join("");
 
   const mealRows = MEALS.map((m) => ({ name: m.name, v: a.mealKcal[m.id], text: `${fmtInt(a.mealKcal[m.id])} ккал · ${Math.round((a.mealKcal[m.id] / a.mealTotal) * 100)}%` }));
   const foodRows = a.topFoods.map((f) => ({ name: f.name, v: f.kcal, text: `${fmtInt(f.kcal)} ккал · ${f.n} раз` }));
@@ -1573,8 +1602,8 @@ function viewReports() {
     ${trainReportHtml(days[0], days[n - 1])}
     <section class="card">
       <h2 class="h2">Калории ${by}</h2>
-      <div class="chart">${bars}<div class="goal" style="bottom:${goalBottom}%"></div></div>
-      <div class="chart-labels">${chartLabels(chartKeys)}</div>
+      <div ${chartAttrs(chartKeys.length)}>${bars}<div class="goal" style="bottom:${goalBottom}%"></div></div>
+      ${chartLabelsBox(chartKeys)}
       <p class="chart-note">Пунктир: ваша цель ${fmtInt(state.goal)} ккал. Красным отмечены дни с перебором.</p>
     </section>
     ${a.L ? `<section class="card">
@@ -1598,17 +1627,13 @@ function viewReports() {
       <h2 class="h2">По приёмам пищи</h2>
       ${rankRows(mealRows)}
     </section>
-    <section class="card">
-      <h2 class="h2">По дням недели</h2>
-      <div class="wd-grid">${wdBars}</div>
-      <p class="chart-note">Средние калории по дням недели (только дни с записями).</p>
-    </section>` : ""}
-    ${barsCard(`Жидкость ${by}`, chartKeys, gfn(hydrationOn), ggoal(waterTarget), "мл", "water")}
-    ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true)}
-    ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "")}
-    ${barsCard(`Сон ${by}`, chartKeys, gfn((d) => Math.round(sleepHours(d) * 10) / 10), (() => SLEEP_MIN), "ч", "sleep", false, (v) => fmt(v))}
-    ${a.stepDays ? barsCard(`Шаги ${by}`, chartKeys, gfn(stepsOn), (() => STEPS_GOAL), "шагов", "") : ""}
-    ${actRows.length ? `<section class="card"><h2 class="h2">Нагрузки по видам</h2>${rankRows(actRows)}</section>` : ""}` : ""}
+` : ""}
+    ${barsCard(`Жидкость ${by}`, chartKeys, gfn(hydrationOn), ggoal(waterTarget), "мл", "water", false, null, tipO)}
+    ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true, null, tipO)}
+    ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "", false, null, { ...tipO, extra: grouped ? null : (d) => { const b = actBurned(d); return b > 0 ? `сожжено ${fmtInt(b)} ккал` : ""; } })}
+    ${barsCard(`Сон ${by}`, chartKeys, gfn((d) => Math.round(sleepHours(d) * 10) / 10), (() => SLEEP_MIN), "ч", "sleep", false, (v) => fmt(v), { ...tipO, extra: grouped ? null : (d) => { const z = sleepOn(d); return z && (Number(z.sleepDeepH) > 0 || Number(z.sleepRemH) > 0) ? `глубокий ${fmt(Number(z.sleepDeepH) || 0)} ч · REM ${fmt(Number(z.sleepRemH) || 0)} ч` : ""; } })}
+    ${a.stepDays ? barsCard(`Шаги ${by}`, chartKeys, gfn(stepsOn), (() => STEPS_GOAL), "шагов", "", false, null, tipO) : ""}
+    ${a.actTypes.length ? actKindsCard(a.actTypes) : ""}` : ""}
     <p class="foot-note" style="margin:6px 4px 0">Все записи хранятся в вашем аккаунте без ограничения по времени. Старые периоды подгружаются при выборе.</p>`;
 }
 
@@ -3428,6 +3453,10 @@ function weightCard(day) {
   </section>`;
 }
 
+// Контейнер столбчатого графика: плотность зависит от числа столбцов (90 дней = 90 тонких столбцов)
+const chartAttrs = (len) => `class="chart${len > 45 ? " dense" : len > 20 ? " mid" : ""}" style="--g:${len > 60 ? 1 : len > 30 ? 2 : 4}px" data-tips="1"`;
+// Данные для всплывающей подсказки столбца: заголовок, главное число, строки пояснений
+const tipAttr = (title, main, lines, over) => ` data-tt="${esc(title)}" data-tv="${esc(main)}" data-ts="${esc((lines || []).filter(Boolean).join("|"))}"${over ? ' data-to="1"' : ""}`;
 function chartLabels(days) {
   const step = days.length <= 7 ? 1 : Math.ceil(days.length / 7);
   return days.map((d, i) => {
@@ -3436,21 +3465,43 @@ function chartLabels(days) {
     return `<span>${t}</span>`;
   }).join("");
 }
+// Подписи под графиком: до 14 столбцов по одному под каждым, дальше несколько равномерных меток по краям и середине
+function chartLabelsBox(days) {
+  const n = days.length;
+  if (n <= 14) return `<div class="chart-labels" style="--g:4px">${chartLabels(days)}</div>`;
+  const cnt = Math.min(6, n);
+  const idx = [...new Set(Array.from({ length: cnt }, (_, k) => Math.round((k * (n - 1)) / (cnt - 1))))];
+  const spans = idx.map((i, k) => {
+    const dt = parseD(days[i]);
+    const pos = ((i + 0.5) / n) * 100;
+    const al = k === 0 ? "l" : k === idx.length - 1 ? "r" : "c";
+    return `<span class="cl-${al}" style="left:${pos}%">${dt.getDate()}.${String(dt.getMonth() + 1).padStart(2, "0")}</span>`;
+  }).join("");
+  return `<div class="chart-labels dense-l">${spans}</div>`;
+}
 
-function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv) {
+function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
+  o = o || {};
   const F = fv || fmtInt;
   const vals = days.map(valFn);
   const goal = goalFn ? Math.max(...days.map((d) => goalFn(d))) : 0;
   const max = Math.max(goal * 1.15, ...vals, 1);
   const bars = vals.map((v, i) => {
     const over = overLimit && goalFn && v > goalFn(days[i]);
-    return `<div class="col"><div class="b ${v > 0 ? (over ? "over" : cls) : "zero"}" style="height:${v > 0 ? Math.max(2, (v / max) * 100) : 2}%"></div></div>`;
+    const lines = [];
+    if (goalFn) {
+      const g = goalFn(days[i]);
+      if (g > 0) lines.push(v > 0 ? (over ? `выше лимита ${F(g)} ${unit}` : `${overLimit ? "лимит" : "норма"} ${F(g)} ${unit} · ${Math.round((v / g) * 100)}%`) : `${overLimit ? "лимит" : "норма"} ${F(g)} ${unit}`);
+    }
+    if (o.extra && v > 0) { const x = o.extra(days[i], v); if (x) lines.push(x); }
+    const tip = tipAttr((o.titleFn || dayLabel)(days[i]), v > 0 ? `${o.grouped ? "≈ " : ""}${F(v)} ${unit}` : "нет данных", lines, over);
+    return `<div class="col"${tip}><div class="b ${v > 0 ? (over ? "over" : cls) : "zero"}" style="height:${v > 0 ? Math.max(2, (v / max) * 100) : 2}%"></div></div>`;
   }).join("");
   const withData = vals.filter((v) => v > 0);
   const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
   return `<section class="card"><h2 class="h2">${title}</h2>
-    <div class="chart">${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
-    <div class="chart-labels">${chartLabels(days)}</div>
+    <div ${chartAttrs(days.length)}>${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
+    ${chartLabelsBox(days)}
     <p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${F(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${F(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p></section>`;
 }
 
@@ -4759,6 +4810,7 @@ const actions = {
   toggleIns() { state.insOpen = !state.insOpen; render(); },
   trainDayTog() { state.trainDayOpen = !state.trainDayOpen; render(); },
   trainDayTap(ds) { state.trainDayOpen = true; if (ds.date !== state.date) actions.pickDay(ds); else render(); },
+  toggleActKinds() { state.actKindsOpen = !state.actKindsOpen; render(); },
   toggleTrain() { state.trainOpen = !state.trainOpen; render(); },
   toggleTrainRep() { state.trainRepOpen = !state.trainRepOpen; render(); },
   checkStatus() { checkStatus(true); },
@@ -4794,7 +4846,47 @@ const actions = {
   logout() { signOut(auth); },
 };
 
+// Нажатие на график: всплывающая подсказка с цифрами выбранного столбца (по положению пальца, даже если столбец тонкий)
+function clearChartTip(ch) {
+  const old = ch.querySelector(".tip");
+  if (old) old.remove();
+  ch.classList.remove("tipped");
+  ch.querySelectorAll(".col.sel").forEach((c) => c.classList.remove("sel"));
+}
+function chartTap(e) {
+  const ch = e.target.closest(".chart[data-tips]");
+  document.querySelectorAll(".chart.tipped").forEach((c) => { if (c !== ch) clearChartTip(c); });
+  if (!ch) return false;
+  const cols = ch.querySelectorAll(".col");
+  if (!cols.length) return true;
+  const r = ch.getBoundingClientRect();
+  const i = Math.max(0, Math.min(cols.length - 1, Math.floor(((e.clientX - r.left) / r.width) * cols.length)));
+  const col = cols[i];
+  const same = col.classList.contains("sel");
+  clearChartTip(ch);
+  if (same) return true;
+  col.classList.add("sel");
+  ch.classList.add("tipped");
+  const tip = document.createElement("div");
+  tip.className = "tip" + (col.dataset.to ? " over" : "");
+  const lines = (col.dataset.ts || "").split("|").filter(Boolean);
+  tip.innerHTML = `<span class="tip-t">${esc(col.dataset.tt || "")}</span><b class="tip-v">${esc(col.dataset.tv || "")}</b>${lines.map((l) => `<span class="tip-l">${esc(l)}</span>`).join("")}`;
+  ch.appendChild(tip);
+  const cr = col.getBoundingClientRect(), bar = col.querySelector(".b"), br = bar ? bar.getBoundingClientRect() : cr;
+  const tw = tip.offsetWidth, th = tip.offsetHeight, cx = cr.left - r.left + cr.width / 2;
+  let left = Math.max(2, Math.min(r.width - tw - 2, cx - tw / 2));
+  let top = br.top - r.top - th - 8;
+  if (top < 2) {
+    // над столбцом нет места: ставим сбоку, с противоположной от столбца стороны середины графика
+    top = 2;
+    left = cx < r.width / 2 ? Math.min(r.width - tw - 2, cx + Math.max(cr.width, 6) / 2 + 8) : Math.max(2, cx - tw - Math.max(cr.width, 6) / 2 - 8);
+  }
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+  return true;
+}
 $("#view").addEventListener("click", (e) => {
+  if (chartTap(e)) return;
   const edit = e.target.closest("[data-edit-product]");
   if (edit) {
     const p = state.products.find((x) => x.id === edit.dataset.editProduct);

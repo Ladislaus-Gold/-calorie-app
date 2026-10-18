@@ -1188,3 +1188,49 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 :root[data-theme="dark"] .sub-panel.plus .sub-res{color:#9DE0B5}
 :root[data-theme="dark"] .sub-seg button.on{background:#2A2A2A;color:#F0B6BC}
 :root[data-theme="dark"] .sub-panel.plus .sub-seg button.on{color:#9DE0B5}
+
+/* v146: графики — до 180 столбцов по дням, подписи по краям, всплывающая подсказка, «Нагрузки по видам» не выходят за рамку */
+.chart{gap:var(--g,4px);touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer}
+.chart.mid .b{border-radius:6px 6px 3px 3px}
+.chart.dense .b{border-radius:2px 2px 1px 1px;min-height:2px}
+.chart-labels{gap:var(--g,4px)}
+.chart-labels.dense-l{display:block;position:relative;height:16px}
+.chart-labels.dense-l span{position:absolute;top:0;white-space:nowrap;flex:none;text-align:left}
+.chart-labels.dense-l .cl-c{transform:translateX(-50%)}
+.chart-labels.dense-l .cl-l{transform:translateX(0);left:0!important}
+.chart-labels.dense-l .cl-r{transform:translateX(-100%);left:100%!important}
+.chart.tipped .col:not(.sel) .b{opacity:.42}
+.chart .col.sel .b{filter:saturate(1.25) brightness(.92)}
+.chart .tip{position:absolute;z-index:5;min-width:128px;max-width:210px;background:#fff;color:var(--text,#1d2b22);border-radius:14px;padding:9px 12px;box-shadow:0 8px 24px rgba(10,40,20,.22),0 1px 3px rgba(10,40,20,.12);display:flex;flex-direction:column;gap:2px;pointer-events:none;animation:tipin .12s ease-out}
+.chart .tip .tip-t{font-size:11px;font-weight:600;color:var(--muted)}
+.chart .tip .tip-v{font-size:18px;line-height:1.15;font-weight:800;color:#0E6B32;font-variant-numeric:tabular-nums}
+.chart .tip.over .tip-v{color:#C0392B}
+.chart .tip .tip-l{font-size:12px;color:var(--muted);line-height:1.3;font-variant-numeric:tabular-nums}
+@keyframes tipin{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+:root[data-theme="dark"] .chart .tip{background:#25322B;color:#EAF4EE;box-shadow:0 8px 24px rgba(0,0,0,.55)}
+:root[data-theme="dark"] .chart .tip .tip-v{color:#7FD6A0}
+:root[data-theme="dark"] .chart .tip.over .tip-v{color:#F29A92}
+/* строки рейтингов (нагрузки по видам, еда, напитки) не шире карточки */
+.rank{grid-template-columns:minmax(0,1fr)}
+.rk{min-width:0;max-width:100%}
+.rk-top{flex-wrap:wrap;row-gap:1px}
+.rk-n{flex:1 1 150px;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.25}
+.rk-v{flex:0 0 auto;white-space:nowrap;margin-left:auto}
+
+/* v147: «Нагрузки по видам» — плитки */
+.ak-list{display:grid;gap:14px}
+.ak{display:grid;grid-template-columns:38px minmax(0,1fr) auto;grid-template-areas:"ic main v" "bar bar bar";gap:6px 10px;align-items:center}
+.ak-ic{grid-area:ic;width:38px;height:38px;border-radius:12px;background:var(--accent-soft);display:grid;place-items:center;font-size:19px}
+.ak-main{grid-area:main;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ak-n{font-size:14px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
+.ak-m{font-size:12px;color:var(--muted)}
+.ak-v{grid-area:v;text-align:right;display:flex;flex-direction:column;line-height:1.15}
+.ak-v b{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;color:#0E6B32}
+.ak-v b small{font-size:11px;font-weight:600;color:var(--muted)}
+.ak-v span{font-size:11px;color:var(--muted);font-weight:600}
+.ak-bar{grid-area:bar;height:6px;border-radius:999px;background:var(--line-2);overflow:hidden}
+.ak-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+:root[data-theme="dark"] .ak-v b{color:#7FD6A0}
+
+/* v148 */
+.ak-more{margin-top:14px}
