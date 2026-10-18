@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 143;
+const APP_VERSION = 145;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -396,12 +396,25 @@ function startData(uid) {
   }, (err) => console.warn("Избранные напитки:", err)));
 
   // Общая база напитков: видят и добавляют все пользователи
-  state.unsubs.push(onSnapshot(collection(db, "drinkdb"), (snap) => {
-    state.sharedDrinks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    state.drinkdbReady = true;
-    maybeMigrateDrinks();
-    render();
-  }, (err) => console.warn("Общая база напитков:", err)));
+  // Если слушатель упал (например, правила опубликовали уже после входа), он сам не оживает: пробуем подписаться заново
+  const subDrinkdb = () => {
+    let off = () => {};
+    const key = state.user && state.user.uid;
+    off = onSnapshot(collection(db, "drinkdb"), (snap) => {
+      state.drinkdbErr = false;
+      state.sharedDrinks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      state.drinkdbReady = true;
+      maybeMigrateDrinks();
+      render();
+    }, (err) => {
+      console.warn("Общая база напитков:", err);
+      state.drinkdbErr = true;
+      setTimeout(() => { if (state.user && state.user.uid === key && state.drinkdbErr) { state.unsubs = state.unsubs.filter((f) => f !== off); subDrinkdb(); } }, 8000);
+    });
+    state.unsubs.push(off);
+  };
+  state.drinkdbResub = subDrinkdb;
+  subDrinkdb();
 
   // Дополнительные штрих-коды упаковок: код -> id продукта (общая база, видна всем)
   // План тренировок: анкета и отметки (отдельно от workouts/activity, в статистику не попадают)
@@ -791,14 +804,14 @@ function viewProducts() {
     ${pageHead("Общая база", "Продукты", `
       <button type="button" class="iconbtn" data-act="scanProduct" aria-label="Сканировать штрих-код">${SCAN_SVG}</button>
       <button type="button" class="round-btn" data-act="newProduct" aria-label="Новый продукт">+</button>`)}
-    <input id="prod-search" class="input search" type="search" placeholder="Название, штрих-код или автор" value="${esc(state.prodSearch)}" autocomplete="off">
-    <section class="card list-card"><div id="plist" class="plist">${productListHtml()}</div></section>
-    <p class="foot-note">Продукты видят все пользователи. Править или удалять продукт может только тот, кто его добавил.</p>
     ${lost ? `<section class="card">
       <h2 class="h2">Напитки из дневника</h2>
       <p class="foot-note" style="margin:0 0 12px">В дневнике есть ${lost} напитков, которых нет ни в продуктах, ни в списке напитков. Можно вернуть их карточками напитков (название, калории, БЖУ, гидратация и кофеин берутся из записей дневника).</p>
       <button type="button" class="btn ghost full" data-act="restoreDrinks">Восстановить напитки</button>
     </section>` : ""}
+    <input id="prod-search" class="input search" type="search" placeholder="Название, штрих-код или автор" value="${esc(state.prodSearch)}" autocomplete="off">
+    <section class="card list-card"><div id="plist" class="plist">${productListHtml()}</div></section>
+    <p class="foot-note">Продукты видят все пользователи. Править или удалять продукт может только тот, кто его добавил.</p>
     ${missing ? `<section class="card">
       <h2 class="h2">Базовые продукты</h2>
       <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный, тушёный. У жареных и тушёных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
@@ -2571,28 +2584,50 @@ function openAddFood(mealId, presetProduct) {
 function attachSubtract(anchor, input, unit, upd) {
   const host = document.createElement("div");
   host.className = "sub-calc";
-  host.innerHTML = `<button type="button" class="btn ghost sub-open">− Вычесть (кожура, упаковка)</button>
+  host.innerHTML = `<button type="button" class="btn ghost sub-open">± Изменить вес (плюс или минус)</button>
     <div class="sub-panel hidden">
-      <label class="field"><span>Вычесть, ${unit}</span><input class="input big sub-val" inputmode="decimal" autocomplete="off" placeholder="например, 45"></label>
+      <div class="seg sub-seg" role="group" aria-label="Действие"><button type="button" class="seg-b on" data-s="-">− Вычесть</button><button type="button" class="seg-b" data-s="+">+ Добавить</button></div>
+      <label class="field"><span class="sub-lab">Вычесть, ${unit}</span><input class="input big sub-val" inputmode="decimal" autocomplete="off" placeholder="например, 45"></label>
+      <p class="foot-note" style="margin:-4px 2px 8px">Можно и сразу написать знак: «+30» добавит, «−45» вычтет.</p>
       <p class="sub-res"></p>
-      <div class="row"><button type="button" class="btn ghost sub-cancel">Отмена</button><button type="button" class="btn primary grow sub-ok">Вычесть</button></div>
+      <div class="row"><button type="button" class="btn ghost sub-cancel">Отмена</button><button type="button" class="btn primary grow sub-ok">Применить</button></div>
     </div>`;
   anchor.after(host);
-  const openBtn = $(".sub-open", host), panel = $(".sub-panel", host), val = $(".sub-val", host), res = $(".sub-res", host);
+  const openBtn = $(".sub-open", host), panel = $(".sub-panel", host), val = $(".sub-val", host), res = $(".sub-res", host), lab = $(".sub-lab", host);
+  let sign = -1;
   const fmtG = (x) => String(Math.round(x * 10) / 10).replace(".", ",");
+  const setSign = (v) => {
+    sign = v;
+    host.querySelectorAll(".seg-b").forEach((b) => b.classList.toggle("on", (b.dataset.s === "+") === (v > 0)));
+    lab.textContent = `${v > 0 ? "Добавить" : "Вычесть"}, ${unit}`;
+    panel.classList.toggle("plus", v > 0);
+  };
+  // сумма со знаком: знак из поля (+/−) важнее переключателя
+  const amount = () => {
+    const t = String(val.value).trim();
+    const m = /^([+\-−–])\s*(.*)$/.exec(t);
+    const a = num(m ? m[2] : t) || 0;
+    const sg = m ? (m[1] === "+" ? 1 : -1) : sign;
+    return { a, sg };
+  };
   const calc = () => {
-    const cur = num(input.value) || 0, sub = num(val.value) || 0, r = cur - sub;
-    res.textContent = sub > 0 ? (r > 0 ? `${fmtG(cur)} − ${fmtG(sub)} = ${fmtG(r)} ${unit}` : "Вычитаемое должно быть меньше текущего веса") : `Сейчас: ${fmtG(cur)} ${unit}`;
-    res.classList.toggle("bad", sub > 0 && r <= 0);
+    const cur = num(input.value) || 0, { a, sg } = amount(), r = cur + sg * a;
+    res.textContent = a > 0 ? (r > 0 ? `${fmtG(cur)} ${sg > 0 ? "+" : "−"} ${fmtG(a)} = ${fmtG(r)} ${unit}` : "Вес после вычета должен быть больше нуля") : `Сейчас: ${fmtG(cur)} ${unit}`;
+    res.classList.toggle("bad", a > 0 && r <= 0);
     return r;
   };
-  const close = () => { panel.classList.add("hidden"); openBtn.classList.remove("hidden"); val.value = ""; };
+  const close = () => { panel.classList.add("hidden"); openBtn.classList.remove("hidden"); val.value = ""; setSign(-1); };
   openBtn.addEventListener("click", () => { openBtn.classList.add("hidden"); panel.classList.remove("hidden"); calc(); val.focus(); });
-  val.addEventListener("input", calc);
+  host.querySelectorAll(".seg-b").forEach((b) => b.addEventListener("click", () => { setSign(b.dataset.s === "+" ? 1 : -1); calc(); }));
+  val.addEventListener("input", () => {
+    const m = /^\s*([+\-−–])/.exec(val.value);
+    if (m) setSign(m[1] === "+" ? 1 : -1);
+    calc();
+  });
   $(".sub-cancel", host).addEventListener("click", close);
   $(".sub-ok", host).addEventListener("click", () => {
-    const sub = num(val.value) || 0, r = calc();
-    if (!(sub > 0) || !(r > 0)) return;
+    const { a } = amount(), r = calc();
+    if (!(a > 0) || !(r > 0)) return;
     input.value = fmtG(r);
     upd();
     close();
@@ -3896,6 +3931,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         aliasCodes(from.id).forEach((c) => { if (state.bcOwner[c] === state.user.uid) unlinkBarcode(c); });
         deleteDoc(prodDoc(from.id)).catch(writeFail);
       }
+      if (!(state.sharedDrinks || []).some((x) => x.id === item.id)) state.sharedDrinks = [...(state.sharedDrinks || []), { id: item.id, n: item.n, h: item.h, c: item.c, cat: item.cat, a: item.a, k: item.k, p: item.p, f: item.f, cb: item.cb, bc: [...item.bc], createdBy: state.user.uid, createdByName: "" }];
+      if (state.drinkdbErr && state.drinkdbResub) state.drinkdbResub();
       const sub = [item.k > 0 ? `${item.k} ккал/100 мл` : "", item.c > 0 ? `${item.c} мг кофеина на 240 мл` : "", `гидратация ${item.h}%`].filter(Boolean).join(", ");
       body.innerHTML = `${savedHtml("drink", item.n, sub, res)}
         <div class="row"><button type="button" class="btn ghost" id="dc-edit">Изменить</button><button type="button" class="btn primary grow" id="dc-add">Добавить</button></div>`;

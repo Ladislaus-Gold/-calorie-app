@@ -1170,3 +1170,21 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 /* v143: сообщение об ошибке сохранения */
 .note.err{background:#FDE8E8;color:#A12323;margin:10px 0}
 :root[data-theme="dark"] .note.err{background:#3A1717;color:#FFB4B4}
+
+/* v145: калькулятор веса: плюс и минус */
+.sub-seg{display:grid;grid-template-columns:1fr 1fr;margin-bottom:10px}
+.sub-seg button{padding:0 8px}
+.sub-seg button.on{background:#fff;color:#8E2F3A}
+.sub-panel.plus{background:#E3F3E9;border-color:#3C9A63}
+.sub-panel.plus .input{border-color:#A9D3B8;background:#fff}
+.sub-panel.plus .input:focus{border-color:#3C9A63;box-shadow:0 0 0 3px rgba(60,154,99,.25)}
+.sub-panel.plus .sub-res,.sub-panel.plus .sub-res.bad{color:#0E6B32}
+.sub-panel.plus .sub-res.bad{color:#8E2F3A}
+.sub-panel.plus .sub-seg button.on{color:#0E6B32}
+.sub-panel.plus .sub-cancel{border-color:#A9D3B8;color:#0E6B32}
+.sub-panel.plus .sub-ok.btn.primary{background:linear-gradient(180deg,#3BC774,#1B9A4B);border:1px solid #178C44;color:#fff;box-shadow:0 4px 10px rgba(27,154,75,.35)}
+:root[data-theme="dark"] .sub-panel.plus{background:#1F3A2A;border-color:#3C9A63}
+:root[data-theme="dark"] .sub-panel.plus .input{background:#16281D;border-color:#2F6B47}
+:root[data-theme="dark"] .sub-panel.plus .sub-res{color:#9DE0B5}
+:root[data-theme="dark"] .sub-seg button.on{background:#2A2A2A;color:#F0B6BC}
+:root[data-theme="dark"] .sub-panel.plus .sub-seg button.on{color:#9DE0B5}
