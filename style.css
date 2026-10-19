@@ -1292,3 +1292,13 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .xp-h { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
 .xp-h span { color: var(--muted); font-size: 12px; text-align: right; }
 .xp-g { height: 56px; }
+
+/* v158 */
+.wk-set small { color: var(--muted); font-size: 13px; }
+.wk-ok .wk-time { color: var(--accent); }
+
+/* v159: добавление своих упражнений */
+.ta-list { display: grid; gap: 6px; max-height: 52vh; overflow-y: auto; margin-bottom: 4px; }
+.ta-row { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
+.ta-row b { font-size: 14px; font-weight: 600; }
+.ta-row small { color: var(--muted); font-size: 12px; }

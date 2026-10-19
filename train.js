@@ -484,6 +484,68 @@ export const EXERCISES = {
     ],
     mistakes: ["Локти разъезжаются в стороны.", "Прогиб в пояснице: напрягите пресс."],
   },
+  hammer: {
+    name: "Молотковые сгибания", muscles: "Бицепсы и плечевая мышца", reps: [10, 15], rest: 35,
+    variants: [
+      { k: "db", need: ["dumbbell"], label: "С гантелями", cue: "Ладони смотрят друг на друга, как держат молоток." },
+      { k: "band", need: ["loop|tube"], label: "С резинкой под ногами", cue: "Встаньте на середину резинки, ручки нейтральным хватом (ладони внутрь)." },
+    ],
+    band: { t: "foot", col: BAND_COL.tube }, track: ["hand"],
+    frames: [{ ...STAND, a: [0, 0] }, { ...STAND, a: [0, 150] }],
+    steps: [
+      "Встаньте на резинку (или возьмите гантели), руки вдоль тела, ладони смотрят внутрь.",
+      "Прижмите локти к корпусу и согните руки, не поворачивая кисти.",
+      "Задержитесь на секунду и медленно опустите.",
+    ],
+    mistakes: ["Раскачивание корпусом: уменьшите сопротивление.", "Локти уезжают вперёд."],
+  },
+  frontraise: {
+    name: "Подъём рук перед собой", muscles: "Передние пучки плеч", reps: [10, 15], rest: 35,
+    variants: [
+      { k: "db", need: ["dumbbell"], label: "С гантелями", cue: "Гантели перед бёдрами, поднимайте до уровня плеч." },
+      { k: "band", need: ["loop|tube"], label: "С резинкой под ногами", cue: "Встаньте на середину резинки, поднимайте ручки перед собой до уровня плеч." },
+    ],
+    band: { t: "foot", col: BAND_COL.tube }, track: ["hand"],
+    frames: [{ ...STAND, a: [0, 0] }, { ...STAND, a: [88, 88] }],
+    steps: [
+      "Встаньте на резинку (или возьмите гантели), руки перед бёдрами.",
+      "Не сгибая локти сильно, поднимите руки вперёд до уровня плеч.",
+      "Задержитесь на секунду и медленно опустите.",
+    ],
+    mistakes: ["Раскачивание корпусом и прогиб в пояснице.", "Руки выше уровня плеч: нагрузка уходит на шею."],
+  },
+  wristcurl: {
+    name: "Сгибания кистей (предплечья)", muscles: "Предплечья, сгибатели кисти", reps: [15, 22], rest: 30,
+    variants: [
+      { k: "db", need: ["dumbbell"], label: "С гантелями", cue: "Предплечья на бёдрах или на весу, ладони смотрят вверх." },
+      { k: "band", need: ["loop|tube"], label: "С резинкой под ногами", cue: "Встаньте на середину резинки, предплечья горизонтально, ладони вверх." },
+    ],
+    band: { t: "foot", col: BAND_COL.tube }, track: ["hand"],
+    frames: [{ ...STAND, a: [0, 90], hdir: 55 }, { ...STAND, a: [0, 90], hdir: -50 }],
+    steps: [
+      "Согните руки в локтях под 90°, прижмите локти к корпусу, ладони смотрят вверх.",
+      "Опустите кисти вниз, дав ручке чуть раскрыться в пальцах.",
+      "Сожмите ручку и согните кисти вверх, к себе, двигаются только кисти.",
+      "Медленно вернитесь вниз.",
+    ],
+    mistakes: ["Двигаются локти и плечи: фиксируйте предплечья.", "Слишком большое сопротивление: движение только кистью, без рывка."],
+  },
+  wristext: {
+    name: "Разгибания кистей (предплечья)", muscles: "Предплечья, разгибатели кисти", reps: [15, 22], rest: 30,
+    variants: [
+      { k: "db", need: ["dumbbell"], label: "С гантелями", cue: "Предплечья на бёдрах, ладони смотрят вниз." },
+      { k: "band", need: ["loop|tube"], label: "С резинкой под ногами", cue: "Встаньте на середину резинки, предплечья горизонтально, ладони вниз." },
+    ],
+    band: { t: "foot", col: BAND_COL.tube }, track: ["hand"],
+    frames: [{ ...STAND, a: [0, 90], hdir: -55 }, { ...STAND, a: [0, 90], hdir: 50 }],
+    steps: [
+      "Согните руки в локтях под 90°, прижмите локти к корпусу, ладони смотрят вниз.",
+      "Опустите кисти вниз, плавно, не роняя.",
+      "Поднимите кисти вверх, разгибая запястья, двигаются только кисти.",
+      "Медленно вернитесь вниз.",
+    ],
+    mistakes: ["Двигаются локти и плечи: фиксируйте предплечья.", "Слишком большое сопротивление: берите лёгче, суставы запястий мелкие."],
+  },
   pushdown: {
     name: "Разгибания рук вниз", muscles: "Трицепсы", reps: [12, 15], rest: 35,
     variants: [
@@ -877,17 +939,17 @@ const TYPES = ["A", "B", "C"];
 const BLUEPRINT = {
   A: {
     short: "Ноги и ягодицы", focus: "Акцент на ноги и ягодицы, плюс верх тела и кор",
-    slots: [["squat", "bridge"], ["pushup", "chestpress", "floorpress", "dips"], ["rdl", "bridge"], ["row", "bentrow", "pulldown", "pullup"], ["bridge", "donkey", "stepup"], ["lunge", "stepup", "donkey", "calf"], ["plank", "deadbug"], ["donkey", "calf"], ["shoulderpress", "facepull"], ["calf", "crunch"], ["deadbug", "crunch"], ["curl", "triext"]],
+    slots: ["legs", "glutes", "chest", "back", "core", "biceps", "triceps", "shoulders", "forearms", "legs", "glutes", "core"],
     cool: ["st_quad", "st_calf", "st_ham", "st_child"],
   },
   B: {
     short: "Спина и руки", focus: "Акцент на спину и руки, плюс ноги и кор",
-    slots: [["pulldown", "pullup", "row", "bentrow"], ["squat", "bridge", "rdl"], ["row", "bentrow"], ["pushup", "chestpress", "floorpress", "dips"], ["facepull", "superman"], ["bridge", "rdl", "lunge"], ["curl"], ["pushdown", "triext"], ["birddog", "deadbug"], ["superman", "plank"], ["lunge", "stepup", "calf"], ["triext", "crunch"]],
+    slots: ["back", "biceps", "triceps", "forearms", "legs", "shoulders", "chest", "glutes", "core", "back", "legs", "triceps"],
     cool: ["st_ham", "st_child", "st_calf", "st_quad"],
   },
   C: {
     short: "Грудь, плечи и кор", focus: "Акцент на грудь, плечи и пресс, плюс ноги и спина",
-    slots: [["pushup", "chestpress", "floorpress", "dips"], ["squat", "bridge"], ["shoulderpress", "facepull"], ["rdl", "bridge"], ["chestpress", "floorpress", "dips", "pushdown"], ["row", "bentrow", "pulldown", "pullup"], ["plank", "birddog"], ["lunge", "stepup", "donkey"], ["dips", "triext", "pushdown"], ["crunch", "legraise"], ["mtnclimber", "deadbug"], ["calf", "facepull"]],
+    slots: ["chest", "shoulders", "core", "triceps", "legs", "back", "forearms", "biceps", "glutes", "chest", "core", "shoulders"],
     cool: ["st_child", "st_ham", "st_quad", "st_calf"],
   },
 };
@@ -936,15 +998,19 @@ export const typeShort = (t) => (BLUEPRINT[t] ? BLUEPRINT[t].short : "");
 
 
 // Группа мышц для разделения плана: основная нагрузка упражнения
-export const MG = { legs: "Ноги", glutes: "Ягодицы", back: "Спина", chest: "Грудь", shoulders: "Плечи", biceps: "Бицепс", triceps: "Трицепс", core: "Кор" };
+export const MG = { legs: "Ноги", glutes: "Ягодицы", back: "Спина", chest: "Грудь", shoulders: "Плечи", biceps: "Бицепс", triceps: "Трицепс", forearms: "Предплечья", core: "Кор" };
 const MG_OF = {
   squat: "legs", lunge: "legs", stepup: "legs", calf: "legs",
   rdl: "glutes", bridge: "glutes", donkey: "glutes",
   row: "back", bentrow: "back", pulldown: "back", pullup: "back", superman: "back", facepull: "shoulders",
-  curl: "biceps", triext: "triceps", pushdown: "triceps", dips: "triceps",
+  curl: "biceps", triext: "triceps", pushdown: "triceps", dips: "triceps", wristcurl: "forearms", wristext: "forearms", hammer: "biceps", frontraise: "shoulders",
   pushup: "chest", chestpress: "chest", floorpress: "chest", shoulderpress: "shoulders",
   plank: "core", deadbug: "core", crunch: "core", legraise: "core", mtnclimber: "core", birddog: "core",
 };
+
+// Все упражнения одной группы мышц: из них по очереди берётся своё на каждую тренировку (разнообразие)
+const GROUP_LIST = {};
+for (const id of Object.keys(EXERCISES)) { const g = MG_OF[id]; if (g) (GROUP_LIST[g] = GROUP_LIST[g] || []).push(id); }
 
 function itemFor(ex, ctx, group, sets, cardioMin) {
   const v = pickVariant(ex, ctx);
@@ -987,6 +1053,45 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
   return it;
 }
 
+// Своё упражнение, добавленное пользователем в день: spec { n, id, group, sets, reps, minutes, secs }
+export const GROUP_OF = (ex) => (ex.kind === "cardio" ? "cardio" : ex.kind === "stretch" ? "cool" : "main");
+const clampN = (v, lo, hi, d) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x > 0 ? Math.max(lo, Math.min(hi, x)) : d; };
+export function customItem(spec, cfgRaw, date) {
+  const ex = spec && EXERCISES[spec.id];
+  if (!ex) return null;
+  const cfg = normCfg(cfgRaw, date);
+  const ctx = { have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(), goal: "maintain", bump: 0, vpref: cfg.vpref, weeks: 0 };
+  const v = pickVariant(ex, ctx) || ex.variants[0];
+  const group = ["warm", "main", "cardio", "cool"].includes(spec.group) ? spec.group : GROUP_OF(ex);
+  const it = { key: `x${spec.n}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, muscles: ex.muscles, mg: MG_OF[ex.id] || "", custom: true, n: spec.n };
+  if (ex.kind === "cardio") {
+    const m = clampN(spec.minutes, 1, 300, group === "warm" ? 5 : 10);
+    it.minutes = m; it.est = m * 60; it.text = `${m} мин`; it.sub = "своё время";
+    return it;
+  }
+  if (ex.kind === "stretch") {
+    const s = clampN(spec.secs, 10, 300, 35);
+    it.sets = 1; it.secs = [s, s]; it.est = (ex.side ? 2 : 1) * (s + 8); it.text = `${s} сек${ex.side ? " на сторону" : ""}`; it.sub = "без боли, дыхание ровное";
+    return it;
+  }
+  const rest = ex.rest || 40;
+  const sets = clampN(spec.sets, 1, 10, 3);
+  it.sets = sets; it.rest = rest;
+  if (ex.reps) {
+    const r = clampN(spec.reps, 1, 200, ex.reps[1]);
+    it.reps = [r, r];
+    it.est = Math.round(sets * (r * 3.2 * (ex.side ? 2 : 1) + 12 + (ex.side ? 6 : 0)) + (sets - 1) * rest + 20);
+    it.text = `${sets} × ${r}${ex.side ? " на сторону" : ""}`;
+  } else {
+    const s = clampN(spec.secs, 5, 600, ex.secs[1]);
+    it.secs = [s, s];
+    it.est = Math.round(sets * (s * (ex.side ? 2 : 1) + 8) + (sets - 1) * rest + 20);
+    it.text = `${sets} × ${s} сек${ex.side ? " на сторону" : ""}`;
+  }
+  it.sub = `отдых ${rest} сек`;
+  return it;
+}
+
 // minutesOverride: время на сегодня (15–60); профиль даёт цель (goal)
 // avoid: упражнения, которые пользователь стабильно пропускает; в слоте их заменяет другое подходящее
 export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds) {
@@ -1015,13 +1120,20 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   let spent = 0;
   const avoid = new Set(Array.isArray(avoidIds) ? avoidIds : []);
   const swapped = [];
+  // Номер появления этого типа тренировки: от него зависит, какое упражнение группы сегодня
+  const d0 = movedFrom(cfg, date) || date;
+  const cnt = weekNo(d0) * cfg.days.length + Math.max(0, cfg.days.indexOf(dowOf(d0)));
+  const rot = Math.floor(cnt / 3);
   for (const slot of bp.slots) {
     const okId = (id) => !used.has(id) && usable(EXERCISES[id], ctx);
-    const base = slot.find(okId);
-    let exId = slot.find((id) => okId(id) && !avoid.has(id)) || base;
-    if (!exId) continue;
-    if (base && base !== exId) swapped.push({ from: base, to: exId });
-    const it = itemFor(EXERCISES[exId], ctx, "main", sets, 0);
+    const cands = ((typeof slot === "string" ? GROUP_LIST[slot] : slot) || []).filter(okId);
+    if (!cands.length) continue;
+    const k = ((rot % cands.length) + cands.length) % cands.length;
+    const ordered = [...cands.slice(k), ...cands.slice(0, k)];
+    const base = ordered[0];
+    const exId = ordered.find((id) => !avoid.has(id)) || base;
+    if (base !== exId) swapped.push({ from: base, to: exId });
+    const it = itemFor(EXERCISES[exId], ctx, "main", ["biceps", "triceps", "forearms"].includes(MG_OF[exId]) ? Math.min(sets, 2) : sets, 0);
     if (spent + it.est > budget + 30 && main.length >= 3) { if (base !== exId) swapped.pop(); continue; }
     main.push(it); used.add(exId); spent += it.est;
   }

@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=7";
+import * as TR from "./train.js?v=10";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 157;
+const APP_VERSION = 161;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3306,7 +3306,7 @@ function viewHealth() {
       </div>` : `<p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>`}
     </section>
     <section class="card">
-      <div class="card-top"><h2 class="h2">Тренировки</h2><button type="button" class="btn ghost sm" data-act="addActivity">+ Добавить</button></div>
+      <div class="card-top"><h2 class="h2">Тренировки</h2></div>
       <div class="stat-grid">
         <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
         <div class="stat"><b>${fmtInt(trainKcal)}</b><span>ккал на тренировках</span></div>
@@ -4141,8 +4141,18 @@ const trainSession = (d, extraAvoid) => {
   if (!state.trainCfg) return null;
   const adv = d >= todayStr() ? trainAdvice(d) : null;
   const avoid = [...(adv ? adv.avoid : []), ...(d >= todayStr() ? painIds(d) : []), ...(((trainLogOn(d) || {}).swapped) || []), ...(extraAvoid || [])];
-  return TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid);
+  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid);
+  const cs = customItems(d);
+  if (!cs.length) return base;
+  const rank = { warm: 0, main: 1, cardio: 2, cool: 3 };
+  const sorted = (arr) => arr.map((x, i) => [x, i]).sort((p, q) => rank[p[0].group] - rank[q[0].group] || p[1] - q[1]).map((x) => x[0]);
+  const addMin = Math.round(cs.reduce((s, x) => s + (x.est || 0), 0) / 60);
+  if (base) return { ...base, items: sorted([...base.items, ...cs]), est: base.est + addMin };
+  const cfg = trainCfg();
+  return { date: d, type: "X", minutes: addMin, title: "Своя тренировка", focus: "", items: sorted(cs), bump: 0, swapped: [], est: addMin, sets: 3, level: cfg.level, place: cfg.place, customOnly: true };
 };
+// Упражнения, которые вы сами добавили в день (отдельно от плана, ведут себя так же)
+const customItems = (d) => (((trainLogOn(d) || {}).custom) || []).map((s) => TR.customItem(s, state.trainCfg, d)).filter(Boolean);
 // Запись в журнал тренировок с мгновенным обновлением на экране
 function mergeLogLocal(date, patch) {
   const i = state.trainLog.findIndex((l) => l.date === date);
@@ -4194,7 +4204,11 @@ function trainBannerHtml(day) {
 function trainRowHtml(day, it, done) {
   const on = !!done[it.key];
   const eb = ((trainLogOn(day) || {}).ebands || {})[it.id];
-  const sub = it.group === "cardio" || it.group === "warm" ? `${it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}`;
+  const lg = trainLogOn(day) || {};
+  const fm = Number((lg.mins || {})[it.key]) || 0;
+  const sd = it.reps ? (((lg.sets || {})[it.id]) || []).filter((v) => Number(v) > 0).length : 0;
+  const part = !on && sd > 0 && sd < it.sets ? ` · сделано ${sd} из ${it.sets} подх.` : "";
+  const sub = it.group === "cardio" || it.group === "warm" ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${part}`;
   return `<div class="tr-row${on ? " on" : ""}">
     <button type="button" class="tr-check" data-act="trainTick" data-date="${day}" data-key="${esc(it.key)}" aria-pressed="${on}" aria-label="Отметить выполненным">${CHECK}</button>
     <button type="button" class="tr-main" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}"><span class="tr-name">${esc(it.name)}</span><span class="tr-sub">${esc(sub)}</span></button>
@@ -4217,8 +4231,9 @@ function trainCardHtml(day) {
   const today = todayStr();
   const strip = wk.map((d) => {
     let mark = "";
-    if (d.type) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? CHECK : "<i></i>"; }
-    return `<button type="button" class="tr-d${d.type ? " plan" : ""}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="trainDayTap" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
+    const hasC = !d.type && (((trainLogOn(d.date) || {}).custom) || []).length > 0;
+    if (d.type || hasC) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? CHECK : "<i></i>"; }
+    return `<button type="button" class="tr-d${d.type || hasC ? " plan" : ""}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="trainDayTap" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
   }).join("");
   const ses = trainSession(day);
   let body = "", sum = "";
@@ -4244,20 +4259,21 @@ function trainCardHtml(day) {
     }).join("");
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
-        <button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button></div>
-      <div class="tr-timerow"><span>Время, мин</span><div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div></div>
+        ${ses.customOnly ? "" : `<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button>`}</div>
+      ${ses.customOnly ? "" : `<div class="tr-timerow"><span>Время, мин</span><div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div></div>`}
       <div class="tr-prog"><div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><b>${k}/${n}</b></div>
       ${ses.bump || (ses.swapped && ses.swapped.length) ? `<p class="foot-note tr-adapt" style="margin:8px 2px 0">Подстроено по вашим итогам:${ses.bump ? ` повторы ${ses.bump > 0 ? "+" : "−"}${Math.abs(ses.bump)}` : ""}${ses.swapped && ses.swapped.length ? `${ses.bump ? "," : ""} ${ses.swapped.map((s) => `вместо «${esc(TR.EXERCISES[s.from].name.toLowerCase())}» — «${esc(TR.EXERCISES[s.to].name.toLowerCase())}»`).join(", ")}` : ""}.</p>` : ""}
       ${k >= n ? `<p class="foot-note" style="margin:8px 2px 0">Тренировка выполнена, отличная работа!</p>` : `<button type="button" class="btn primary full" style="margin-top:10px" data-act="trainStart" data-date="${day}">${k > 0 ? "Продолжить тренировку" : "Начать тренировку"}</button>`}
       ${watchCmpHtml(day, ses, k, n)}
       <div class="tr-list">${rows}</div>
+      <button type="button" class="btn ghost full" style="margin-top:10px" data-act="trainAdd" data-date="${day}">+ Добавить упражнение</button>
       ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button></div>` : `<button type="button" class="btn primary full" style="margin-top:14px" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
       ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}`;
     sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · около ${ses.est} мин · выполнено ${k} из ${n}</span></p>`;
   } else {
     const nx = nextTrainDay(day);
     body = `<p class="foot-note" style="margin:4px 4px 12px">${day === today ? "Сегодня" : "В этот день"} по плану отдых.${nx ? ` Ближайшая тренировка: ${esc(trainDayName(nx))}, ${esc(TR.typeShort(TR.sessionType(cfg, nx)).toLowerCase())}.` : ""}</p>
-      <div class="row">${nx ? `<button type="button" class="btn ghost sm" data-act="trainDayTap" data-date="${nx}">Показать</button>` : ""}<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Позаниматься в этот день</button></div>`;
+      <div class="row">${nx ? `<button type="button" class="btn ghost sm" data-act="trainDayTap" data-date="${nx}">Показать</button>` : ""}<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Позаниматься в этот день</button><button type="button" class="btn ghost sm" data-act="trainAdd" data-date="${day}">Добавить своё</button></div>`;
   }
   const open = !!state.trainDayOpen;
   return `<section class="card">
@@ -4333,8 +4349,10 @@ function openTrainWorkout(date) {
   if (!ses0) return;
   const items = ses0.items;
   const isDone = (i) => !!(((trainLogOn(date) || {}).done) || {})[i.key];
+  const doneSets = (i) => setsOn(date, i.id).filter((v) => v > 0);
+  const factMin = (i) => Number((((trainLogOn(date) || {}).mins) || {})[i.key]) || 0;
   let idx = Math.max(0, items.findIndex((i) => !isDone(i)));
-  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false;
+  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, swStart = 0, mins = 0;
   const ov = openSheet(`<div id="wk-root"></div>`);
   ov.querySelector(".sheet").classList.add("wk");
   const root = $("#wk-root", ov);
@@ -4352,14 +4370,32 @@ function openTrainWorkout(date) {
   const startTimer = (sec) => { total = sec; endAt = Date.now() + sec * 1000; tmDone = false; };
   const iv = setInterval(() => {
     if (!ov.isConnected) { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); try { if (lock) lock.release(); } catch { /* ignore */ } return; }
+    const t = $("#wk-t", ov), bar = $("#wk-bar", ov);
+    if (swStart) { if (t) t.textContent = fmtT(Math.floor((Date.now() - swStart) / 1000)); return; }
     if (!endAt) return;
-    const l = left(), t = $("#wk-t", ov), bar = $("#wk-bar", ov);
+    const l = left();
     if (t) t.textContent = fmtT(l);
     if (bar && total) bar.style.width = `${Math.round(((total - l) / total) * 100)}%`;
-    if (l <= 0 && !tmDone) { tmDone = true; endAt = 0; beep(); if (phase === "rest") { phase = "work"; setNo++; draw(); } else draw(); }
+    if (l <= 0 && !tmDone) { tmDone = true; endAt = 0; beep(); if (phase === "rest") { phase = "work"; setNo++; } draw(); }
   }, 250);
   const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true } }); };
-  const next = () => { idx++; setNo = 0; reps = []; phase = "work"; endAt = 0; draw(); };
+  // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
+  const enterItem = () => {
+    phase = "work"; endAt = 0; swStart = 0; tmDone = false; review = false; setNo = 0; reps = [];
+    const it = items[idx];
+    if (!it) return;
+    if (it.reps) {
+      const sv = doneSets(it);
+      const dn = isDone(it);
+      reps = Array.from({ length: it.sets }, (_, i) => (sv[i] > 0 ? sv[i] : sv.length ? sv[sv.length - 1] : it.reps[1]));
+      setNo = Math.min(sv.length, it.sets);
+      if (sv.length >= it.sets) { markDone(it); review = true; } else if (dn && sv.length === 0) review = true;
+    } else {
+      mins = factMin(it) || it.minutes || 0;
+      review = isDone(it);
+    }
+  };
+  const next = () => { idx++; enterItem(); draw(); };
   const draw = () => {
     if (idx >= items.length) {
       root.innerHTML = `<div class="wk-end"><div class="wk-big">Готово</div><p>Тренировка выполнена. Оцените её, чтобы приложение подстроило нагрузку.</p><button type="button" class="btn primary full" data-w="finish">Завершить тренировку</button><button type="button" class="btn ghost full" data-close style="margin-top:8px">Закрыть</button></div>`;
@@ -4371,41 +4407,114 @@ function openTrainWorkout(date) {
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const head = `<h2 class="wk-name">${esc(it.name)}</h2><p class="wk-sub">${esc(it.vlabel || "")}${eb && (it.vk === "band" || it.vk === "bandf") ? ` · ${esc(bandName(eb))}` : ""}</p>`;
     let mid = "", foot = "";
-    if (it.reps) {
-      if (!reps.length) { const sv = setsOn(date, it.id); reps = Array.from({ length: it.sets }, (_, i) => sv[i] > 0 ? sv[i] : it.reps[1]); }
+    const sw = it.group === "cardio" || it.group === "warm";
+    if (review) {
+      const sv = it.reps ? doneSets(it) : [];
+      mid = `<div class="wk-rest wk-ok"><span>Выполнено</span><div class="wk-time">${it.reps ? (sv.length ? esc(sv.join(" / ")) : "✓") : factMin(it) ? `${factMin(it)} мин` : "✓"}</div><p class="foot-note">${it.reps ? "повторы по подходам" : factMin(it) ? "по факту" : "отмечено в плане"}</p></div>`;
+      foot = `<button type="button" class="btn primary full" data-w="skip">Дальше</button><button type="button" class="btn ghost full" data-w="redo" style="margin-top:8px">Выполнить ещё раз</button>`;
+    } else if (it.reps) {
       if (phase === "rest") {
         mid = `<div class="wk-rest"><span>Отдых</span><div class="wk-time" id="wk-t">${fmtT(left())}</div><div class="track"><i id="wk-bar" style="width:0"></i></div><p class="foot-note">Следующий: подход ${setNo + 2} из ${it.sets}</p></div>`;
         foot = `<button type="button" class="btn primary full" data-w="skiprest">Пропустить отдых</button><div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="plus15">+15 сек</button></div>`;
       } else {
-        mid = `<div class="wk-set"><span>Подход ${setNo + 1} из ${it.sets}</span><div class="wk-step"><button type="button" class="wk-pm" data-w="minus" aria-label="Меньше">−</button><b id="wk-r">${reps[setNo]}</b><button type="button" class="wk-pm" data-w="plus" aria-label="Больше">+</button></div><small>повторов (цель ${it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`})</small></div>`;
+        mid = `<div class="wk-set"><span>Подход ${setNo + 1} из ${it.sets}</span>${setNo > 0 ? `<small>уже сделано: ${reps.slice(0, setNo).join(" / ")}</small>` : ""}<div class="wk-step"><button type="button" class="wk-pm" data-w="minus" aria-label="Меньше">−</button><b id="wk-r">${reps[setNo]}</b><button type="button" class="wk-pm" data-w="plus" aria-label="Больше">+</button></div><small>повторов (цель ${it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`})</small></div>`;
         foot = `<button type="button" class="btn primary full" data-w="setdone">${setNo + 1 >= it.sets ? "Упражнение выполнено" : "Подход выполнен"}</button>`;
       }
+    } else if (sw) {
+      // ходьба/бег: время выбираете сами, можно по таймеру, по секундомеру или просто указать факт
+      if (swStart) {
+        mid = `<div class="wk-rest"><span>Секундомер</span><div class="wk-time" id="wk-t">${fmtT(Math.floor((Date.now() - swStart) / 1000))}</div><p class="foot-note">Идите столько, сколько хочется</p></div>`;
+        foot = `<button type="button" class="btn primary full" data-w="swstop">Стоп и записать</button><button type="button" class="btn ghost full" data-w="swcancel" style="margin-top:8px">Отмена</button>`;
+      } else if (endAt) {
+        mid = `<div class="wk-rest"><span>Идёт</span><div class="wk-time" id="wk-t">${fmtT(left())}</div><div class="track"><i id="wk-bar" style="width:0"></i></div></div>`;
+        foot = `<button type="button" class="btn primary full" data-w="swdone">Готово, записать ${mins} мин</button><button type="button" class="btn ghost full" data-w="tmstop" style="margin-top:8px">Остановить таймер</button>`;
+      } else {
+        mid = `<div class="wk-set"><span>Сколько идёте, мин</span><div class="wk-step"><button type="button" class="wk-pm" data-w="mminus" aria-label="Меньше">−</button><b id="wk-m">${mins}</b><button type="button" class="wk-pm" data-w="mplus" aria-label="Больше">+</button></div><small>план ${it.minutes} мин, можно больше или меньше</small></div>`;
+        foot = `<button type="button" class="btn primary full" data-w="swdone">Готово, записать ${mins} мин</button><div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="tm">Таймер на ${mins} мин</button><button type="button" class="btn ghost grow" data-w="swstart">Секундомер</button></div>`;
+      }
     } else {
-      const sec = it.group === "cardio" || it.group === "warm" ? (it.minutes || 0) * 60 : (it.secs ? it.secs[1] : 0);
-      if (endAt && sec) mid = `<div class="wk-rest"><span>${it.group === "cool" ? "Держите" : "Идёт"}</span><div class="wk-time" id="wk-t">${fmtT(left())}</div><div class="track"><i id="wk-bar" style="width:0"></i></div></div>`;
+      const sec = it.secs ? it.secs[1] : 0;
+      if (endAt && sec) mid = `<div class="wk-rest"><span>Держите</span><div class="wk-time" id="wk-t">${fmtT(left())}</div><div class="track"><i id="wk-bar" style="width:0"></i></div></div>`;
       else mid = `<p class="wk-txt">${esc(trainDetail(it))}</p>`;
       foot = `${sec && !endAt ? `<button type="button" class="btn ghost full" data-w="timer" style="margin-bottom:8px">Запустить таймер ${fmtT(sec)}</button>` : ""}<button type="button" class="btn primary full" data-w="itemdone">Готово</button>`;
     }
     root.innerHTML = `${prog}${head}${fig}${mid}<div class="wk-foot">${foot}<div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="prev"${idx === 0 ? " disabled" : ""}>Назад</button><button type="button" class="btn ghost grow" data-w="info">Подробнее</button><button type="button" class="btn ghost grow" data-w="skip">Пропустить</button></div></div>`;
   };
+  const recMin = (it, m) => { saveTrainLog(date, { mins: { [it.key]: m }, done: { [it.key]: true } }); next(); };
   ov.addEventListener("click", (e) => {
     const b = e.target.closest("[data-w]");
     if (!b) return;
     const w = b.dataset.w, it = items[idx];
     if (w === "finish") { ov.close(); openTrainFinish(date); return; }
     if (w === "minus" || w === "plus") { reps[setNo] = Math.max(0, Math.min(99, reps[setNo] + (w === "plus" ? 1 : -1))); const r = $("#wk-r", ov); if (r) r.textContent = reps[setNo]; return; }
+    if (w === "mminus" || w === "mplus") { mins = Math.max(1, Math.min(300, mins + (w === "mplus" ? 1 : -1))); draw(); return; }
     if (w === "setdone") {
+      // каждый выполненный подход сразу сохраняется: при выходе и возвращении откроется следующий подход
       saveTrainLog(date, { sets: { [it.id]: reps.slice(0, setNo + 1) } });
       if (setNo + 1 >= it.sets) { markDone(it); next(); } else { phase = "rest"; startTimer(it.rest || 40); draw(); }
       return;
     }
+    if (w === "redo") { review = false; setNo = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
     if (w === "skiprest") { endAt = 0; phase = "work"; setNo++; draw(); return; }
     if (w === "plus15") { endAt += 15000; total += 15; return; }
-    if (w === "timer") { const sec = it.group === "cardio" || it.group === "warm" ? it.minutes * 60 : it.secs[1]; startTimer(sec); draw(); return; }
+    if (w === "timer") { startTimer(it.secs[1]); draw(); return; }
+    if (w === "tm") { startTimer(mins * 60); draw(); return; }
+    if (w === "tmstop") { endAt = 0; draw(); return; }
+    if (w === "swstart") { swStart = Date.now(); draw(); return; }
+    if (w === "swcancel") { swStart = 0; draw(); return; }
+    if (w === "swstop") { const m = Math.max(1, Math.round((Date.now() - swStart) / 60000)); swStart = 0; recMin(it, m); return; }
+    if (w === "swdone") { endAt = 0; recMin(it, mins); return; }
     if (w === "itemdone") { markDone(it); next(); return; }
     if (w === "skip") { next(); return; }
-    if (w === "prev") { if (idx > 0) { idx--; setNo = 0; reps = []; phase = "work"; endAt = 0; draw(); } return; }
+    if (w === "prev") { if (idx > 0) { idx--; enterItem(); draw(); } return; }
     if (w === "info") openTrainExercise(date, it.key);
+  });
+  enterItem();
+  draw();
+}
+
+// Добавление своего упражнения в день: выбираете упражнение, группу и объём, дальше оно идёт как обычное
+function openTrainAdd(date) {
+  const f = { cat: "all", id: "", group: "", sets: 3, reps: 12, secs: 40, minutes: 10 };
+  const cats = [["all", "Все"], ["main", "Силовые"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
+  const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
+  const ov = openSheet(`<div class="sheet-head"><h2>Добавить упражнение</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="ta-body"></div>`);
+  const body = $("#ta-body", ov);
+  const draw = () => {
+    if (!f.id) {
+      const list = Object.values(TR.EXERCISES).filter((e) => f.cat === "all" || TR.GROUP_OF(e) === f.cat);
+      body.innerHTML = `<p class="foot-note" style="margin:-4px 2px 10px">${esc(trainDayName(date))}. Выберите упражнение, а категорию и объём зададите дальше.</p>
+        <div class="chips" style="margin:0 0 10px">${cats.map(([v, t]) => `<button type="button" class="chip${f.cat === v ? " sel" : ""}" data-ta-cat="${v}">${t}</button>`).join("")}</div>
+        <div class="ta-list">${list.map((e) => `<button type="button" class="ta-row" data-ta-id="${esc(e.id)}"><b>${esc(e.name)}</b><small>${esc(e.muscles)}</small></button>`).join("")}</div>`;
+      return;
+    }
+    const ex = TR.EXERCISES[f.id], cardio = ex.kind === "cardio", stretch = ex.kind === "stretch", timed = !cardio && !stretch && !ex.reps;
+    const fld = (id, label, v, hint) => `<label class="field"><span>${label}</span><input class="input" id="${id}" inputmode="numeric" value="${v}">${hint ? `<small class="foot-note" style="margin:2px 4px 0">${hint}</small>` : ""}</label>`;
+    body.innerHTML = `<h3 class="ex-h" style="margin-top:0">${esc(ex.name)}</h3><p class="foot-note" style="margin:-6px 2px 12px">${esc(ex.muscles)}</p>
+      <div class="field"><span>Категория</span><div class="chips" style="margin:0">${groups.map(([v, t]) => `<button type="button" class="chip${f.group === v ? " sel" : ""}" data-ta-grp="${v}">${t}</button>`).join("")}</div></div>
+      ${cardio ? fld("ta-min", "Сколько минут", f.minutes, "Время можно будет изменить прямо во время тренировки") : stretch ? fld("ta-secs", `Секунд${ex.side ? " на сторону" : ""}`, f.secs) : `${fld("ta-sets", "Подходов", f.sets)}${timed ? fld("ta-secs", `Секунд в подходе${ex.side ? " на сторону" : ""}`, f.secs) : fld("ta-reps", `Повторений в подходе${ex.side ? " на сторону" : ""}`, f.reps)}`}
+      <div class="row"><button type="button" class="btn ghost" data-ta-back>Назад</button><button type="button" class="btn primary grow" data-ta-add>Добавить в тренировку</button></div>`;
+  };
+  const read = () => {
+    const g = (id) => { const e = $(id, ov); return e ? Number(String(e.value).replace(",", ".")) || 0 : 0; };
+    if ($("#ta-min", ov)) f.minutes = g("#ta-min"); if ($("#ta-secs", ov)) f.secs = g("#ta-secs"); if ($("#ta-sets", ov)) f.sets = g("#ta-sets"); if ($("#ta-reps", ov)) f.reps = g("#ta-reps");
+  };
+  ov.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-ta-cat]"), r = e.target.closest("[data-ta-id]"), g = e.target.closest("[data-ta-grp]");
+    if (c) { f.cat = c.dataset.taCat; draw(); return; }
+    if (r) { f.id = r.dataset.taId; const ex = TR.EXERCISES[f.id]; f.group = TR.GROUP_OF(ex); f.reps = ex.reps ? Math.round((ex.reps[0] + ex.reps[1]) / 2) : 12; f.secs = ex.secs ? ex.secs[1] : 40; f.minutes = f.group === "warm" ? 5 : 10; draw(); return; }
+    if (g) { read(); f.group = g.dataset.taGrp; draw(); return; }
+    if (e.target.closest("[data-ta-back]")) { read(); f.id = ""; draw(); return; }
+    if (e.target.closest("[data-ta-add]")) {
+      read();
+      const old = ((trainLogOn(date) || {}).custom) || [];
+      const n = old.reduce((m, x) => Math.max(m, Number(x.n) || 0), 0) + 1;
+      const spec = { n, id: f.id, group: f.group, sets: f.sets, reps: f.reps, secs: f.secs, minutes: f.minutes };
+      saveTrainLog(date, { custom: [...old, spec] });
+      state.trainDayOpen = true;
+      state.date = date;
+      ov.close(); render();
+    }
   });
   draw();
 }
@@ -4422,6 +4531,7 @@ function openTrainExercise(date, key) {
     ? `<p class="ex-note">Подберите сопротивление так, чтобы последние 2–3 повторения давались тяжело, но техника не ломалась. Когда верхняя граница диапазона даётся легко, возьмите резинку потяжелее или добавьте паузу внизу.</p>`
     : it.vk === "db" ? `<p class="ex-note">Вес гантелей подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая.${cfg.dumbbellKg ? ` Ваши гантели: ${fmt(cfg.dumbbellKg)} кг. Если легко, замедлите движение: 3 секунды вниз.` : ""}</p>` : "";
   const exExtraHtml = () => {
+    if (it.group === "warm" || it.group === "cardio") { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Сколько прошли, мин · время выбираете сами</span><input class="input" id="ex-mins" inputmode="numeric" placeholder="${it.minutes}" value="${fm || ""}"></div>`; }
     if (!it.reps && it.group !== "main") return "";
     const lg = trainLogOn(date) || {};
     const cur = setsOn(date, it.id);
@@ -4469,7 +4579,7 @@ function openTrainExercise(date, key) {
     <h3 class="ex-h">Частые ошибки</h3>
     <ul class="ex-list ex-bad">${ex.mistakes.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
     <p class="foot-note" style="margin:14px 2px 12px">Рисунки схематичные: слева начало движения, справа конец. При боли в суставах, головокружении или боли в груди остановитесь.</p>
-    ${it.group === "main" ? `<button type="button" class="more-btn" id="ex-swap" style="margin:0 0 10px">Заменить упражнение</button><p class="foot-note" id="ex-swap-msg" style="margin:0 2px 10px"></p>` : ""}
+    ${it.custom ? `<button type="button" class="more-btn red" id="ex-del" style="margin:0 0 10px">Убрать из тренировки</button>` : it.group === "main" ? `<button type="button" class="more-btn" id="ex-swap" style="margin:0 0 10px">Заменить упражнение</button><p class="foot-note" id="ex-swap-msg" style="margin:0 2px 10px"></p>` : ""}
     <button type="button" class="btn primary full" id="tx-done">${isDone() ? "Снять отметку" : "Отметить выполненным"}</button>`);
   $("#tx-done", ov).addEventListener("click", () => {
     if (selBand.length && !isDone() && (((trainLogOn(date) || {}).ebands) || {})[it.id] !== comboKey(selBand)) {
@@ -4483,13 +4593,21 @@ function openTrainExercise(date, key) {
     if (t.classList && t.classList.contains("ex-set")) {
       const vals = [...ov.querySelectorAll(".ex-set")].map((x) => Math.max(0, Math.min(999, Math.round(Number(String(x.value).replace(",", ".")) || 0))));
       saveTrainLog(date, { sets: { [it.id]: vals } });
+    } else if (t.id === "ex-mins") {
+      const m = Math.max(0, Math.min(600, Math.round(Number(String(t.value).replace(",", ".")) || 0)));
+      saveTrainLog(date, { mins: { [it.key]: m } });
     } else if (t.id === "ex-note") saveTrainLog(date, { notes: { [it.id]: t.value.trim() } });
     else if (t.id === "ex-pain") saveTrainLog(date, { pain: { [it.id]: !!t.checked } });
+  });
+  const delBtn = $("#ex-del", ov);
+  if (delBtn) delBtn.addEventListener("click", () => {
+    saveTrainLog(date, { custom: (((trainLogOn(date) || {}).custom) || []).filter((c) => c.n !== it.n), done: { [key]: false } });
+    ov.close(); render();
   });
   const swapBtn = $("#ex-swap", ov);
   if (swapBtn) swapBtn.addEventListener("click", () => {
     const s2 = trainSession(date, [it.id]);
-    if (s2 && s2.items.some((i) => i.id === it.id)) { $("#ex-swap-msg", ov).textContent = "Подходящей замены для вашего оборудования и ограничений нет."; return; }
+    if (s2 && s2.items.some((i) => i.id === it.id && !i.custom)) { $("#ex-swap-msg", ov).textContent = "Подходящей замены для вашего оборудования и ограничений нет."; return; }
     saveTrainLog(date, { swapped: [...new Set([...(((trainLogOn(date) || {}).swapped) || []), it.id])] });
     ov.close(); render();
   });
@@ -4717,13 +4835,15 @@ function trainStats(fromArg, toArg) {
   const ex = {}, weeks = {};
   let planned = 0, plannedDone = 0, days = 0, daysDone = 0;
   for (let d = start; d <= end; d = addDays(d, 1)) {
-    if (!TR.sessionType(cfg, d)) continue;
+    const cust = (((trainLogOn(d) || {}).custom) || []).length > 0;
+    if (!TR.sessionType(cfg, d) && !cust) continue;
     const l = trainLogOn(d), done = (l && l.done) || {};
     const started = l && (l.finished || Object.values(done).some(Boolean));
     if (d === today && !started) continue;
     let keys;
     if (l && Array.isArray(l.plan)) keys = l.plan;
     else { const s = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), 0); keys = s ? s.items.map((i) => i.key) : []; }
+    if (cust) keys = [...new Set([...keys, ...customItems(d).map((i) => i.key)])];
     const wk = TR.mondayOf(d);
     weeks[wk] = weeks[wk] || { plan: 0, done: 0 };
     days++;
@@ -4999,6 +5119,7 @@ const actions = {
   trainMinutes(ds) {
     setDoc(docRef("trainlog", ds.date), { date: ds.date, minutes: Number(ds.v), updatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
   },
+  trainAdd(ds) { openTrainAdd(ds.date); },
   trainStart(ds) { openTrainWorkout(ds.date); },
   trainMarkAll(ds) {
     const s = trainSession(ds.date); if (!s) return;
