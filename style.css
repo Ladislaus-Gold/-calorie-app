@@ -1302,3 +1302,44 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .ta-row { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
 .ta-row b { font-size: 14px; font-weight: 600; }
 .ta-row small { color: var(--muted); font-size: 12px; }
+
+/* v162: прогресс по группам мышц */
+.xg { padding: 12px 0; border-top: 1px solid var(--line-2); }
+.xg-h { display: flex; align-items: center; gap: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.xg-h b { font-size: 15px; }
+.xg-h span { flex: 1; color: var(--muted); font-size: 12px; }
+.xg-g { height: 64px; margin-top: 8px; }
+.xg .xp { margin-left: 10px; padding-left: 10px; border-left: 2px solid var(--accent-soft); }
+
+/* v163: прогресс текстом, без столбиков */
+.xp-l { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 13px; }
+.xp-l span { color: var(--muted); flex: none; }
+.xp-l b { font-weight: 600; text-align: right; }
+
+/* v164: красивые светлые кнопки (ghost, «Добавить…», «Показать ещё», крестики) */
+.btn.ghost, .btn.soft, .more-btn:not(.red) {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F1F8F3 100%);
+  color: var(--accent-d);
+  border: 1px solid rgba(27, 157, 75, .28);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 4px 12px rgba(27, 157, 75, .13), 0 1px 2px rgba(20, 60, 35, .08);
+  font-weight: 650;
+  transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn.ghost:active, .btn.soft:active, .more-btn:not(.red):active {
+  background: linear-gradient(180deg, #EAF6EE 0%, #DDEFE3 100%);
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 1px 4px rgba(27, 157, 75, .16);
+}
+.btn.ghost[disabled] { box-shadow: none; }
+.icon-btn { background: linear-gradient(180deg, #FFFFFF, #F1F8F3); border: 1px solid rgba(27, 157, 75, .22); box-shadow: 0 3px 9px rgba(27, 157, 75, .12), 0 1px 0 rgba(255, 255, 255, .9) inset; }
+.ta-row, .wk-pm, .ex-bd:not(.on) { background: linear-gradient(180deg, #FFFFFF, #F4FAF6); box-shadow: 0 3px 9px rgba(27, 157, 75, .10), 0 1px 0 rgba(255, 255, 255, .9) inset; }
+.ta-row:active, .wk-pm:active { transform: translateY(1px); }
+:root[data-theme="dark"] .btn.ghost, :root[data-theme="dark"] .btn.soft, :root[data-theme="dark"] .more-btn:not(.red) {
+  background: linear-gradient(180deg, #25332B 0%, #1C2620 100%);
+  color: #6BE09A;
+  border-color: rgba(91, 213, 138, .30);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 4px 12px rgba(0, 0, 0, .35);
+}
+:root[data-theme="dark"] .btn.ghost:active, :root[data-theme="dark"] .btn.soft:active, :root[data-theme="dark"] .more-btn:not(.red):active { background: #1A241E; }
+:root[data-theme="dark"] .icon-btn, :root[data-theme="dark"] .ta-row, :root[data-theme="dark"] .wk-pm, :root[data-theme="dark"] .ex-bd:not(.on) { background: linear-gradient(180deg, #25332B, #1C2620); border-color: rgba(91, 213, 138, .22); box-shadow: 0 3px 9px rgba(0, 0, 0, .3); }

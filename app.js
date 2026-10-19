@@ -12,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=10";
+import * as TR from "./train.js?v=11";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -75,7 +75,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 161;
+const APP_VERSION = 164;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4545,7 +4545,7 @@ function openTrainExercise(date, key) {
     if (hist.length) {
       const mx = Math.max(...hist.map((x) => x.total), 1);
       const pr = hist.reduce((b, x) => (x.total > b.total ? x : b), hist[0]);
-      h += `<div class="ex-hist"><span class="ex-vars-t">Динамика${hist.length > 1 ? "" : " · первая запись"}</span>${hist.length > 1 ? `<div class="ex-hg">${hist.map((x) => `<div class="ex-hb${x === pr ? " pr" : ""}" title="${esc(dateShort(x.date))}: ${x.total} повторов"><i style="height:${Math.max(8, Math.round((x.total / mx) * 100))}%"></i><small>${esc(dateShort(x.date).slice(0, 5))}</small></div>`).join("")}</div>` : ""}<p class="foot-note" style="margin:4px 2px 0">Рекорд: ${pr.total} повторов за тренировку${pr.band ? ` (${esc(pr.band)}${pr.kg ? `, около ${fmt(pr.kg)} кг` : ""})` : ""}, лучший подход ${Math.max(...hist.map((x) => x.best))}.</p></div>`;
+      h += `<div class="ex-hist"><span class="ex-vars-t">Динамика${hist.length > 1 ? "" : " · первая запись"}</span>${hist.length > 1 ? `<div class="ex-hg">${hist.map((x) => `<div class="ex-hb${x === pr ? " pr" : ""}" title="${esc(dateShort(x.date))}: ${x.total} повторов"><i style="height:${Math.max(8, Math.round((x.total / mx) * 100))}%"></i><small>${(x.date.slice(8) + "." + x.date.slice(5, 7))}</small></div>`).join("")}</div>` : ""}<p class="foot-note" style="margin:4px 2px 0">Рекорд: ${pr.total} повторов за тренировку${pr.band ? ` (${esc(pr.band)}${pr.kg ? `, около ${fmt(pr.kg)} кг` : ""})` : ""}, лучший подход ${Math.max(...hist.map((x) => x.best))}.</p></div>`;
     }
     const lastNote = state.trainLog.filter((l) => l.date < date && l.notes && l.notes[it.id]).sort((p, q) => (p.date < q.date ? 1 : -1))[0];
     const painDays = new Set(state.trainLog.filter((l) => l.date >= addDays(date, -21) && l.pain && l.pain[it.id]).map((l) => l.date));
@@ -4972,12 +4972,36 @@ function exProgressHtml() {
   const today = todayStr();
   const list = [...ids].filter((id) => TR.EXERCISES[id]).map((id) => ({ id, h: exHist(id, today) })).filter((x) => x.h.length).sort((p, q) => (p.h[p.h.length - 1].date < q.h[q.h.length - 1].date ? 1 : -1));
   if (!list.length) return `<p class="foot-note" style="margin:10px 2px 0">Вносите повторы по подходам в упражнениях или в режиме тренировки: здесь появятся графики и рекорды.</p>`;
-  return list.map(({ id, h }) => {
-    const mx = Math.max(...h.map((x) => x.total), 1), last = h[h.length - 1], pr = h.reduce((b, x) => (x.total > b.total ? x : b), h[0]);
-    const first = h[0], dl = h.length > 1 ? last.total - first.total : 0;
-    return `<div class="xp"><div class="xp-h"><b>${esc(TR.EXERCISES[id].name)}</b><span>${last.sets.join("/")}${last.band ? ` · ${esc(last.band)}` : ""}${last.kg ? ` · ≈${fmt(last.kg)} кг` : ""}</span></div>
-      ${h.length > 1 ? `<div class="ex-hg xp-g">${h.map((x) => `<div class="ex-hb${x === pr ? " pr" : ""}" title="${esc(dateShort(x.date))}: ${x.total}"><i style="height:${Math.max(8, Math.round((x.total / mx) * 100))}%"></i><small>${esc(dateShort(x.date).slice(0, 5))}</small></div>`).join("")}</div>` : ""}
-      <p class="foot-note" style="margin:2px 2px 0">Рекорд: ${pr.total} повторов${pr.kg ? ` на ≈${fmt(pr.kg)} кг` : ""}${h.length > 1 ? ` · с первой записи ${dl >= 0 ? "+" : ""}${dl}` : ""}</p></div>`;
+  const exBlock = ({ id, h }) => {
+    const last = h[h.length - 1], pr = h.reduce((b, x) => (x.total > b.total ? x : b), h[0]);
+    const dl = h.length > 1 ? last.total - h[0].total : 0;
+    const dd = (d) => `${d.slice(8)}.${d.slice(5, 7)}`;
+    return `<div class="xp"><div class="xp-h"><b>${esc(TR.EXERCISES[id].name)}</b></div>
+      <div class="xp-l"><span>Последний раз</span><b>${dd(last.date)}: ${last.sets.join(" / ")}${last.band ? ` · ${esc(last.band)}` : ""}${last.kg ? ` · ≈${fmt(last.kg)} кг` : ""}</b></div>
+      <div class="xp-l"><span>Рекорд</span><b>${pr.total} повторов (${dd(pr.date)})${pr.kg ? ` · ≈${fmt(pr.kg)} кг` : ""}, лучший подход ${Math.max(...h.map((x) => x.best))}</b></div>
+      <div class="xp-l"><span>Тренировок</span><b>${h.length}${h.length > 1 ? `, с первой записи ${dl >= 0 ? "+" : ""}${dl} повторов` : ""}</b></div></div>`;
+  };
+  // Группы мышц: общий прогресс по неделям, внутри группы упражнения со своими графиками
+  const groups = {};
+  list.forEach((x) => { const g = TR.mgOf(x.id) || "other"; (groups[g] = groups[g] || []).push(x); });
+  const wk0 = TR.mondayOf(today), weeks = Array.from({ length: 6 }, (_, k) => addDays(wk0, -7 * (5 - k)));
+  const order = [...Object.keys(TR.MG), "other"].filter((g) => groups[g]);
+  const openG = state.trainGrpOpen || {};
+  return order.map((g) => {
+    const gi = new Set(groups[g].map((x) => x.id));
+    const tot = weeks.map((w) => state.trainLog.filter((l) => l.sets && TR.mondayOf(l.date) === w).reduce((s, l) => s + Object.entries(l.sets).filter(([id]) => gi.has(id)).reduce((s2, [, arr]) => s2 + (Array.isArray(arr) ? arr.reduce((p, q) => p + (Number(q) || 0), 0) : 0), 0), 0));
+    const nz = tot.map((v, k) => [v, k]).filter(([v]) => v > 0);
+    const mx = Math.max(...tot, 1);
+    const firstV = nz.length ? nz[0][0] : 0, lastV = nz.length ? nz[nz.length - 1][0] : 0;
+    const dl = nz.length > 1 ? lastV - firstV : 0, dp = firstV ? Math.round((dl / firstV) * 100) : 0;
+    const open = !!openG[g];
+    const bestK = tot.indexOf(Math.max(...tot));
+    const dd = (d) => `${d.slice(8)}.${d.slice(5, 7)}`;
+    return `<div class="xg"><div class="xg-h" data-act="toggleTrainGrp" data-g="${g}" role="button" aria-expanded="${open}"><b>${esc(TR.MG[g] || "Другое")}</b><span>${groups[g].length} упр.</span>${chev(open)}</div>
+      <div class="xp-l"><span>Последняя неделя с данными</span><b>${lastV} повторов</b></div>
+      <div class="xp-l"><span>Лучшая неделя</span><b>${Math.max(...tot)} повторов (с ${dd(weeks[bestK])})</b></div>
+      ${nz.length > 1 ? `<div class="xp-l"><span>С первой недели</span><b>${dl >= 0 ? "+" : ""}${dl} повторов (${dp >= 0 ? "+" : ""}${dp}%)</b></div>` : ""}
+      ${open ? groups[g].map(exBlock).join("") : ""}</div>`;
   }).join("");
 }
 function trainProgressCardHtml(day) {
@@ -5218,6 +5242,7 @@ const actions = {
   trainDayTog() { state.trainDayOpen = !state.trainDayOpen; render(); },
   trainDayTap(ds) { state.trainDayOpen = true; if (ds.date !== state.date) actions.pickDay(ds); else render(); },
   toggleActKinds() { state.actKindsOpen = !state.actKindsOpen; render(); },
+  toggleTrainGrp(ds) { state.trainGrpOpen = { ...(state.trainGrpOpen || {}), [ds.g]: !(state.trainGrpOpen || {})[ds.g] }; render(); },
   toggleTrain() { state.trainOpen = !state.trainOpen; render(); },
   toggleTrainRep() { state.trainRepOpen = !state.trainRepOpen; render(); },
   checkStatus() { checkStatus(true); },
