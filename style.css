@@ -1343,3 +1343,111 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 }
 :root[data-theme="dark"] .btn.ghost:active, :root[data-theme="dark"] .btn.soft:active, :root[data-theme="dark"] .more-btn:not(.red):active { background: #1A241E; }
 :root[data-theme="dark"] .icon-btn, :root[data-theme="dark"] .ta-row, :root[data-theme="dark"] .wk-pm, :root[data-theme="dark"] .ex-bd:not(.on) { background: linear-gradient(180deg, #25332B, #1C2620); border-color: rgba(91, 213, 138, .22); box-shadow: 0 3px 9px rgba(0, 0, 0, .3); }
+
+/* v165: ровные отступы между кнопками плана и новое оформление «Графиков упражнений» */
+.tr-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.tr-actions > .btn, .tr-actions > .more-btn { margin: 0; width: 100%; }
+.tr-actions > .tr-fin { margin: 0; }
+.xl { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.xg { padding: 12px; border: 1px solid var(--line-2); border-radius: 16px; background: var(--field); }
+.xg.open { background: var(--card); box-shadow: 0 4px 14px rgba(27, 157, 75, .10); }
+.xg-h { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.xg-t { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.xg-t b { font-size: 16px; }
+.xg-t small { color: var(--muted); font-size: 12px; }
+.xg-h .cv { margin-left: 0; flex: none; }
+.xg-h span.cv { flex: none; }
+.xt { font-style: normal; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(120, 130, 125, .14); color: var(--muted); white-space: nowrap; }
+.xt.up { background: rgba(27, 157, 75, .14); color: #178a41; }
+.xt.down { background: rgba(214, 69, 65, .13); color: #c23b37; }
+.xs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-top: 10px; }
+.xs > div { background: var(--card); border: 1px solid var(--line-2); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.xg.open .xs > div, .xe .xs > div { background: var(--field); }
+.xs b { display: block; font-size: 20px; line-height: 1.1; }
+.xs span { display: block; margin-top: 3px; font-size: 11px; line-height: 1.25; color: var(--muted); }
+.xg-in { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.xe { padding: 12px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--card); }
+.xe-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.xe-h b { font-size: 14px; }
+.xe-last { margin: 8px 0 0; font-size: 14px; font-weight: 600; }
+.xe-last small { display: inline-block; margin-right: 8px; padding: 2px 7px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-d); font-size: 11px; font-weight: 700; }
+.xe-last em { font-style: normal; font-weight: 500; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.xe .xs { margin-top: 8px; }
+.xe .xs b { font-size: 17px; }
+:root[data-theme="dark"] .xg { background: rgba(255, 255, 255, .04); }
+:root[data-theme="dark"] .xg.open { background: var(--card); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+:root[data-theme="dark"] .xt.up { color: #6BE09A; }
+:root[data-theme="dark"] .xt.down { color: #FF8A86; }
+
+/* v166: компактный ряд кнопок в день отдыха */
+.tr-rest { display: flex; flex-wrap: nowrap; gap: 8px; }
+.tr-rest .btn.sm { flex: 0 1 auto; min-width: 0; padding: 0 12px; font-size: 13px; white-space: nowrap; }
+.tr-rest .btn.sm:nth-child(2) { flex: 1 1 auto; }
+
+/* v167: у каждой группы мышц свой цвет */
+.xg { --gc: #1E9E5A; --gs: #E7F5EC; --gb: #CBE8D6; background: var(--gs); border-color: var(--gb); border-left: 5px solid var(--gc); }
+.xg.open { background: var(--gs); box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+.xg-t b { color: var(--gc); }
+.xg .xs > div { background: #fff; border-color: var(--gb); }
+.xg .xs b { color: var(--gc); }
+.xg .xe { background: #fff; border-color: var(--gb); }
+.xg .xe .xs > div { background: var(--gs); }
+.xg .xe-last small { background: var(--gc); color: #fff; }
+.xg .cv { background: var(--gc); color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+.xg[data-mg="legs"] { --gc: #1E9E5A; --gs: hsl(150,60%,95%); --gb: hsl(150,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="legs"] { --gc: hsl(150,65%,62%); --gs: hsl(150,28%,17%); --gb: hsl(150,30%,28%); }
+.xg[data-mg="glutes"] { --gc: #D6478F; --gs: hsl(330,60%,95%); --gb: hsl(330,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="glutes"] { --gc: hsl(330,65%,62%); --gs: hsl(330,28%,17%); --gb: hsl(330,30%,28%); }
+.xg[data-mg="back"] { --gc: #2F7FD1; --gs: hsl(212,60%,95%); --gb: hsl(212,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="back"] { --gc: hsl(212,65%,62%); --gs: hsl(212,28%,17%); --gb: hsl(212,30%,28%); }
+.xg[data-mg="chest"] { --gc: #DB4F43; --gs: hsl(8,60%,95%); --gb: hsl(8,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="chest"] { --gc: hsl(8,65%,62%); --gs: hsl(8,28%,17%); --gb: hsl(8,30%,28%); }
+.xg[data-mg="shoulders"] { --gc: #E08A12; --gs: hsl(32,60%,95%); --gb: hsl(32,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="shoulders"] { --gc: hsl(32,65%,62%); --gs: hsl(32,28%,17%); --gb: hsl(32,30%,28%); }
+.xg[data-mg="biceps"] { --gc: #8A58D6; --gs: hsl(268,60%,95%); --gb: hsl(268,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="biceps"] { --gc: hsl(268,65%,62%); --gs: hsl(268,28%,17%); --gb: hsl(268,30%,28%); }
+.xg[data-mg="triceps"] { --gc: #16A5A5; --gs: hsl(182,60%,95%); --gb: hsl(182,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="triceps"] { --gc: hsl(182,65%,62%); --gs: hsl(182,28%,17%); --gb: hsl(182,30%,28%); }
+.xg[data-mg="forearms"] { --gc: #6FA11A; --gs: hsl(84,60%,95%); --gb: hsl(84,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="forearms"] { --gc: hsl(84,65%,62%); --gs: hsl(84,28%,17%); --gb: hsl(84,30%,28%); }
+.xg[data-mg="core"] { --gc: #C9A00C; --gs: hsl(48,60%,95%); --gb: hsl(48,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="core"] { --gc: hsl(48,65%,62%); --gs: hsl(48,28%,17%); --gb: hsl(48,30%,28%); }
+.xg[data-mg="other"] { --gc: #6B7A8F; --gs: hsl(220,60%,95%); --gb: hsl(220,45%,84%); }
+:root[data-theme="dark"] .xg[data-mg="other"] { --gc: hsl(220,65%,62%); --gs: hsl(220,28%,17%); --gb: hsl(220,30%,28%); }
+:root[data-theme="dark"] .xg .xs > div, :root[data-theme="dark"] .xg .xe { background: rgba(0,0,0,.25); }
+:root[data-theme="dark"] .xg .xe .xs > div { background: rgba(255,255,255,.05); }
+:root[data-theme="dark"] .xg .xe-last small, :root[data-theme="dark"] .xg .cv { color: #10170f; }
+.xg.open > .xs > div { background: #fff; }
+:root[data-theme="dark"] .xg.open > .xs > div { background: rgba(0,0,0,.25); }
+
+/* v168: без цветной полосы; лёгкий градиент и тень у блоков групп; плашки одного размера, цвет плашек одинаков во всех группах */
+.xg { border-left: 1px solid var(--gb); background: linear-gradient(180deg, #fff 0%, var(--gs) 100%); box-shadow: 0 6px 16px rgba(20, 50, 35, .13), 0 1px 3px rgba(20, 50, 35, .08); }
+.xg.open { background: linear-gradient(180deg, #fff 0%, var(--gs) 100%); box-shadow: 0 8px 20px rgba(20, 50, 35, .17), 0 1px 3px rgba(20, 50, 35, .08); }
+.xg .cv { background: var(--accent-soft); color: var(--accent-d); box-shadow: 0 1px 3px rgba(14, 90, 44, .25); }
+.xg .xs, .xg .xe .xs { grid-template-columns: repeat(3, 1fr); grid-auto-flow: row; gap: 8px; }
+.xg .xs > div, .xg .xe .xs > div { height: 72px; min-height: 72px; padding: 8px 9px; overflow: hidden; border: 1px solid transparent; background: #E7F5EC; }
+.xg .xs b, .xg .xe .xs b { font-size: 20px; color: inherit; }
+.xg .xs > div:nth-child(1), .xg .xe .xs > div:nth-child(1) { background: #DDF1E4; color: #17803F; border-color: #BFE3CB; }
+.xg .xs > div:nth-child(2), .xg .xe .xs > div:nth-child(2) { background: #FCEBC9; color: #8A5A00; border-color: #F1D79C; }
+.xg .xs > div:nth-child(3), .xg .xe .xs > div:nth-child(3) { background: #DCE9FB; color: #1F5FAE; border-color: #BDD3F2; }
+.xg .xs span { color: inherit; opacity: .78; font-size: 11px; }
+.xg .xe { background: #fff; box-shadow: 0 3px 10px rgba(20, 50, 35, .10); }
+.xg .xe-last small { background: var(--accent-soft); color: var(--accent-d); }
+.xg-t b { color: var(--text); }
+:root[data-theme="dark"] .xg, :root[data-theme="dark"] .xg.open { background: linear-gradient(180deg, rgba(255, 255, 255, .06) 0%, var(--gs) 100%); box-shadow: 0 6px 16px rgba(0, 0, 0, .45); }
+:root[data-theme="dark"] .xg .cv { background: rgba(94, 201, 126, .18); color: #7FD6A0; }
+:root[data-theme="dark"] .xg .xe { background: rgba(0, 0, 0, .25); }
+:root[data-theme="dark"] .xg .xs > div:nth-child(1) { background: rgba(80, 200, 120, .16); color: #7FE0A3; border-color: transparent; }
+:root[data-theme="dark"] .xg .xs > div:nth-child(2) { background: rgba(240, 180, 60, .16); color: #F0CB75; border-color: transparent; }
+:root[data-theme="dark"] .xg .xs > div:nth-child(3) { background: rgba(90, 150, 240, .18); color: #8DB8F5; border-color: transparent; }
+:root[data-theme="dark"] .xg .xe .xs > div:nth-child(1) { background: rgba(80, 200, 120, .16); color: #7FE0A3; border-color: transparent; }
+:root[data-theme="dark"] .xg .xe .xs > div:nth-child(2) { background: rgba(240, 180, 60, .16); color: #F0CB75; border-color: transparent; }
+:root[data-theme="dark"] .xg .xe .xs > div:nth-child(3) { background: rgba(90, 150, 240, .18); color: #8DB8F5; border-color: transparent; }
+:root[data-theme="dark"] .xg .xe-last small { background: rgba(94, 201, 126, .18); color: #7FD6A0; }
+:root[data-theme="dark"] .xg-t b { color: var(--text); }
+
+/* v170: замеры и офлайн-плашка */
+.ms-chips { display: flex; flex-wrap: nowrap; gap: 6px; margin: 0 0 10px; }
+.ms-chips .chip { padding: 6px 9px; font-size: 13px; flex: 1 1 auto; text-align: center; white-space: nowrap; }
+.offline-bar { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 9999; padding: 9px 14px; border-radius: 12px; background: #3A3F3C; color: #fff; font-size: 13px; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); transform: translateY(-140%); transition: transform .2s ease; pointer-events: none; }
+.offline-bar.on { transform: none; }
