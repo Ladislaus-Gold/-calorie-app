@@ -1235,3 +1235,60 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 /* v148 */
 .ak-more{margin-top:14px}
 
+
+/* v152: выбор варианта упражнения */
+.ex-vars { margin: 0 0 12px; }
+.ex-vars-t { display: block; margin: 0 2px 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.ex-vars .chip { font-size: 13px; }
+
+/* v153: цвет резинки в упражнении */
+.ex-bandrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.ex-bd { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px 7px 8px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ex-bd i { width: 18px; height: 18px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); }
+.ex-bd.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.tr-he { display: block; margin-top: 3px; font-size: 11px; font-weight: 500; color: var(--muted); line-height: 1.35; }
+
+/* v155: комбинации резинок и подсказка роста */
+.ex-up { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--text); font-size: 13px; line-height: 1.4; }
+.ex-up-b { margin-left: 4px; padding: 4px 12px; border-radius: 999px; border: 0; background: var(--accent); color: #fff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+/* v156: подходы, динамика, заметки, режим тренировки, баланс, часы */
+.ex-sets, .ex-hist, .ex-nb { margin: 0 0 12px; }
+.ex-setrow { display: flex; gap: 8px; }
+.ex-sl { flex: 1; display: grid; gap: 3px; text-align: center; }
+.ex-sl small { font-size: 11px; font-weight: 700; color: var(--muted); }
+.ex-sl .input { text-align: center; padding: 10px 4px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ex-hg { display: flex; align-items: flex-end; gap: 6px; height: 72px; margin: 4px 0 2px; }
+.ex-hb { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; min-width: 0; }
+.ex-hb i { display: block; width: 100%; max-width: 26px; border-radius: 6px 6px 3px 3px; background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.ex-hb.pr i { background: var(--accent); }
+.ex-hb small { font-size: 9px; color: var(--muted); font-weight: 600; }
+.tr-w { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); font-size: 13px; }
+.tr-w span { color: var(--muted); flex: 1; min-width: 160px; }
+.mb { display: grid; gap: 9px; }
+.mb-r { display: grid; grid-template-columns: 78px 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
+.mb-r b { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+.sheet.wk { min-height: 100dvh; max-height: 100dvh; border-radius: 0; display: flex; flex-direction: column; padding-bottom: calc(14px + env(safe-area-inset-bottom)); overflow-y: auto; }
+#wk-root { display: flex; flex-direction: column; flex: 1; gap: 10px; }
+.wk-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; color: var(--muted); }
+.wk-name { margin: 6px 0 0; font-size: 24px; letter-spacing: -.03em; }
+.wk-sub { margin: 0; color: var(--muted); font-size: 14px; }
+.wk-fig { margin: 0; }
+.wk-set, .wk-rest { text-align: center; display: grid; gap: 8px; padding: 6px 0; }
+.wk-set > span, .wk-rest > span { font-weight: 700; color: var(--muted); }
+.wk-step { display: flex; align-items: center; justify-content: center; gap: 22px; }
+.wk-step b { font-size: 64px; line-height: 1; font-weight: 800; letter-spacing: -.05em; min-width: 90px; font-variant-numeric: tabular-nums; }
+.wk-pm { width: 56px; height: 56px; border-radius: 18px; border: 1.5px solid var(--line); background: var(--card); color: var(--text); font-size: 28px; font-weight: 700; cursor: pointer; }
+.wk-time { font-size: 64px; font-weight: 800; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.wk-txt { font-size: 16px; line-height: 1.45; }
+.wk-foot { margin-top: auto; padding-top: 8px; }
+.wk-end { text-align: center; margin: auto 0; }
+.wk-big { font-size: 44px; font-weight: 800; letter-spacing: -.04em; color: var(--accent); }
+.tr-wh { margin-bottom: 4px; }
+.tr-wr { display: flex; flex-wrap: wrap; gap: 2px 10px; width: 100%; }
+.tr-wr b { min-width: 118px; }
+.tr-wr span { color: var(--muted); }
+.xp { padding: 10px 0; border-top: 1px solid var(--line-2); }
+.xp-h { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.xp-h span { color: var(--muted); font-size: 12px; text-align: right; }
+.xp-g { height: 56px; }

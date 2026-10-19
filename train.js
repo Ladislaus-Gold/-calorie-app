@@ -118,8 +118,8 @@ function arrowSvg(a, b, col, op) {
 function propsSvg(ex, vk, fr, P, m) {
   let s = "";
   const g = (x, y) => [x + m[0], y + m[1]];
-  const band = ex.band;
-  const useBand = vk === "band" && band;
+  const band = vk === "bandf" && ex.bandF ? ex.bandF : ex.band;
+  const useBand = (vk === "band" || vk === "bandf") && band;
   const useCable = vk === "cable" && band;
   const col = useCable ? BAND_COL.cable : (band && band.col) || BAND_COL.tube;
   // дверной косяк/стойка
@@ -379,16 +379,17 @@ export const EXERCISES = {
   row: {
     name: "Тяга сидя к поясу", muscles: "Широчайшие и середина спины", reps: [12, 15], rest: 40, floor: true, mat: true,
     variants: [
-      { k: "band", need: ["loop|tube"], label: "С резинкой на стопах", cue: "Зацепите середину петли (или трубку) за стопы, концы держите в руках." },
+      { k: "band", need: ["tube", "anchor"], label: "С эспандером от якоря", cue: "Якорь закрепите внизу двери, сядьте лицом к двери, дверь плотно закрыта." },
+      { k: "bandf", need: ["loop|tube"], label: "С резинкой на стопах", cue: "Зацепите середину петли (или трубку) за стопы, концы держите в руках." },
       { k: "cable", need: ["cable"], label: "На блочном тренажёре", cue: "Сидя лицом к блоку, рукоять к поясу." },
     ],
-    band: { t: "toe", col: BAND_COL.loop }, anchor: "ankle", track: ["hand"],
+    band: { t: "door", x: "R", h: 0.3, col: BAND_COL.tube }, bandF: { t: "toe", col: BAND_COL.loop }, anchor: "ankle", track: ["hand"],
     frames: [
       { t: 180, la: [54, 2, "u"], f: 100, a: [90, 90], hd: 180 },
       { t: 174, la: [54, 2, "u"], f: 100, aw: [6, 30, "b"], hd: 174 },
     ],
     steps: [
-      "Сядьте на пол, ноги вытяните вперёд, колени слегка согнуты. Резинка зацеплена за стопы.",
+      "Сядьте на пол лицом к якорю, ноги вытяните вперёд, колени слегка согнуты. Эспандер зацеплен за якорь (вариант без якоря: резинка зацеплена за стопы).",
       "Спина прямая, руки вытянуты вперёд с ручками (концами резинки).",
       "Выдохните: сведите лопатки и потяните руки к поясу, локти идут вдоль тела.",
       "Задержитесь на секунду и медленно вернитесь.",
@@ -840,6 +841,15 @@ function cleanBands(b) {
   return o;
 }
 export const mgOf = (id) => MG_OF[id] || "";
+// Ручной выбор варианта упражнения: { id упражнения: ключ варианта }
+function cleanVpref(v) {
+  const o = {};
+  if (v && typeof v === "object") for (const [id, k] of Object.entries(v)) {
+    const ex = EXERCISES[id];
+    if (ex && ex.variants && ex.variants.some((x) => x.k === k)) o[id] = k;
+  }
+  return o;
+}
 export function normCfg(raw, today) {
   const r = raw || {};
   const place = PLACES.some((p) => p.v === r.place) ? r.place : "home";
@@ -858,6 +868,7 @@ export function normCfg(raw, today) {
     bandKg: cleanBands(r.bandKg),
     startedAt: /^\d{4}-\d{2}-\d{2}$/.test(r.startedAt || "") ? r.startedAt : today,
     moves: cleanMoves(r.moves),
+    vpref: cleanVpref(r.vpref),
   };
 }
 
@@ -885,6 +896,9 @@ const haveOf = (cfg) => new Set(cfg.equip[cfg.place] || DEFAULT_EQUIP[cfg.place]
 const needOk = (need, have) => (need || []).every((n) => n.split("|").some((x) => have.has(x)));
 
 function pickVariant(ex, ctx) {
+  const pk = ctx.vpref && ctx.vpref[ex.id];
+  const pv = pk && ex.variants.find((v) => v.k === pk);
+  if (pv) return pv;
   for (const v of ex.variants) {
     if (!needOk(v.need, ctx.have)) continue;
     if (v.lvl && !v.lvl.includes(ctx.level)) continue;
@@ -982,7 +996,7 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   const M = Math.max(10, Math.min(90, Number(minutesOverride) > 0 ? Number(minutesOverride) : cfg.minutes));
   const ctx = {
     have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(cfg.limits), goal: (profile && profile.goal) || "maintain",
-    bump: Math.max(-2, Math.min(2, Number(bump) || 0)),
+    bump: Math.max(-2, Math.min(2, Number(bump) || 0)), vpref: cfg.vpref,
     weeks: Math.max(0, Math.round((pd(mondayOf(date)).getTime() - pd(mondayOf(cfg.startedAt)).getTime()) / 604800000)),
   };
   const bp = BLUEPRINT[type];
