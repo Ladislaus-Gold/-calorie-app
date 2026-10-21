@@ -76,7 +76,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 199;
+const APP_VERSION = 198;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2367,7 +2367,7 @@ function chooseCardKind(code) {
       <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Что создать?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
       <div class="lm">
         <div class="note lk-note">${code ? `Код ${esc(code)} не найден ни среди продуктов, ни среди напитков. ` : ""}Напиток считается как жидкость (и кофеин), а если есть калории, то и как еда. Продукт считается только как еда.</div>
-        <div class="ck-choice"><button type="button" class="ck-opt water" id="ck-drink"><span class="ck-ic">💧</span><b>Напиток</b></button><button type="button" class="ck-opt food" id="ck-prod"><span class="ck-ic">🍽️</span><b>Продукт</b></button></div>
+        <div class="af-btns lk-btns"><button type="button" class="btn primary" id="ck-drink">Напиток</button><button type="button" class="btn primary" id="ck-prod">Продукт</button></div>
         ${mine.length ? `<p class="foot-note" style="margin:6px 2px 8px">Или это новая упаковка уже имеющегося напитка:</p>
         <input id="ck-q" class="input search" type="search" placeholder="Найти напиток для привязки" autocomplete="off">
         <div id="ck-list" class="plist"></div>` : ""}
@@ -2499,7 +2499,7 @@ async function openProductUsage(p) {
   if (!list.length) { body.innerHTML = `<div class="empty"><b>Пока не ел</b>Этого продукта ещё нет в вашем дневнике.</div>`; return; }
   const sumG = list.reduce((t, e) => t + (Number(e.grams) || 0), 0), sumK = list.reduce((t, e) => t + (Number(e.kcal) || 0), 0);
   const days = new Set(list.map((e) => e.date)).size;
-  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-r"><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span></span><span class="pu-m">${bju(e.protein, e.fat, e.carbs)}</span></div>`).join("");
+  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span><span class="pu-m">${bju(e.protein, e.fat, e.carbs)}</span></div>`).join("");
   const sm = (k) => list.reduce((t, e) => t + (Number(e[k]) || 0), 0);
   const avgG = sumG / list.length, last = list[0].date, daysAgo = Math.round((parseD(todayStr()) - parseD(last)) / 86400000);
   const lastTxt = daysAgo <= 0 ? "сегодня" : daysAgo === 1 ? "вчера" : `${daysAgo} дн. назад`;
@@ -2936,7 +2936,7 @@ function openProductForm(product, onSaved, prefill = {}) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
-    ${product ? `<button type="button" class="pf-usage-row" id="pf-usage"><span class="pf-u-ic">📅${state.entries.filter((e) => e.productId === product.id).length ? `<span class="pf-u-badge">${state.entries.filter((e) => e.productId === product.id).length}</span>` : ""}</span><span class="pf-u-t">Когда я это ел</span><span class="pf-u-ch">›</span></button>` : ""}
+    ${product ? `<button type="button" class="btn ghost full" id="pf-usage" style="margin-bottom:12px">Когда я это ел: даты, граммы, калории</button>` : ""}
     <label class="field"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
     <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
     <div class="field"><span>Штрих-код (необязательно)</span>${barcodeField}</div>
@@ -2944,7 +2944,7 @@ function openProductForm(product, onSaved, prefill = {}) {
       <div id="pf-alias-list" class="chips"></div>
       <div class="inline"><input id="pf-alias-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код другой упаковки" autocomplete="off"><button type="button" class="icon-btn" id="pf-alias-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="pf-alias-add">Добавить</button></div>
       <p class="foot-note" id="pf-alias-msg" style="margin:6px 2px 0">Коды общие: любой пользователь, отсканировав эту упаковку, получит этот продукт. Убрать код может тот, кто его добавил.</p></div>` : ""}
-    <div class="field sec-label"><span>Значения на 100 г</span></div>
+    <div class="field"><span>Значения на 100 г</span></div>
     <div class="field-grid">
       <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
       <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.protein) > 0 ? val(p.protein) : ""}" autocomplete="off"></label>
@@ -4028,14 +4028,14 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
       <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
-      <p class="note" id="dc-hint" style="margin-top:-4px"></p>
+      <p class="foot-note" id="dc-hint" style="margin:-4px 2px 10px"></p>
       <label class="field"><span>Название</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
         <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
       </div>
-      <button type="button" class="btn ghost full sub-open-like" id="dc-sign" style="margin:-4px 0 14px">± Сменить знак гидратации (минус для алкоголя)</button>
-      <div class="field sec-label"><span>Значения на 100 мл</span></div>
+      <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dc-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
+      <div class="field"><span>Значения на 100 мл</span></div>
       <div class="field-grid">
         <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" placeholder="0" value="${v0(d.k)}" autocomplete="off"></label>
         <label class="field"><span>Белки, г</span><input id="dc-p" class="input" inputmode="decimal" placeholder="0" value="${v0(d.p)}" autocomplete="off"></label>
