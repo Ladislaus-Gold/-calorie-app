@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 208;
-const APP_VERSION_LABEL = "2.5"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 209;
+const APP_VERSION_LABEL = "2.6"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2980,13 +2980,15 @@ const AVA_EMOJI_GROUPS = [
 ];
 const AVA_EMOJIS = AVA_EMOJI_GROUPS.flatMap((g) => g[1]);
 const AVA_COLORS = ["#EAF7EF", "#FFE9D4", "#FFF9DB", "#FDE7E4", "#EFE7F7", "#E3F2FD", "#FDEBDD", "#F2F2F2", "#FCE4EC", "#E0F7F4"];
-function openAvatarPicker(cur, onDone) {
-  const sel = { emoji: cur.emoji || AVA_EMOJIS[0], color: cur.color || AVA_COLORS[0] };
+// Наборы эмодзи только для напитков (в карточке напитка)
+const AVA_DRINK_GROUPS = [["Напитки", AVA_EMOJI_GROUPS.find((g) => g[0] === "Напитки")[1]], ["Ещё", ["🥛", "🍋", "🍊", "🍎", "🍓", "🫐", "🥥", "🥕", "🍯", "🌿"]]];
+function openAvatarPicker(cur, onDone, groups = AVA_EMOJI_GROUPS) {
+  const sel = { emoji: cur.emoji || groups[0][1][0], color: cur.color || AVA_COLORS[0] };
   const ov = openSheet(`
     <div class="sheet-head"><h2>Эмодзи и цвет</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="ap-prev"><span class="pf-ava-btn" id="ap-prev-ava" style="background:${esc(sel.color)}"><span id="ap-prev-ic">${esc(sel.emoji)}</span></span></div>
     <div class="field sec-label"><span>Выбрать эмодзи</span></div>
-    <div class="ap-emo-box" id="ap-emo">${AVA_EMOJI_GROUPS.map(([t, list]) => `<div class="ap-gl">${t}</div><div class="ap-grid">${list.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>`).join("")}</div>
+    <div class="ap-emo-box" id="ap-emo">${groups.map(([t, list]) => `<div class="ap-gl">${t}</div><div class="ap-grid">${list.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>`).join("")}</div>
     <div class="field sec-label"><span>Цвет фона (для контраста с эмодзи)</span></div>
     <div class="ap-colors" id="ap-col">${AVA_COLORS.map((c) => `<button type="button" class="ap-col${c === sel.color ? " sel" : ""}" data-c="${c}" style="background:${c}" aria-label="Цвет фона"></button>`).join("")}</div>
     <button type="button" class="btn primary full" id="ap-done" style="margin-top:14px">Готово</button>`);
@@ -3021,7 +3023,7 @@ function openProductForm(product, onSaved, prefill = {}) {
     : `<div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" maxlength="20" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>`;
   const drinkBlock = product && !ro
     ? `${product.drink ? `<div class="note">Этот продукт отмечен как напиток (гидратация ${esc(val(product.hydrationPct))}%). Напитки теперь живут в своём списке: перенесите его туда.</div>` : ""}
-      <button type="button" class="btn soft full" id="pf-todrink" style="margin:4px 0 12px">Это напиток: перенести в напитки</button>`
+      <button type="button" class="pf-move" id="pf-todrink"><span class="pf-mv-ic">🥤</span><span class="pf-mv-t"><b>Это напиток?</b><small>Перенести в раздел «Напитки»</small></span><span class="pf-mv-ch">›</span></button>`
     : "";
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
@@ -3035,10 +3037,14 @@ function openProductForm(product, onSaved, prefill = {}) {
     ${product && !ro && !p.barcode ? `<button type="button" class="opt-add" data-reveal="pf-barcode-wrap pf-alias">+ Добавить штрих-код</button>` : ""}
     <div class="field" id="pf-barcode-wrap" ${product && !ro && !p.barcode ? 'style="display:none"' : ""}><span>Штрих-код (необязательно)</span>${barcodeField}</div>
     <div class="field" id="pf-cat-wrap"><span>Категория (необязательно)</span>
-      <div class="cat-row"><select id="pf-cat" class="input" ${dis} aria-label="Категория">${catSelectOptions(p.category || "")}</select>
-        <button type="button" class="cat-btn" id="pf-cat-add" ${dis} aria-label="Новая категория">+</button>
-        <button type="button" class="cat-btn minus" id="pf-cat-del" ${dis} aria-label="Убрать категорию">−</button></div>
-      <div class="cat-new" id="pf-cat-new" style="display:none"><input id="pf-cat-in" class="input" maxlength="40" placeholder="Название новой категории" autocomplete="off"><button type="button" class="btn" id="pf-cat-ok">Готово</button></div>
+      <div class="cat-row"><button type="button" class="input cat-trg" id="pf-cat-trg" ${dis} aria-label="Категория"><span id="pf-cat-lbl" class="${p.category ? "" : "ph"}">${esc(p.category || "Без категории")}</span><i class="cat-chev"></i></button>
+        <button type="button" class="cat-btn" id="pf-cat-add" ${dis} aria-label="Новая категория">+</button></div>
+      <input type="hidden" id="pf-cat" value="${esc(p.category || "")}">
+      <div class="cat-menu" id="pf-cat-menu" hidden></div>
+      <div class="cat-new" id="pf-cat-new" style="display:none">
+        <div class="cat-new-row"><input id="pf-cat-in" class="input" maxlength="36" placeholder="Название новой категории" autocomplete="off"><button type="button" class="btn" id="pf-cat-ok">Готово</button></div>
+        <div class="cat-emo-row" id="pf-cat-emo" aria-label="Эмодзи категории"></div>
+      </div>
     </div>
     ${product ? `<div class="field" id="pf-alias"${hideAlias ? ' style="display:none"' : ""}><span>Другие упаковки: ещё штрих-коды этого продукта</span>
       <div id="pf-alias-list" class="chips"></div>
@@ -3138,21 +3144,70 @@ function openProductForm(product, onSaved, prefill = {}) {
     }
   }));
 
-  { // категория: выпадающий список, «+» — добавить свою, «−» — убрать категорию у этого продукта
-    const catSel = $("#pf-cat", ov), catNew = $("#pf-cat-new", ov), catIn = $("#pf-cat-in", ov);
-    const catCommit = () => {
-      const v = catIn.value.trim().slice(0, 40);
-      if (v) {
-        let o = [...catSel.options].find((x) => fold(x.value) === fold(v));
-        if (!o) { o = new Option(v, v); catSel.add(o); }
-        catSel.value = o.value;
-      }
-      catNew.style.display = "none";
+  { // категория: свой выпадающий список (эмодзи в названии, «+» — новая категория, × — удалить категорию у всех продуктов)
+    const hid = $("#pf-cat", ov), trg = $("#pf-cat-trg", ov), lbl = $("#pf-cat-lbl", ov), menu = $("#pf-cat-menu", ov);
+    const catNew = $("#pf-cat-new", ov), catIn = $("#pf-cat-in", ov), emoRow = $("#pf-cat-emo", ov);
+    let extra = hid.value ? [hid.value] : []; // новые категории, которых пока нет ни у одного продукта
+    let pickEmo = "";
+    const CAT_EMO_PICK = ["🍎", "🥦", "🍗", "🐟", "🥛", "🍲", "🍞", "🥤", "🍫", "🥚", "🧀", "🍝", "🍚", "🥗", "🍰", "🍯", "🥩", "🍌", "🥕", "🍳", "🍅", "🥜", "🍿", "🌶️"];
+    emoRow.innerHTML = CAT_EMO_PICK.map((e) => `<button type="button" class="cat-emo" data-ce="${e}">${e}</button>`).join("");
+    const usedMap = () => { const m = new Map(); state.products.forEach((x) => { const c = (x.category || "").trim(); if (c) m.set(fold(c), c); }); return m; };
+    const allCats = () => {
+      const list = [...usedMap().values()];
+      [...extra, ...COMMON_CATS].forEach((c) => { if (!list.some((x) => fold(x) === fold(c))) list.push(c); });
+      return list.sort((a, b) => a.localeCompare(b, "ru"));
     };
-    $("#pf-cat-add", ov).addEventListener("click", () => { catNew.style.display = "flex"; catIn.value = ""; catIn.focus(); });
+    const setVal = (v) => { hid.value = v; lbl.textContent = v || "Без категории"; lbl.classList.toggle("ph", !v); };
+    const drawMenu = () => {
+      const used = usedMap(), cur = hid.value;
+      menu.innerHTML = `<button type="button" class="cat-opt${cur === "" ? " sel" : ""}" data-cv="">Без категории</button>`
+        + allCats().map((c) => `<div class="cat-opt-row"><button type="button" class="cat-opt${c === cur ? " sel" : ""}" data-cv="${esc(c)}">${esc(c)}</button>${used.has(fold(c)) ? `<button type="button" class="cat-x" data-cx="${esc(c)}" aria-label="Удалить категорию">×</button>` : ""}</div>`).join("");
+    };
+    const closeMenu = () => { menu.hidden = true; trg.classList.remove("open"); };
+    trg.addEventListener("click", () => {
+      catNew.style.display = "none";
+      if (menu.hidden) { drawMenu(); menu.hidden = false; trg.classList.add("open"); } else closeMenu();
+    });
+    const delCat = (c) => {
+      const ids = state.products.filter((x) => fold((x.category || "").trim()) === fold(c)).map((x) => x.id);
+      if (!confirm(`Удалить категорию «${c}»? Она будет снята у продуктов: ${ids.length}. Сами продукты останутся.`)) return;
+      for (let i = 0; i < ids.length; i += 400) {
+        const b = writeBatch(db);
+        ids.slice(i, i + 400).forEach((id) => b.update(prodDoc(id), { category: "", updatedAt: serverTimestamp() }));
+        b.commit().catch(writeFail);
+      }
+      state.products.forEach((x) => { if (fold((x.category || "").trim()) === fold(c)) x.category = ""; });
+      extra = extra.filter((x) => fold(x) !== fold(c));
+      if (fold(hid.value) === fold(c)) setVal("");
+      if (state.prodCat && fold(state.prodCat) === fold(c)) state.prodCat = "all";
+      drawMenu();
+    };
+    menu.addEventListener("click", (e) => {
+      const x = e.target.closest("[data-cx]");
+      if (x) { delCat(x.dataset.cx); return; }
+      const o = e.target.closest("[data-cv]");
+      if (o) { setVal(o.dataset.cv); closeMenu(); }
+    });
+    emoRow.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ce]");
+      if (!b) return;
+      pickEmo = pickEmo === b.dataset.ce ? "" : b.dataset.ce;
+      emoRow.querySelectorAll(".cat-emo").forEach((z) => z.classList.toggle("sel", z.dataset.ce === pickEmo));
+    });
+    const catCommit = () => {
+      const name = catIn.value.trim().slice(0, 36);
+      if (name) {
+        const v = ((pickEmo ? pickEmo + " " : "") + name).slice(0, 40);
+        const ex = allCats().find((x) => fold(x) === fold(v));
+        if (!ex) extra.push(v);
+        setVal(ex || v);
+      }
+      catNew.style.display = "none"; pickEmo = "";
+      emoRow.querySelectorAll(".cat-emo").forEach((z) => z.classList.remove("sel"));
+    };
+    $("#pf-cat-add", ov).addEventListener("click", () => { closeMenu(); catNew.style.display = "block"; catIn.value = ""; catIn.focus(); });
     $("#pf-cat-ok", ov).addEventListener("click", catCommit);
     catIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); catCommit(); } });
-    $("#pf-cat-del", ov).addEventListener("click", () => { catSel.value = ""; catNew.style.display = "none"; });
   }
 
   $("#pf-save", ov).addEventListener("click", async () => {
@@ -3295,7 +3350,7 @@ const cafWarnHtml = (addMg, replaceMg = 0) => cafWarnings(addMg, replaceMg).map(
 const cafToast = (addMg, replaceMg = 0) => { const w = cafWarnings(addMg, replaceMg).filter((x) => x.lv !== "info"); return w.length ? w[0].t : ""; };
 
 // Свои напитки пользователя (хранятся в settings/drinks, поле custom) складываются со справочником
-const shapeDrink = (x, mine, by) => ({ id: x.id, n: x.n, h: Number(x.h), c: Number(x.c) || 0, cat: x.cat || "other", a: x.a || "", k: Number(x.k) || 0, p: Number(x.p) || 0, f: Number(x.f) || 0, cb: Number(x.cb) || 0, bc: Array.isArray(x.bc) ? x.bc : [], mine, by: by || "" });
+const shapeDrink = (x, mine, by) => ({ id: x.id, n: x.n, h: Number(x.h), c: Number(x.c) || 0, cat: x.cat || "other", a: x.a || "", k: Number(x.k) || 0, p: Number(x.p) || 0, f: Number(x.f) || 0, cb: Number(x.cb) || 0, bc: Array.isArray(x.bc) ? x.bc : [], e: x.e || "", col: x.col || "", mine, by: by || "" });
 const customList = () => {
   const uid = state.user && state.user.uid;
   const shared = (state.sharedDrinks || []).map((x) => shapeDrink(x, !!uid && x.createdBy === uid, x.createdByName)).sort((p, q) => String(p.n).localeCompare(String(q.n), "ru"));
@@ -3307,7 +3362,7 @@ const customList = () => {
 // Общая база напитков (drinkdb): запись и удаление карточек
 const drinkData = (it, existingCreatedAt) => ({
   n: String(it.n).slice(0, 120), h: Number(it.h) || 0, c: Number(it.c) || 0, cat: String(it.cat || "other").slice(0, 20), a: String(it.a || "").slice(0, 40),
-  k: Number(it.k) || 0, p: Number(it.p) || 0, f: Number(it.f) || 0, cb: Number(it.cb) || 0, bc: (Array.isArray(it.bc) ? it.bc : []).filter(Boolean).slice(0, 12).map(String),
+  k: Number(it.k) || 0, p: Number(it.p) || 0, f: Number(it.f) || 0, cb: Number(it.cb) || 0, bc: (Array.isArray(it.bc) ? it.bc : []).filter(Boolean).slice(0, 12).map(String), e: String(it.e || "").slice(0, 12), col: String(it.col || "").slice(0, 20),
   ...authorFields(), createdAt: existingCreatedAt || serverTimestamp(), updatedAt: serverTimestamp(),
 });
 const saveSharedDrink = (it) => {
@@ -3381,6 +3436,13 @@ const bcConflict = (code, ig = {}) => {
 const saveCustomDrinks = (extra = {}) => setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { custom: state.customDrinks, ...extra }, { merge: true }).catch(writeFail);
 const allDrinks = () => [...DRINKS, ...customList()];
 const drinkById = (id) => DRINK_BY_ID[id] || customList().find((x) => x.id === id) || null;
+// Значок напитка: свой эмодзи (если задан), иначе по категории
+const CAT_EMO = { tea: "🍵", coffee: "☕", milk: "🥛", sugar: "🥤", fruit: "🧃", active: "⚡", mock: "🍹", alc: "🍺", other: "💧" };
+const drinkIcon = (d) => (d && d.e) ? d.e : (d ? (CAT_EMO[d.cat] || "💧") : "💧");
+const fluidIconHtml = (i) => {
+  const d = i.kind === "drink" ? drinkById(i.drinkId) : null;
+  return `<span class="fl-ico"${d && d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(i.kind === "food" ? "🥤" : drinkIcon(d))}</span>`;
+};
 function favDrinks() {
   const counts = {};
   state.drinks.forEach((x) => { if (x.drinkId && x.drinkId !== "custom" && x.drinkId !== "water" && drinkById(x.drinkId)) counts[x.drinkId] = (counts[x.drinkId] || 0) + 1; });
@@ -3472,29 +3534,32 @@ function viewHealth() {
   // Вода, записанная раньше суммой за день (до появления истории)
   const legacyRow = waterOn(day) > 0 ? `<div class="entry"><span class="e-main"><span class="e-name">Вода</span><span class="e-sub">${fmt(waterOn(day))} мл, записано суммой за день</span></span><span class="e-kcal">—<small>мг кофеина</small></span></div>` : "";
   const fluidMore = fluidSorted.length > FLUID_SHOW
-    ? `<button type="button" class="more-btn fold-row" data-act="toggleFluid" aria-expanded="${fluidOpen}">Ещё ${fluidSorted.length - FLUID_SHOW}${chev(fluidOpen)}</button>`
+    ? `<button type="button" class="more-btn fold-row fl-more" data-act="toggleFluid" aria-expanded="${fluidOpen}">Ещё ${fluidSorted.length - FLUID_SHOW}${chev(fluidOpen)}</button>`
     : "";
   const fluidRows = fluidShown.map((i) => `
-    <button type="button" class="entry" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
-      <span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл${Math.round(i.pct) !== 100 ? ` · гидратация ${fmt(i.pct)}% · засчитано ${signed(Math.round(itemHyd(i)))} мл` : ""}${i.kind === "food" ? " · из дневника питания" : ""}</span></span>
+    <button type="button" class="entry fl-e" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
+      ${fluidIconHtml(i)}<span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл${Math.round(i.pct) !== 100 ? ` · гидратация ${fmt(i.pct)}% · засчитано ${signed(Math.round(itemHyd(i)))} мл` : ""}${i.kind === "food" ? " · из дневника питания" : ""}</span></span>
       <span class="e-kcal">${itemCaf(i) > 0 ? fmtInt(itemCaf(i)) : "—"}<small>мг кофеина</small></span>
     </button>`).join("");
   const tab = state.hTab || "today";
   const tabs = `<div class="seg full htabs" data-seg="htab">${[["today", "Жидкость"], ["train", "Тренировки"], ["sleep", "Сон"], ["dyn", "Динамика"]].map(([v, t]) => `<button type="button" data-act="healthTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
   const pToday = `
     <section class="card">
-      <div class="card-top"><h2 class="h2">Жидкость</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
+      <div class="card-top fl-top"><span class="fl-ic">💧</span><h2 class="h2">Жидкость</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
       <div class="big-line">${fmtInt(ml)}<small>мл засчитано</small></div>
       <div class="track water"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></div>
-      <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось ${fmtInt(left)} мл.` : "Норма на сегодня выполнена."}${` Норма сегодня ${fmtInt(tg)} мл = база ${fmtInt(waterBase())} мл${extra ? ` + нагрузка около ${fmtInt(extra)} мл` : ""}.`}${parts.length ? ` Засчитано: ${parts.join(", ")}.` : ""}</p>
+      <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось <b>${fmtInt(left)} мл</b>.` : "Норма на сегодня выполнена."}${` Норма сегодня ${fmtInt(tg)} мл = база ${fmtInt(waterBase())} мл${extra ? ` + нагрузка около ${fmtInt(extra)} мл` : ""}.`}</p>
+      <div class="fl-tiles"><div class="fl-tile w"><b>${fmtInt(wMl)}</b><span>вода, мл</span></div><div class="fl-tile d"><b>${signed(Math.round(dHyd + fHyd))}</b><span>напитки и дневник, мл</span></div></div>
       <div class="chips">
         ${[150, 250, 330, 500].map((n) => `<button type="button" class="chip water" data-act="addWater" data-ml="${n}">+${n}</button>`).join("")}
-        <button type="button" class="chip" data-act="waterCustom">Другое</button>
+        <button type="button" class="chip water other" data-act="waterCustom">Другое</button>
         <button type="button" class="chip muted" data-act="addWater" data-ml="-250">−250</button>
       </div>
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
-      ${favs.length ? `<p class="foot-note" style="margin:14px 2px 8px">Избранное и частые напитки</p><div class="chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
-      ${fluidRows || legacyRow ? `<div class="entries flat">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}` : ""}
+    </section>
+    ${favs.length ? `<section class="card fl-fav"><h2 class="h2">Избранное</h2><div class="chips fav-chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div></section>` : ""}
+    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray">🥤</span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}
+    <section class="card">
       <div class="caf-card lv-${caf.level}" style="--ch:${Math.round(130 * (1 - Math.min(1, Math.max(0, caf.ratio))))}">
         <div class="caf-top"><span class="caf-t">Кофеин</span><span class="caf-val"><b>${fmtInt(caf.mg)}</b> из ${fmtInt(caf.limit)} мг</span></div>
         <div class="caf-bar"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
@@ -4105,8 +4170,9 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
   const rowHtml = (d) => {
     const sub = [d.k > 0 ? `${d.k} ккал/100 мл` : "", d.c > 0 ? `${d.c} мг кофеина` : "", d.a].filter(Boolean).join(", ");
     return `<div class="drow">
-      <button type="button" class="d-main" data-did="${d.id}"><span class="p-name">${esc(d.n)}</span>${sub ? `<span class="p-sub">${esc(sub)}</span>` : ""}</button>
+      <button type="button" class="d-main dk-main" data-did="${d.id}"><span class="d-ava"${d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(drinkIcon(d))}</span><span class="d-tx"><span class="p-name">${esc(d.n)}</span>${sub ? `<span class="p-sub">${esc(sub)}</span>` : ""}</span></button>
       <span class="d-pct ${d.h < 0 ? "neg" : ""}">${d.h}%</span>
+      ${DRINK_BY_ID[d.id] ? "" : `<button type="button" class="d-edit" data-dedit="${d.id}" aria-label="Изменить напиток">✎</button>`}
       <button type="button" class="star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>
     </div>`;
   };
@@ -4115,8 +4181,9 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const favs = favDrinks();
     body.innerHTML = `
       ${presetMl > 0 ? `<p class="foot-note" style="margin:0 2px 8px">Выберите напиток для ${fmt(presetMl)} мл</p>` : ""}
+      <button type="button" class="btn primary full dk-new" id="dk-new">+ Новый напиток</button>
       <input id="dk-q" class="input search" type="search" placeholder="Найти напиток" value="${esc(st.q)}" autocomplete="off">
-      ${favs.length ? `<p class="foot-note" style="margin:0 2px 8px">Избранное и частые</p><div class="chips">${favs.map((d) => `<button type="button" class="chip" data-did="${d.id}">${esc(d.n)}</button>`).join("")}</div>` : ""}
+      ${favs.length ? `<p class="foot-note" style="margin:0 2px 8px">Избранное и частые</p><div class="chips fav-chips">${favs.map((d) => `<button type="button" class="chip" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div>` : ""}
       <div class="chips cats" id="dk-cats">${DRINK_CATS.map((c) => `<button type="button" class="chip ${st.cat === c.id ? "sel" : ""}" data-cat="${c.id}">${c.t}</button>`).join("")}</div>
       <div id="dk-list" class="plist"></div>
       <p class="foot-note" style="margin:10px 2px 12px">Кофеин указан на 240 мл (стакан) и пересчитывается на ваш объём. Гидратация показывает, сколько мл жидкости засчитывается на каждые 100 мл напитка. У алкоголя значение отрицательное: он уменьшает баланс жидкости.</p>
@@ -4124,6 +4191,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       <div class="row"><button type="button" class="btn ghost grow" id="dk-scan">Сканировать код</button></div>`;
     draw();
     $("#dk-q", ov).addEventListener("input", (e) => { st.q = e.target.value; draw(); });
+    $("#dk-new", ov).addEventListener("click", () => showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [], e: "", col: "" }, true));
     $("#dk-scan", ov).addEventListener("click", () => {
       ov.close();
       openAddFood(mealByTime());
@@ -4135,7 +4203,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const words = fold(st.q).split(/\s+/).filter(Boolean);
     const list = allDrinks().filter((d) => (st.cat === "all" || d.cat === st.cat) && words.every((w) => fold(d.n).includes(w)))
       .sort((a, b) => (a.id === "water" ? -1 : b.id === "water" ? 1 : a.n.localeCompare(b.n, "ru")));
-    $("#dk-list", ov).innerHTML = list.length ? list.map(rowHtml).join("") : `<div class="empty"><b>Ничего не найдено</b>Создать карточку можно во вкладке «Продукты» кнопкой «+».</div>`;
+    $("#dk-list", ov).innerHTML = list.length ? list.map(rowHtml).join("") : `<div class="empty"><b>Ничего не найдено</b>Создайте напиток кнопкой «+ Новый напиток».</div>`;
   }
 
   body.addEventListener("click", (e) => {
@@ -4146,6 +4214,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       draw();
       return;
     }
+    const ded = e.target.closest("[data-dedit]");
+    if (ded) { const dd = drinkById(ded.dataset.dedit); if (dd) showCard(dd, false); return; }
     const star = e.target.closest("[data-star]");
     if (star) { toggleFav(star.dataset.star); star.classList.toggle("on", state.fav.includes(star.dataset.star)); return; }
     const pick = e.target.closest("[data-did]");
@@ -4161,12 +4231,14 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const alcOpts = [["Слабый алкоголь", "Слабый (пиво, сидр)"], ["Легкий алкоголь", "Лёгкий"], ["Умеренный алкоголь", "Умеренный"], ["Средний алкоголь", "Средний (вино, вермут)"], ["Крепкий алкоголь", "Крепкий (водка, виски, коньяк)"]];
     const alcSel0 = alcOpts.some((o) => o[0] === d.a) ? d.a : "Средний алкоголь";
     body.innerHTML = `
-      <div class="picked"><div class="p-name">${isNew ? "Новый напиток" : "Карточка напитка"}</div></div>
+      <div class="pf-top-row">
+        <button type="button" class="pf-ava-btn" id="dc-ava" aria-label="Эмодзи и цвет" style="${d.e ? `background:${esc(d.col || AVA_COLORS[0])};border-style:solid;border-color:${esc(d.col || AVA_COLORS[0])}` : ""}"><span id="dc-ava-ic">${d.e ? esc(d.e) : "🥤"}</span><span class="pf-ava-pencil">✎</span></button>
+        <label class="field pf-top-name"><span>${isNew ? "Новый напиток" : "Название"}</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
+      </div>
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
       <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
       <p class="note" id="dc-hint" style="margin-top:-4px"></p>
-      <label class="field"><span>Название</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
         <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
@@ -4183,7 +4255,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <div id="dc-bc-list" class="chips"></div>
         <div class="inline"><input id="dc-bc-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код" autocomplete="off"><button type="button" class="icon-btn" id="dc-bc-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="dc-bc-add">Добавить</button></div>
       </div>
-      ${isNew ? "" : `<button type="button" class="btn soft full" id="dc-toprod" style="margin:4px 0 12px">Это продукт: перенести в продукты</button>`}
+      ${isNew ? "" : `<button type="button" class="pf-move" id="dc-toprod"><span class="pf-mv-ic">🍽️</span><span class="pf-mv-t"><b>Это продукт?</b><small>Перенести в раздел «Продукты»</small></span><span class="pf-mv-ch">›</span></button>`}
       <div class="row">${isNew ? `<button type="button" class="btn ghost" id="dc-back">Назад</button>` : `<button type="button" class="btn danger" id="dc-del">Удалить</button>`}<button type="button" class="btn primary grow" id="dc-save">Сохранить</button></div>`;
     const list = $("#dc-bc-list", ov), inp = $("#dc-bc-in", ov);
     const drawBc = () => { list.innerHTML = bcs.map((c) => `<span class="chip alias">${esc(c)}<button type="button" class="alias-x" data-bcdel="${esc(c)}" aria-label="Убрать код">×</button></span>`).join(""); };
@@ -4205,6 +4277,13 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       if (i >= 0) bcs.splice(i, 1);
       drawBc();
     });
+    let curE = d.e || "", curCol = d.col || "";
+    const dAva = $("#dc-ava", ov), dAvaIc = $("#dc-ava-ic", ov);
+    dAva.addEventListener("click", () => openAvatarPicker({ emoji: curE, color: curCol }, (sel) => {
+      curE = sel.emoji; curCol = sel.color;
+      dAvaIc.textContent = sel.emoji;
+      dAva.style.background = sel.color; dAva.style.borderStyle = "solid"; dAva.style.borderColor = sel.color;
+    }, AVA_DRINK_GROUPS));
     const catSel = $("#dc-cat", ov), alcSel = $("#dc-alc", ov), alcBox = $("#dc-alc-box", ov), pct = $("#dc-pct", ov);
     const medianPct = (a) => { const x = DRINKS.filter((y) => y.cat === "alc" && y.a === a).map((y) => y.h).sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : -95; };
     // Подсказка: ориентировочная гидратация типичных напитков выбранной категории
@@ -4273,7 +4352,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       if ([p, f, cb].some((x) => x > 100)) { toast("Белки, жиры и углеводы на 100 мл: не больше 100"); return; }
       for (const c of bcs) { const m = bcConflict(c, { drinkId: d.id, productId: from && from.id }); if (m) { toast(m); return; } }
       const cat = catSel.value;
-      const item = { id: isNew ? newDrinkId() : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs] };
+      const item = { id: isNew ? newDrinkId() : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs], e: curE, col: curCol };
       state.customDrinks = state.customDrinks.filter((x) => x.id !== item.id);
       const cur = (state.sharedDrinks || []).find((x) => x.id === item.id);
       const sv = $("#dc-save", ov);
@@ -4284,7 +4363,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         aliasCodes(from.id).forEach((c) => unlinkBarcode(c));
         deleteDoc(prodDoc(from.id)).catch(writeFail);
       }
-      if (!(state.sharedDrinks || []).some((x) => x.id === item.id)) state.sharedDrinks = [...(state.sharedDrinks || []), { id: item.id, n: item.n, h: item.h, c: item.c, cat: item.cat, a: item.a, k: item.k, p: item.p, f: item.f, cb: item.cb, bc: [...item.bc], createdBy: state.user.uid, createdByName: "" }];
+      if (!(state.sharedDrinks || []).some((x) => x.id === item.id)) state.sharedDrinks = [...(state.sharedDrinks || []), { id: item.id, n: item.n, h: item.h, c: item.c, cat: item.cat, a: item.a, k: item.k, p: item.p, f: item.f, cb: item.cb, bc: [...item.bc], e: item.e, col: item.col, createdBy: state.user.uid, createdByName: "" }];
       if (state.drinkdbErr && state.drinkdbResub) state.drinkdbResub();
       const sub = [item.k > 0 ? `${item.k} ккал/100 мл` : "", item.c > 0 ? `${item.c} мг кофеина на 240 мл` : "", `гидратация ${item.h}%`].filter(Boolean).join(", ");
       body.innerHTML = `${savedHtml("drink", item.n, sub, res)}
@@ -4300,7 +4379,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const oldCaf = existing ? (Number(existing.ml) * Number(existing.caf100)) / 100 : 0;
     const lastMl = existing ? existing.ml : (presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250));
     body.innerHTML = `
-      <div class="picked"><div class="p-name">${isCustom ? (existing ? "Свой напиток" : "Новый напиток") : esc(d.n)}</div>${isCustom ? "" : `<div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div>`}</div>
+      <div class="picked"><div class="p-name">${isCustom ? "" : `<span class="pk-em">${esc(drinkIcon(d))}</span> `}${isCustom ? (existing ? "Свой напиток" : "Новый напиток") : esc(d.n)}</div>${isCustom ? "" : `<div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div>`}</div>
       ${isCustom ? `${existing ? "" : `<label class="field"><span>Категория</span><select id="dk-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
         <label class="field hidden" id="dk-alc-box"><span>Крепость</span><select id="dk-alc" class="input"><option value="Слабый алкоголь">Слабый (пиво, сидр)</option><option value="Легкий алкоголь">Лёгкий</option><option value="Умеренный алкоголь">Умеренный</option><option value="Средний алкоголь" selected>Средний (вино, вермут)</option><option value="Крепкий алкоголь">Крепкий (водка, виски, коньяк)</option></select></label>`}
         <label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>

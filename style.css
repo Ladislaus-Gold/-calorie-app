@@ -2096,9 +2096,81 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .cat-btn{flex:none;width:44px;height:44px;border-radius:14px;border:0;background:linear-gradient(#6FCD9A,#37A873);color:#fff;font-size:24px;font-weight:300;line-height:1;display:grid;place-items:center;box-shadow:0 4px 10px rgba(55,168,115,.3)}
 .cat-btn.minus{background:#EEF3F0;color:#5E7066;box-shadow:none;border:1px solid var(--line,#DCE6DF)}
 .cat-btn:disabled{opacity:.5}
-.cat-new{display:flex;gap:8px;margin-top:8px}
-.cat-new .input{flex:1;min-width:0}
-.cat-new .btn{flex:none}
+.cat-new{margin-top:8px}
+.cat-new-row{display:flex;gap:8px}
+.cat-new-row .input{flex:1;min-width:0}
+.cat-new-row .btn{flex:none}
+/* v2.6: категория — свой выпадающий список */
+.cat-trg{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;cursor:pointer}
+.cat-trg span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.cat-trg span.ph{color:var(--muted);font-weight:500}
+.cat-chev{flex:none;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);transition:transform .15s}
+.cat-trg.open .cat-chev{transform:rotate(225deg)}
+.cat-menu{margin-top:8px;max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;border:1.5px solid #BFE3CF;border-radius:16px;background:#fff;padding:6px;box-shadow:0 10px 24px rgba(31,92,58,.14)}
+.cat-menu[hidden]{display:none}
+.cat-opt-row{display:flex;align-items:center;gap:4px}
+.cat-opt{flex:1;min-width:0;text-align:left;padding:11px 12px;border-radius:12px;font-size:15px;font-weight:600;background:none;border:0;color:inherit}
+.cat-opt:active{background:#EAF6EF}
+.cat-opt.sel{background:#E3F5EA;color:#1F7A4A}
+.cat-x{flex:none;width:34px;height:34px;border-radius:50%;background:#FDECEC;color:#D64545;font-size:20px;line-height:1;display:grid;place-items:center;border:0}
+.cat-emo-row{display:flex;gap:6px;overflow-x:auto;padding:10px 2px 2px;-webkit-overflow-scrolling:touch}
+.cat-emo{flex:none;width:40px;height:40px;border-radius:12px;background:#F1F6F3;font-size:22px;display:grid;place-items:center;border:2px solid transparent}
+.cat-emo.sel{border-color:#37A873;background:#E3F5EA}
+:root[data-theme="dark"] .cat-menu{background:#1B2A21;border-color:#2F5240}
+:root[data-theme="dark"] .cat-opt:active{background:#26352C}
+:root[data-theme="dark"] .cat-opt.sel{background:#22402F;color:#9DE0B5}
+:root[data-theme="dark"] .cat-emo{background:#26352C}
+:root[data-theme="dark"] .cat-emo.sel{background:#22402F}
+/* v2.6: кнопка «Это напиток? / Это продукт?» */
+.pf-move{display:flex;align-items:center;gap:12px;width:100%;margin:4px 0 12px;padding:12px 14px;border-radius:18px;border:1.5px solid #BFE3CF;background:linear-gradient(180deg,#F4FBF7,#E6F5EC);text-align:left;box-shadow:0 6px 14px rgba(55,168,115,.14)}
+.pf-move:active{transform:scale(.99)}
+.pf-mv-ic{flex:none;width:42px;height:42px;border-radius:14px;background:#fff;display:grid;place-items:center;font-size:22px;box-shadow:0 3px 8px rgba(55,168,115,.2)}
+.pf-mv-t{flex:1;min-width:0;display:grid;gap:2px}
+.pf-mv-t b{font-size:15px;color:#17402A}
+.pf-mv-t small{font-size:12px;color:#5E7066;font-weight:500}
+.pf-mv-ch{flex:none;font-size:24px;color:#37A873}
+:root[data-theme="dark"] .pf-move{background:linear-gradient(180deg,#1F3328,#1A2B21);border-color:#2F5240;box-shadow:none}
+:root[data-theme="dark"] .pf-mv-ic{background:#26352C;box-shadow:none}
+:root[data-theme="dark"] .pf-mv-t b{color:#CFEBDB}
+:root[data-theme="dark"] .pf-mv-t small{color:#8FA396}
+/* v2.6: экран «Жидкость» по референсу */
+.fl-top{justify-content:flex-start}
+.fl-top .pill{margin-left:auto}
+.fl-ic{flex:none;width:34px;height:34px;border-radius:11px;background:#E3F1FC;display:grid;place-items:center;font-size:18px}
+.fl-ic.gray{background:#EEF1F4}
+.fl-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+.fl-tile{border-radius:18px;padding:14px 16px;display:grid;gap:4px}
+.fl-tile b{font-size:28px;line-height:1;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.fl-tile span{font-size:13px;font-weight:600}
+.fl-tile.w{background:#E1EEFB;color:#27559A}
+.fl-tile.d{background:#DCF3EC;color:#1E7D63}
+.chip.water.other{border:1.5px solid #A8CBF3;background:#E1EEFB;color:#27559A}
+.fav-chips .chip{background:#E5F5EB;color:#1F7A4A;font-weight:700}
+.fl-fav .h2{margin-bottom:12px}
+.entry.fl-e{grid-template-columns:auto 1fr auto;gap:12px}
+.fl-ico{width:44px;height:44px;border-radius:14px;background:#E1EEFB;display:grid;place-items:center;font-size:22px}
+.fl-e .e-kcal{font-size:20px;font-weight:800;display:grid;justify-items:end;gap:2px}
+.fl-e .e-kcal small{margin:0;font-size:12px;font-weight:500;color:var(--muted)}
+.more-btn.fl-more{background:#E7F0FC;border:1.5px solid #AFCBF0;color:#27559A;border-radius:16px;font-weight:700;padding:13px 0;margin-top:8px}
+:root[data-theme="dark"] .fl-ic{background:#1E3550}
+:root[data-theme="dark"] .fl-ic.gray{background:#26302A}
+:root[data-theme="dark"] .fl-tile.w{background:#1E3550;color:#9CC4F2}
+:root[data-theme="dark"] .fl-tile.d{background:#1B3B33;color:#8EDDC0}
+:root[data-theme="dark"] .chip.water.other{background:#1E3550;border-color:#35567F;color:#9CC4F2}
+:root[data-theme="dark"] .fav-chips .chip{background:#1F3328;color:#9DE0B5}
+:root[data-theme="dark"] .fl-ico{background:#1E3550}
+:root[data-theme="dark"] .more-btn.fl-more{background:#1E3550;border-color:#35567F;color:#9CC4F2}
+/* v2.6: напитки — список и карточка как у продуктов */
+.drow{display:flex;align-items:center;gap:4px}
+.d-main.dk-main{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+.d-tx{display:block;min-width:0}
+.d-tx .p-name,.d-tx .p-sub{display:block}
+.d-ava{flex:none;width:40px;height:40px;border-radius:13px;background:#E1EEFB;display:grid;place-items:center;font-size:20px}
+.d-edit{flex:none;width:34px;height:34px;border-radius:11px;color:var(--muted);font-size:16px;display:grid;place-items:center;background:none;border:0}
+.dk-new{margin:0 0 12px}
+.pk-em{display:inline-block;margin-right:2px}
+.sheet .row:has(#dc-save){position:sticky;bottom:0;z-index:3;background:var(--card);padding:10px 0 4px;margin-top:4px}
+:root[data-theme="dark"] .d-ava{background:#1E3550}
 :root[data-theme="dark"] .cat-btn.minus{background:#26352C;color:#C9D8CE;border-color:#324A37}
 /* v2.4: окно «Добавить запись» — аккуратная шапка: пилюля-селект и круглая ×, отступ от края */
 .overlay.top .sheet{padding-top:calc(14px + env(safe-area-inset-top,0px))}

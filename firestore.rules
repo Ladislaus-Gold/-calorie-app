@@ -27,8 +27,10 @@ service cloud.firestore {
 
     // Проверка напитка общей базы
     function validDrink(d) {
-      return d.keys().hasOnly(['n', 'h', 'c', 'cat', 'a', 'k', 'p', 'f', 'cb', 'bc',
+      return d.keys().hasOnly(['n', 'h', 'c', 'cat', 'a', 'k', 'p', 'f', 'cb', 'bc', 'e', 'col',
                                'createdBy', 'createdByName', 'createdAt', 'updatedAt'])
+        && (!('e' in d) || (d.e is string && d.e.size() <= 12))
+        && (!('col' in d) || (d.col is string && d.col.size() <= 20))
         && d.n is string && d.n.size() > 0 && d.n.size() <= 120
         && d.h is number && d.h >= -400 && d.h <= 200
         && d.c is number && d.c >= 0 && d.c <= 2400
