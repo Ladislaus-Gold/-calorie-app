@@ -311,7 +311,7 @@ function openTrainWorkout(date) {
     }
     const it = items[idx], ex = TR.EXERCISES[it.id] || {};
     const prog = `<div class="wk-top"><span>Упражнение ${idx + 1} из ${items.length}</span><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div class="track"><i style="width:${Math.round((idx / items.length) * 100)}%"></i></div>`;
-    const fig = ex.frames ? `<div class="ex-fig wk-fig">${exFig(it.id, it.vk)}</div>` : "";
+    const fig = ex.frames ? `<div class="ex-fig wk-fig${PHOTOS.has(`${it.id}:${it.vk}`) ? " wk-ph" : ""}">${exFig(it.id, it.vk)}</div>` : "";
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const head = `<h2 class="wk-name">${esc(it.name)}</h2><p class="wk-sub">${esc(it.vlabel || "")}${eb && (it.vk === "band" || it.vk === "bandf") ? ` · ${esc(bandName(eb))}` : ""}</p>`;
     let mid = "", foot = "";
