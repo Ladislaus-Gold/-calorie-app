@@ -1476,3 +1476,24 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 #af-list { padding: 4px 6px 12px; overflow: visible; }
 .af-blk { margin: 0 0 22px; border: 1px solid rgba(20, 50, 35, .14); box-shadow: 0 14px 30px -6px rgba(20, 50, 35, .34), 0 4px 10px rgba(20, 50, 35, .16), 0 0 0 1px rgba(255, 255, 255, .6) inset; }
 :root[data-theme="dark"] .af-blk { box-shadow: 0 14px 30px -6px rgba(0, 0, 0, .8), 0 4px 10px rgba(0, 0, 0, .5); }
+
+/* v176: готовые картинки упражнений с переключателем Профиль / Анфас */
+.ex-ph { position: relative; }
+.ex-ph > input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+.ex-ph-tabs { display: flex; gap: 6px; padding: 2px 2px 8px; }
+.ex-ph-tabs label { flex: 1; text-align: center; padding: 7px 0; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(20, 50, 35, .12); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ex-ph .pa:checked ~ .ex-ph-tabs .la, .ex-ph .pb:checked ~ .ex-ph-tabs .lb { color: #fff; background: var(--accent); border-color: var(--accent); }
+.ex-ph-imgs img { display: none; width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 10px; background: #f3f5f1; }
+.ex-ph .pa:checked ~ .ex-ph-imgs .ia, .ex-ph .pb:checked ~ .ex-ph-imgs .ib { display: block; }
+.ex-fig .ex-ph-imgs img { max-height: 62vh; width: auto; margin: 0 auto; max-width: 100%; }
+
+/* v177: свайп между «Профиль» и «Анфас» */
+.ex-ph > input { display: none; }
+.ex-ph-tabs button { flex: 1; font: inherit; text-align: center; padding: 7px 0; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(20, 50, 35, .12); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ex-ph[data-i="0"] .la, .ex-ph[data-i="1"] .lb { color: #fff; background: var(--accent); border-color: var(--accent); }
+.ex-ph-imgs { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; border-radius: 10px; overscroll-behavior-x: contain; }
+.ex-ph-imgs::-webkit-scrollbar { display: none; }
+.ex-ph-imgs img, .ex-fig .ex-ph-imgs img { display: block; flex: 0 0 100%; width: 100%; max-width: none; max-height: none; margin: 0; scroll-snap-align: center; scroll-snap-stop: always; }
+.ex-ph-dots { display: flex; justify-content: center; gap: 6px; padding-top: 8px; }
+.ex-ph-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, transform .2s; }
+.ex-ph[data-i="0"] .ex-ph-dots i:nth-child(1), .ex-ph[data-i="1"] .ex-ph-dots i:nth-child(2) { background: var(--accent); transform: scale(1.25); }

@@ -3,6 +3,33 @@
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
 import * as TR from "./train.js?v=13";
 
+/* Готовые картинки упражнений (папка img/): `${id}-${vk}-p.webp` профиль, `-f.webp` анфас.
+   Есть картинка для пары (упражнение, вариант) — показываем её с переключателем «Профиль / Анфас», иначе рисунок-схему. */
+const PHOTOS = new Set(["squat:db"]);
+function exFig(id, vk) {
+  if (!PHOTOS.has(`${id}:${vk}`)) return TR.illustration(id, vk);
+  const b = `img/${id}-${vk}`;
+  return `<div class="ex-ph" data-i="0">
+    <div class="ex-ph-tabs"><button type="button" class="la" data-phi="0">Профиль</button><button type="button" class="lb" data-phi="1">Анфас</button></div>
+    <div class="ex-ph-imgs"><img src="${b}-p.webp" alt="Профиль" decoding="async"><img src="${b}-f.webp" alt="Анфас" decoding="async"></div>
+    <div class="ex-ph-dots"><i></i><i></i></div></div>`;
+}
+// Листание картинок свайпом (scroll-snap) и кнопки «Профиль / Анфас»: слушатели на документе, перерисовка им не мешает
+if (typeof document !== "undefined" && !window.__exPh) {
+  window.__exPh = true;
+  document.addEventListener("scroll", (e) => {
+    const s = e.target;
+    if (!s || !s.classList || !s.classList.contains("ex-ph-imgs")) return;
+    s.parentElement.dataset.i = s.scrollLeft > s.clientWidth / 2 ? "1" : "0";
+  }, true);
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-phi]");
+    if (!b) return;
+    const box = b.closest(".ex-ph"), s = box && box.querySelector(".ex-ph-imgs");
+    if (s) s.scrollTo({ left: Number(b.dataset.phi) * s.clientWidth, behavior: "smooth" });
+  });
+}
+
 export function createTrainUI(env) {
   const { $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail } = env;
 
@@ -286,7 +313,7 @@ function openTrainWorkout(date) {
     }
     const it = items[idx], ex = TR.EXERCISES[it.id] || {};
     const prog = `<div class="wk-top"><span>Упражнение ${idx + 1} из ${items.length}</span><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div class="track"><i style="width:${Math.round((idx / items.length) * 100)}%"></i></div>`;
-    const fig = ex.frames ? `<div class="ex-fig wk-fig">${TR.illustration(it.id, it.vk)}</div>` : "";
+    const fig = ex.frames ? `<div class="ex-fig wk-fig">${exFig(it.id, it.vk)}</div>` : "";
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const head = `<h2 class="wk-name">${esc(it.name)}</h2><p class="wk-sub">${esc(it.vlabel || "")}${eb && (it.vk === "band" || it.vk === "bandf") ? ` · ${esc(bandName(eb))}` : ""}</p>`;
     let mid = "", foot = "";
@@ -450,7 +477,7 @@ function openTrainExercise(date, key) {
   const bandsBlock = () => `<span class="ex-vars-t">Какой резинкой${!((((trainLogOn(date) || {}).ebands) || {})[it.id]) && lastB && comboKey(selBand) === comboKey(comboIds(lastB)) ? " · как в прошлый раз, можно сменить" : ""}${selBand.length ? ` · около ${fmt(comboKg(selBand))} кг` : ""}</span><div class="ex-bandrow">${TR.BAND_COLORS.map((c) => `<button type="button" class="ex-bd${selBand.includes(c.id) ? " on" : ""}" data-eb="${c.id}" style="--c:${c.hex}" aria-pressed="${selBand.includes(c.id)}"><i></i>${c.t}</button>`).join("")}</div><span class="ex-vars-t" style="margin-top:6px;font-weight:500">Можно выбрать несколько цветов: трубки складываются.</span>${upHint()}`;
   const ov = openSheet(`
     <div class="sheet-head"><h2>${esc(it.name)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-    <div class="ex-fig">${TR.illustration(it.id, it.vk)}</div>
+    <div class="ex-fig">${exFig(it.id, it.vk)}</div>
     <div class="ex-meta"><span class="pill">${esc(it.vlabel)}</span><span class="pill">${esc(ex.muscles)}</span></div>
     ${it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : ""}
     ${ex.variants && ex.variants.length > 1 ? `<div class="ex-vars"><span class="ex-vars-t">Как выполнять сейчас</span><div class="chips" style="margin:0">${[["", "Авто"], ...ex.variants.map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div></div>` : ""}
