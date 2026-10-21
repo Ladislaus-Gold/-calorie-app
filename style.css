@@ -1620,3 +1620,18 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .wk-redo { font: inherit; font-weight: 800; font-size: 13px; color: #157A3A; background: #fff; border: 1.5px solid #D3E4D9; border-radius: 12px; padding: 8px 14px; box-shadow: 0 4px 12px rgba(27, 157, 75, .16); cursor: pointer; }
 :root[data-theme="dark"] .wk-redo { background: #25332B; border-color: var(--line); color: #8FD3A8; }
 .tr-fin .tr-wipe { color: var(--red); border-color: #F0CFCB; }
+.tr-fin .tr-btns { display: flex; gap: 8px; flex-wrap: nowrap; margin-top: 2px; }
+.tr-fin .tr-btns .btn { white-space: nowrap; padding-left: 12px; padding-right: 12px; }
+
+/* v187: нормальные галочки (скруглённая обводка вместо залитой фигуры) */
+.tr-check svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.tr-d em .tr-ok { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(27, 157, 75, .35); }
+.tr-d em .tr-ok svg { width: 12px; height: 12px; color: #fff; }
+.tr-d em { height: 18px; width: 18px; }
+.wk-sr .ic svg { width: 14px; height: 14px; }
+.wk-pl b svg { width: 40px; height: 40px; color: var(--accent); }
+.wk-pl.dn b svg { color: #fff; }
+
+/* v188: пропущенная тренировка в неделе — красный крестик в кружке */
+.tr-d em .tr-miss { width: 18px; height: 18px; border-radius: 50%; background: var(--red); color: #fff; display: grid; place-items: center; box-shadow: 0 2px 6px rgba(229, 72, 77, .35); }
+.tr-d em .tr-miss svg { width: 11px; height: 11px; color: #fff; }

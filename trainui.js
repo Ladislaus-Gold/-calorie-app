@@ -5,7 +5,7 @@ import * as TR from "./train.js?v=13";
 
 /* Готовые картинки упражнений (папка img/): `${id}-${vk}-p.webp` профиль, `-f.webp` анфас.
    Есть картинка для пары (упражнение, вариант) — показываем её с переключателем «Профиль / Анфас», иначе рисунок-схему. */
-const PHOTOS = new Set(["squat:db"]);
+const PHOTOS = new Set(["squat:db", "squat:band", "squat:bw", "lunge:db", "lunge:bw", "rdl:db", "rdl:band"]);
 function exFig(id, vk) {
   if (!PHOTOS.has(`${id}:${vk}`)) return TR.illustration(id, vk);
   const b = `img/${id}-${vk}`;
@@ -78,6 +78,10 @@ const SND = {
     tone(1568, 0.5, 0.9, 0.07, "sine");
   },
 };
+// Галочка: скруглённая, с обводкой (цвет задаёт CSS)
+const TICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 12.8l4.2 4.2L18.5 7.8"/></svg>';
+// Крестик пропущенной тренировки
+const CROSS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>';
 const CK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1B9D4B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 // Кольцо прогресса тренировки: зелёное — сделано, красное — пропущено
 function ringSvg(d, done, skip, total, label) {
@@ -179,7 +183,7 @@ function trainRowHtml(day, it, done) {
   const part = !on && sd > 0 && sd < it.sets ? ` · сделано ${sd} из ${it.sets} подх.` : "";
   const sub = isMinIt(it) ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${part}`;
   return `<div class="tr-row${on ? " on" : ""}">
-    <button type="button" class="tr-check" data-act="trainTick" data-date="${day}" data-key="${esc(it.key)}" aria-pressed="${on}" aria-label="Отметить выполненным">${CHECK}</button>
+    <button type="button" class="tr-check" data-act="trainTick" data-date="${day}" data-key="${esc(it.key)}" aria-pressed="${on}" aria-label="Отметить выполненным">${TICK}</button>
     <button type="button" class="tr-main" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}"><span class="tr-name">${esc(it.name)}</span><span class="tr-sub">${esc(sub)}</span></button>
     <button type="button" class="tr-go" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}" aria-label="Как выполнять">${CHEV_R}</button>
   </div>`;
@@ -201,7 +205,7 @@ function trainCardHtml(day) {
   const strip = wk.map((d) => {
     let mark = "";
     const hasC = !d.type && (((trainLogOn(d.date) || {}).custom) || []).length > 0;
-    if (d.type || hasC) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? CHECK : "<i></i>"; }
+    if (d.type || hasC) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? `<b class="tr-ok">${TICK}</b>` : p && d.date < today ? `<b class="tr-miss">${CROSS}</b>` : "<i></i>"; }
     return `<button type="button" class="tr-d${d.type || hasC ? " plan" : ""}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="trainDayTap" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
   }).join("");
   const ses = trainSession(day);
@@ -236,7 +240,7 @@ function trainCardHtml(day) {
       ${watchCmpHtml(day, ses, k, n)}
       <div class="tr-list">${rows}</div>
       <div class="tr-actions"><button type="button" class="btn ghost full" data-act="trainAdd" data-date="${day}">+ Добавить упражнение</button>
-      ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button> <button type="button" class="btn ghost sm tr-wipe" data-act="trainWipe" data-date="${day}">Удалить итоги</button></div>` : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
+      ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><div class="tr-btns"><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button><button type="button" class="btn ghost sm tr-wipe" data-act="trainWipe" data-date="${day}">Удалить итоги</button></div></div>` : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
       ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}</div>`;
     sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · около ${ses.est} мин · выполнено ${k} из ${n}</span></p>`;
   } else {
@@ -410,7 +414,7 @@ function openTrainWorkout(date) {
   const simpleHtml = (it) => {
     const kind = isMinIt(it) ? "min" : it.secs ? "sec" : "plain";
     const plan = kind === "min" ? it.minutes : kind === "sec" ? it.secs[1] : 0;
-    const val = kind === "min" ? mins : kind === "sec" ? secv : "✓";
+    const val = kind === "min" ? mins : kind === "sec" ? secv : TICK;
     const unit = kind === "min" ? "Минуты" : kind === "sec" ? "Секунды" : "Упражнение";
     const run = phase === "run";
     const chip = review ? "выполнено" : kind === "plain" ? "нажмите" : val === plan ? "цель" : val < plan ? `−${plan - val}` : `+${val - plan}`;
@@ -435,7 +439,7 @@ function openTrainWorkout(date) {
     const rows = items.map((x, k) => {
       const d = isDone(x);
       const val = d ? (x.reps ? doneSets(x).join(" / ") : factMin(x) ? `${factMin(x)} мин` : "") : "";
-      return `<div class="wk-sr${d ? "" : " no"}"><span class="ic">${d ? "✓" : "→"}</span><span class="nm">${esc(x.name)}</span>${d ? `<span class="v">${esc(val)}</span>` : `<button type="button" class="back" data-w="ret" data-k="${k}">Вернуть</button>`}</div>`;
+      return `<div class="wk-sr${d ? "" : " no"}"><span class="ic">${d ? TICK : "→"}</span><span class="nm">${esc(x.name)}</span>${d ? `<span class="v">${esc(val)}</span>` : `<button type="button" class="back" data-w="ret" data-k="${k}">Вернуть</button>`}</div>`;
     }).join("");
     return `${bandHtml("Готово", "", `${n}/${n}`)}<div class="wk-sum"><div class="wk-cnt"><span class="g">${dn} выполнено</span>${sk ? ` · <span class="r">${sk} пропущено</span>` : ""}</div><div class="wk-sl">${rows}</div></div><div class="wk-foot"><button type="button" class="btn primary full" data-w="finish">Завершить тренировку</button><button type="button" class="btn ghost full" data-close style="margin-top:8px">Закрыть</button></div>`;
   };
