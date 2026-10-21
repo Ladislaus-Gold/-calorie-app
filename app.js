@@ -76,7 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 198;
+const APP_VERSION = 201;
+const APP_VERSION_LABEL = "2.1"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -193,6 +194,7 @@ const state = {
   liveFrom: null,
   histBusy: false,
   prodSearch: "",
+  prodCat: "all",
   error: "",
   profile: {},
   water: [],
@@ -796,24 +798,59 @@ function filterProducts(q) {
   });
 }
 
-function productRow(p, attr) {
+function productRow(p, attr, withPlus) {
   const mine = !!state.user && p.createdBy === state.user.uid;
   const by = !mine && p.createdByName ? `Добавил(а): ${esc(p.createdByName)}` : "";
   const meta = [p.brand ? esc(p.brand) : "", p.barcode ? esc(p.barcode) : "", by].filter(Boolean).join(", ");
   const hue = parseInt(fnv(fold(p.name)), 36) % 360, ch = (String(p.name || "?").trim()[0] || "?").toUpperCase();
-  return `<button type="button" class="prow" ${attr}="${esc(p.id)}">
-    <span class="p-ava" style="background:hsl(${hue} 55% 92%);color:hsl(${hue} 45% 30%)">${esc(ch)}</span>
-    <span class="p-main"><span class="p-name">${esc(p.name)}</span><span class="p-macros">${macrosHtml(p.protein, p.fat, p.carbs)}</span>${meta ? `<span class="p-sub">${meta}</span>` : ""}</span>
-    <span class="p-kcal">${fmtInt(p.kcal)}<small>ккал / 100 г</small></span></button>`;
+  const avaStyle = p.emoji ? `background:${esc(p.color || "#EAF7EF")}` : `background:hsl(${hue} 55% 92%);color:hsl(${hue} 45% 30%)`;
+  const avaInner = p.emoji ? esc(p.emoji) : esc(ch);
+  const pr = Number(p.protein) || 0, ft = Number(p.fat) || 0, cb = Number(p.carbs) || 0;
+  const kc2 = pr * 4 + ft * 9 + cb * 4;
+  const bar = kc2 > 0 ? `<span class="p-bar"><i style="width:${(pr * 4 / kc2 * 100).toFixed(1)}%;background:var(--protein)"></i><i style="width:${(ft * 9 / kc2 * 100).toFixed(1)}%;background:var(--fat)"></i><i style="width:${(cb * 4 / kc2 * 100).toFixed(1)}%;background:var(--carbs)"></i></span>` : "";
+  return `<div class="prow">
+    <button type="button" class="prow-main" ${attr}="${esc(p.id)}">
+      <span class="p-ava${p.emoji ? " emo" : ""}" style="${avaStyle}">${avaInner}</span>
+      <span class="p-main"><span class="p-l1"><span class="p-name">${esc(p.name)}</span><span class="p-kc">${fmtInt(p.kcal)} <small>ккал</small></span></span>${bar}<span class="p-macros">${macrosHtml(p.protein, p.fat, p.carbs)}</span>${meta ? `<span class="p-sub">${meta}</span>` : ""}</span>
+    </button>
+    ${withPlus ? `<button type="button" class="p-plus" data-quick-add="${esc(p.id)}" aria-label="Добавить в дневник">+</button>` : ""}
+  </div>`;
 }
 
 const emptyProducts = `<div class="empty"><b>Продуктов пока нет</b>Отсканируйте штрих-код, добавьте продукт вручную или загрузите базовый набор на вкладке «Продукты».</div>`;
 
+function productsForTab() {
+  let list = state.products;
+  if (state.prodCat === "mine") list = list.filter((p) => state.user && p.createdBy === state.user.uid);
+  else if (state.prodCat !== "all") list = list.filter((p) => fold((p.category || "").trim()) === fold(state.prodCat));
+  const words = fold(state.prodSearch).split(/\s+/).filter(Boolean);
+  if (!words.length) return list;
+  return list.filter((p) => {
+    const hay = fold(`${p.name} ${p.brand || ""} ${p.barcode || ""} ${aliasCodes(p.id).join(" ")} ${p.createdByName || ""}`);
+    return words.every((w) => hay.includes(w));
+  });
+}
+
+function prodCategoryOptions() {
+  const set = new Set();
+  state.products.forEach((p) => { const c = (p.category || "").trim(); if (c) set.add(c); });
+  return [...set].sort((a, b) => a.localeCompare(b, "ru")).map((c) => `<option value="${esc(c)}">`).join("");
+}
+
+function prodCatChips() {
+  const counts = new Map();
+  state.products.forEach((p) => { const c = (p.category || "").trim(); if (c) counts.set(c, (counts.get(c) || 0) + 1); });
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map((x) => x[0]);
+  const mineN = state.user ? state.products.filter((p) => p.createdBy === state.user.uid).length : 0;
+  const chip = (id, label) => `<button type="button" class="chip${state.prodCat === id ? " sel" : ""}" data-pcat="${esc(id)}">${esc(label)}</button>`;
+  return `<div class="chips cats" id="prod-cats">${chip("all", "Все")}${mineN ? chip("mine", "⭐ Мои") : ""}${top.map((c) => chip(c, c)).join("")}</div>`;
+}
+
 function productListHtml() {
-  const items = filterProducts(state.prodSearch);
   if (!state.products.length) return emptyProducts;
-  if (!items.length) return `<div class="empty"><b>Ничего не найдено</b>Попробуйте другое название или добавьте новый продукт.</div>`;
-  return items.map((p) => productRow(p, "data-edit-product")).join("");
+  const items = productsForTab();
+  if (!items.length) return `<div class="empty"><b>Ничего не найдено</b>Попробуйте другое название, категорию или добавьте новый продукт.</div>`;
+  return items.map((p) => productRow(p, "data-edit-product", true)).join("");
 }
 
 // Напитки из дневника, чьих карточек больше нет ни в продуктах, ни в списке напитков (например, потерянные при переносе)
@@ -854,6 +891,7 @@ function viewProducts() {
       <button type="button" class="btn ghost full" data-act="restoreDrinks">Восстановить напитки</button>
     </section>` : ""}
     <input id="prod-search" class="input search" type="search" placeholder="Название, штрих-код или автор" value="${esc(state.prodSearch)}" autocomplete="off">
+    ${prodCatChips()}
     <section class="card list-card"><div id="plist" class="plist">${productListHtml()}</div></section>
     <p class="foot-note">Продукты видят все пользователи. Править или удалять продукт может только тот, кто его добавил.</p>
     ${missing ? `<section class="card">
@@ -1772,7 +1810,7 @@ function statusHtml() {
   const wait = s.busy;
   const server = wait ? [N, "Проверяю…"] : !s.server ? [N, "Не проверено"] : s.server === "ok" ? [G, "Подключён"] : [R, "Не подключён"];
   const rules = wait ? [N, "Проверяю…"] : !s.rules ? [N, "Не проверено"] : s.rules === "ok" ? [G, "Работают, доступ есть"] : s.rules === "denied" ? [R, "Блокируют доступ"] : [N, "Не проверить без связи"];
-  const ver = s.latest > APP_VERSION ? [Y, `v${APP_VERSION}, на сервере уже v${s.latest}: закройте и откройте приложение`] : s.latest ? [G, `v${APP_VERSION}, актуальная`] : [N, `v${APP_VERSION}`];
+  const ver = s.latest > APP_VERSION ? [Y, `v${APP_VERSION_LABEL}, на сервере уже новее: закройте и откройте приложение`] : s.latest ? [G, `v${APP_VERSION_LABEL}, актуальная`] : [N, `v${APP_VERSION_LABEL}`];
   const allReady = Object.values(state.ready).every(Boolean);
   const sync = state.error ? [R, "Ошибка загрузки"] : allReady ? [G, "Данные загружены"] : [Y, "Загружаю…"];
   return `<div style="margin-top:14px">
@@ -2367,7 +2405,7 @@ function chooseCardKind(code) {
       <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Что создать?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
       <div class="lm">
         <div class="note lk-note">${code ? `Код ${esc(code)} не найден ни среди продуктов, ни среди напитков. ` : ""}Напиток считается как жидкость (и кофеин), а если есть калории, то и как еда. Продукт считается только как еда.</div>
-        <div class="af-btns lk-btns"><button type="button" class="btn primary" id="ck-drink">Напиток</button><button type="button" class="btn primary" id="ck-prod">Продукт</button></div>
+        <div class="ck-choice"><button type="button" class="ck-opt water" id="ck-drink"><span class="ck-ic">💧</span><b>Напиток</b></button><button type="button" class="ck-opt food" id="ck-prod"><span class="ck-ic">🍽️</span><b>Продукт</b></button></div>
         ${mine.length ? `<p class="foot-note" style="margin:6px 2px 8px">Или это новая упаковка уже имеющегося напитка:</p>
         <input id="ck-q" class="input search" type="search" placeholder="Найти напиток для привязки" autocomplete="off">
         <div id="ck-list" class="plist"></div>` : ""}
@@ -2499,7 +2537,7 @@ async function openProductUsage(p) {
   if (!list.length) { body.innerHTML = `<div class="empty"><b>Пока не ел</b>Этого продукта ещё нет в вашем дневнике.</div>`; return; }
   const sumG = list.reduce((t, e) => t + (Number(e.grams) || 0), 0), sumK = list.reduce((t, e) => t + (Number(e.kcal) || 0), 0);
   const days = new Set(list.map((e) => e.date)).size;
-  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span><span class="pu-m">${bju(e.protein, e.fat, e.carbs)}</span></div>`).join("");
+  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-r"><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span></span><span class="pu-m">${bju(e.protein, e.fat, e.carbs)}</span></div>`).join("");
   const sm = (k) => list.reduce((t, e) => t + (Number(e[k]) || 0), 0);
   const avgG = sumG / list.length, last = list[0].date, daysAgo = Math.round((parseD(todayStr()) - parseD(last)) / 86400000);
   const lastTxt = daysAgo <= 0 ? "сегодня" : daysAgo === 1 ? "вчера" : `${daysAgo} дн. назад`;
@@ -2916,6 +2954,35 @@ function openCopyEntry(entry, p100, grams0, meal0) {
   });
 }
 
+/* ----- Эмодзи и цвет аватара продукта/напитка ----- */
+const AVA_EMOJIS = ["🍜", "🥘", "🍚", "🍝", "🍲", "🍱", "🍕", "🍔", "🌮", "🥗", "🍳", "🥐", "🥟", "🍇", "🍎", "🍌", "🥦", "🍗", "🧀", "🍞", "🥑", "🍉", "🍰", "☕"];
+const AVA_COLORS = ["#EAF7EF", "#FFE9D4", "#FFF9DB", "#FDE7E4", "#EFE7F7", "#E3F2FD", "#FDEBDD", "#F2F2F2", "#FCE4EC", "#E0F7F4"];
+function openAvatarPicker(cur, onDone) {
+  const sel = { emoji: cur.emoji || AVA_EMOJIS[0], color: cur.color || AVA_COLORS[0] };
+  const ov = openSheet(`
+    <div class="sheet-head"><h2>Эмодзи и цвет</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="ap-prev"><span class="pf-ava-btn" id="ap-prev-ava" style="background:${esc(sel.color)}"><span id="ap-prev-ic">${esc(sel.emoji)}</span></span></div>
+    <div class="field sec-label"><span>Выбрать эмодзи</span></div>
+    <div class="ap-grid" id="ap-emo">${AVA_EMOJIS.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>
+    <div class="field sec-label"><span>Цвет фона (для контраста с эмодзи)</span></div>
+    <div class="ap-colors" id="ap-col">${AVA_COLORS.map((c) => `<button type="button" class="ap-col${c === sel.color ? " sel" : ""}" data-c="${c}" style="background:${c}" aria-label="Цвет фона"></button>`).join("")}</div>
+    <button type="button" class="btn primary full" id="ap-done" style="margin-top:14px">Готово</button>`);
+  const prevAva = $("#ap-prev-ava", ov), prevIc = $("#ap-prev-ic", ov);
+  $("#ap-emo", ov).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-em]");
+    if (!b) return;
+    sel.emoji = b.dataset.em; prevIc.textContent = sel.emoji;
+    ov.querySelectorAll("#ap-emo .ap-em").forEach((x) => x.classList.toggle("sel", x.dataset.em === sel.emoji));
+  });
+  $("#ap-col", ov).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-c]");
+    if (!b) return;
+    sel.color = b.dataset.c; prevAva.style.background = sel.color;
+    ov.querySelectorAll("#ap-col .ap-col").forEach((x) => x.classList.toggle("sel", x.dataset.c === sel.color));
+  });
+  $("#ap-done", ov).addEventListener("click", () => { ov.close(); onDone(sel); });
+}
+
 /* ----- Форма продукта ----- */
 function openProductForm(product, onSaved, prefill = {}) {
   const uid = state.user.uid;
@@ -2936,15 +3003,20 @@ function openProductForm(product, onSaved, prefill = {}) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
-    ${product ? `<button type="button" class="btn ghost full" id="pf-usage" style="margin-bottom:12px">Когда я это ел: даты, граммы, калории</button>` : ""}
-    <label class="field"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
+    ${product ? `<button type="button" class="pf-usage-row" id="pf-usage"><span class="pf-u-ic">📅${state.entries.filter((e) => e.productId === product.id).length ? `<span class="pf-u-badge">${state.entries.filter((e) => e.productId === product.id).length}</span>` : ""}</span><span class="pf-u-t">Когда я это ел</span><span class="pf-u-ch">›</span></button>` : ""}
+    <div class="pf-top-row">
+      <button type="button" class="pf-ava-btn" id="pf-ava" ${dis} aria-label="Эмодзи и цвет" style="${p.emoji ? `background:${esc(p.color || AVA_COLORS[0])};border-style:solid;border-color:${esc(p.color || AVA_COLORS[0])}` : ""}"><span id="pf-ava-ic">${p.emoji ? esc(p.emoji) : "🍽️"}</span><span class="pf-ava-pencil">✎</span></button>
+      <label class="field pf-top-name"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
+    </div>
     <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
     <div class="field"><span>Штрих-код (необязательно)</span>${barcodeField}</div>
+    <label class="field"><span>Категория (необязательно)</span><input id="pf-cat" class="input" list="pf-cat-list" maxlength="40" ${dis} value="${esc(p.category || "")}" placeholder="Например, Фрукты" autocomplete="off"></label>
+    <datalist id="pf-cat-list">${prodCategoryOptions()}</datalist>
     ${product ? `<div class="field" id="pf-alias"><span>Другие упаковки: ещё штрих-коды этого продукта</span>
       <div id="pf-alias-list" class="chips"></div>
       <div class="inline"><input id="pf-alias-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код другой упаковки" autocomplete="off"><button type="button" class="icon-btn" id="pf-alias-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="pf-alias-add">Добавить</button></div>
       <p class="foot-note" id="pf-alias-msg" style="margin:6px 2px 0">Коды общие: любой пользователь, отсканировав эту упаковку, получит этот продукт. Убрать код может тот, кто его добавил.</p></div>` : ""}
-    <div class="field"><span>Значения на 100 г</span></div>
+    <div class="field sec-label"><span>Значения на 100 г</span></div>
     <div class="field-grid">
       <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
       <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.protein) > 0 ? val(p.protein) : ""}" autocomplete="off"></label>
@@ -2988,6 +3060,17 @@ function openProductForm(product, onSaved, prefill = {}) {
     });
   }
   if (ro) return;
+
+  let curEmoji = p.emoji || "", curColor = p.color || "";
+  const avaBtn = $("#pf-ava", ov), avaIc = $("#pf-ava-ic", ov);
+  avaBtn.addEventListener("click", () => {
+    openAvatarPicker({ emoji: curEmoji, color: curColor }, (sel) => {
+      curEmoji = sel.emoji; curColor = sel.color;
+      avaIc.textContent = sel.emoji;
+      avaBtn.style.background = sel.color;
+      avaBtn.style.borderStyle = "solid"; avaBtn.style.borderColor = sel.color;
+    });
+  });
 
   const todrink = $("#pf-todrink", ov);
   if (todrink) todrink.addEventListener("click", () => {
@@ -3038,7 +3121,8 @@ function openProductForm(product, onSaved, prefill = {}) {
     const drinkData = product && product.drink
       ? { drink: true, hydrationPct: Number(product.hydrationPct) || 0, caffeineMg100: Number(product.caffeineMg100) || 0 }
       : { drink: false, hydrationPct: 0, caffeineMg100: 0 };
-    const data = { name, brand, barcode, kcal, protein, fat, carbs, ...drinkData, updatedAt: serverTimestamp() };
+    const category = $("#pf-cat", ov).value.trim();
+    const data = { name, brand, barcode, kcal, protein, fat, carbs, category, emoji: curEmoji, color: curColor, ...drinkData, updatedAt: serverTimestamp() };
     if (product) {
       updateDoc(prodDoc(product.id), data).catch(writeFail);
       ov.close();
@@ -4028,14 +4112,14 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
       <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
-      <p class="foot-note" id="dc-hint" style="margin:-4px 2px 10px"></p>
+      <p class="note" id="dc-hint" style="margin-top:-4px"></p>
       <label class="field"><span>Название</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
         <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
       </div>
-      <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dc-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
-      <div class="field"><span>Значения на 100 мл</span></div>
+      <button type="button" class="btn ghost full sub-open-like" id="dc-sign" style="margin:-4px 0 14px">± Сменить знак гидратации (минус для алкоголя)</button>
+      <div class="field sec-label"><span>Значения на 100 мл</span></div>
       <div class="field-grid">
         <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" placeholder="0" value="${v0(d.k)}" autocomplete="off"></label>
         <label class="field"><span>Белки, г</span><input id="dc-p" class="input" inputmode="decimal" placeholder="0" value="${v0(d.p)}" autocomplete="off"></label>
@@ -4495,6 +4579,20 @@ function chartTap(e) {
 }
 $("#view").addEventListener("click", (e) => {
   if (chartTap(e)) return;
+  const pcat = e.target.closest("[data-pcat]");
+  if (pcat) {
+    state.prodCat = pcat.dataset.pcat;
+    const catsEl = document.getElementById("prod-cats");
+    if (catsEl) catsEl.outerHTML = prodCatChips();
+    const pl = $("#plist"); if (pl) pl.innerHTML = productListHtml();
+    return;
+  }
+  const qa = e.target.closest("[data-quick-add]");
+  if (qa) {
+    const p = state.products.find((x) => x.id === qa.dataset.quickAdd);
+    if (p) openAddFood(mealByTime(), p);
+    return;
+  }
   const edit = e.target.closest("[data-edit-product]");
   if (edit) {
     const p = state.products.find((x) => x.id === edit.dataset.editProduct);
