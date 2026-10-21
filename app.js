@@ -2499,7 +2499,7 @@ async function openProductUsage(p) {
   if (!list.length) { body.innerHTML = `<div class="empty"><b>Пока не ел</b>Этого продукта ещё нет в вашем дневнике.</div>`; return; }
   const sumG = list.reduce((t, e) => t + (Number(e.grams) || 0), 0), sumK = list.reduce((t, e) => t + (Number(e.kcal) || 0), 0);
   const days = new Set(list.map((e) => e.date)).size;
-  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span><span class="pu-m">${bju(e.protein, e.fat, e.carbs)}</span></div>`).join("");
+  const rows = list.map((e) => `<div class="pu-row"><span class="pu-d"><b>${esc(shortDate(e.date))}</b><small>${wd[parseD(e.date).getDay()]}${MEAL_NAME[e.meal] ? `, ${esc(MEAL_NAME[e.meal].toLowerCase())}` : ""}</small></span><span class="pu-r"><span class="pu-k">${fmtInt(Number(e.kcal) || 0)} ккал</span><span class="pu-g">${fmtInt(Number(e.grams) || 0)} г</span></span><span class="pu-m">${bju(e.protein, e.fat, e.carbs)}</span></div>`).join("");
   const sm = (k) => list.reduce((t, e) => t + (Number(e[k]) || 0), 0);
   const avgG = sumG / list.length, last = list[0].date, daysAgo = Math.round((parseD(todayStr()) - parseD(last)) / 86400000);
   const lastTxt = daysAgo <= 0 ? "сегодня" : daysAgo === 1 ? "вчера" : `${daysAgo} дн. назад`;
@@ -2936,7 +2936,7 @@ function openProductForm(product, onSaved, prefill = {}) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
-    ${product ? `<button type="button" class="btn ghost full" id="pf-usage" style="margin-bottom:12px">Когда я это ел: даты, граммы, калории</button>` : ""}
+    ${product ? `<button type="button" class="pf-usage-row" id="pf-usage"><span class="pf-u-ic">📅${state.entries.filter((e) => e.productId === product.id).length ? `<span class="pf-u-badge">${state.entries.filter((e) => e.productId === product.id).length}</span>` : ""}</span><span class="pf-u-t">Когда я это ел</span><span class="pf-u-ch">›</span></button>` : ""}
     <label class="field"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
     <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
     <div class="field"><span>Штрих-код (необязательно)</span>${barcodeField}</div>
