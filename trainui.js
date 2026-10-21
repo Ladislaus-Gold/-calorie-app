@@ -28,6 +28,51 @@ if (typeof document !== "undefined" && !window.__exPh) {
   }, true);
 }
 
+// Звуки тренировки (Web Audio): мягкий сигнал начала отдыха, тройной сигнал «отдых закончен», победная фанфара в конце
+let sndCtx = null;
+function sndUnlock() {
+  try {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return null;
+    if (!sndCtx) sndCtx = new C();
+    if (sndCtx.state === "suspended") sndCtx.resume();
+    return sndCtx;
+  } catch { return null; }
+}
+function tone(freq, at, dur, vol, type) {
+  const c = sndCtx;
+  if (!c) return;
+  try {
+    const o = c.createOscillator(), gn = c.createGain(), t = c.currentTime + at;
+    o.type = type || "sine"; o.frequency.value = freq;
+    o.connect(gn); gn.connect(c.destination);
+    gn.gain.setValueAtTime(0.0001, t);
+    gn.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.start(t); o.stop(t + dur + 0.05);
+  } catch { /* ignore */ }
+}
+const SND = {
+  // отдых начался: два мягких звука вверх
+  start() { sndUnlock(); tone(659, 0, 0.2, 0.12); tone(880, 0.13, 0.32, 0.12); },
+  // отдых закончился, пора делать подход: три ноты, последняя выше и длиннее
+  end() { sndUnlock(); tone(784, 0, 0.16, 0.17, "triangle"); tone(784, 0.2, 0.16, 0.17, "triangle"); tone(1047, 0.4, 0.55, 0.2, "triangle"); },
+  // тренировка завершена: «па-бам»
+  win() {
+    sndUnlock();
+    [523, 784].forEach((f) => tone(f, 0, 0.16, 0.15, "triangle"));
+    [523, 659, 784, 1047].forEach((f) => tone(f, 0.24, 1.2, 0.13, "triangle"));
+    tone(1568, 0.5, 0.9, 0.07, "sine");
+  },
+};
+const CK_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1B9D4B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+// Кольцо прогресса тренировки: зелёное — сделано, красное — пропущено
+function ringSvg(d, done, skip, total, label) {
+  const r = d / 2 - 5, c = 2 * Math.PI * r, fs = label.length <= 3 ? 14 : label.length === 4 ? 12 : 11;
+  const arc = (from, n, col) => (n > 0 && total > 0 ? `<circle cx="${d / 2}" cy="${d / 2}" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-dasharray="${((c * n) / total).toFixed(2)} ${c.toFixed(2)}" stroke-dashoffset="${((-c * from) / total).toFixed(2)}" transform="rotate(-90 ${d / 2} ${d / 2})"/>` : "");
+  return `<div class="wk-ring" style="width:${d}px;height:${d}px"><svg width="${d}" height="${d}" viewBox="0 0 ${d} ${d}"><circle cx="${d / 2}" cy="${d / 2}" r="${r}" fill="none" stroke="rgba(27,157,75,.18)" stroke-width="6"/>${arc(0, done, "#1B9D4B")}${arc(done, skip, "#E5484D")}</svg><b style="font-size:${fs}px">${label}</b></div>`;
+}
+
 export function createTrainUI(env) {
   const { $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail } = env;
   // Заголовок упражнения: название крупно, вариант в скобках мельче и серым (одной строкой с названием)
@@ -254,7 +299,8 @@ function trainBalanceInner(day) {
     <p class="foot-note" style="margin:10px 2px 0">Подходы основной части: сделано из запланированных на неделю.${lag.length ? ` Пока не тренировали: ${esc(lag.map((g) => (TR.MG[g] || g).toLowerCase()).join(", "))}.` : ""}</p>`;
 }
 
-// Режим тренировки: по одному упражнению на весь экран, таймер отдыха, экран не гаснет
+// Режим тренировки: по одному упражнению на весь экран. Подходы плашками: нажал — выполнено, зажал — выбрал число.
+// Отдых включается сам (между подходами и перед следующим упражнением): нажатие на таймер +15 с, свайп влево — закончить сразу.
 function openTrainWorkout(date) {
   const ses0 = trainSession(date);
   if (!ses0) return;
@@ -263,19 +309,17 @@ function openTrainWorkout(date) {
   const doneSets = (i) => setsOn(date, i.id).filter((v) => v > 0);
   const factMin = (i) => Number((((trainLogOn(date) || {}).mins) || {})[i.key]) || 0;
   let idx = Math.max(0, items.findIndex((i) => !isDone(i)));
-  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, swStart = 0, mins = 0;
+  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, swStart = 0, mins = 0, retMode = false, winOn = false;
+  const skipped = new Set();
   const ov = openSheet(`<div id="wk-root"></div>`);
   ov.querySelector(".sheet").classList.add("wk");
   const root = $("#wk-root", ov);
+  sndUnlock();
   let lock = null;
   const getLock = async () => { try { if (navigator.wakeLock && !lock && ov.isConnected) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); } } catch { lock = null; } };
   getLock();
   const onVis = () => { if (document.visibilityState === "visible") getLock(); };
   document.addEventListener("visibilitychange", onVis);
-  const beep = () => {
-    try { const C = window.AudioContext || window.webkitAudioContext; const c = new C(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value = 880; g.gain.value = 0.1; o.start(); setTimeout(() => { try { o.stop(); c.close(); } catch { /* ignore */ } }, 300); } catch { /* ignore */ }
-    try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch { /* ignore */ }
-  };
   const left = () => Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
   const fmtT = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const startTimer = (sec) => { total = sec; endAt = Date.now() + sec * 1000; tmDone = false; };
@@ -287,7 +331,12 @@ function openTrainWorkout(date) {
     const l = left();
     if (t) t.textContent = fmtT(l);
     if (bar && total) bar.style.width = `${Math.round(((total - l) / total) * 100)}%`;
-    if (l <= 0 && !tmDone) { tmDone = true; endAt = 0; beep(); if (phase === "rest") { phase = "work"; setNo++; } draw(); }
+    if (l <= 0 && !tmDone) {
+      tmDone = true; endAt = 0; SND.end();
+      if (phase === "rest") { phase = "work"; setNo++; draw(); }
+      else if (phase === "restx") next();
+      else draw();
+    }
   }, 250);
   const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true } }); };
   // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
@@ -306,31 +355,71 @@ function openTrainWorkout(date) {
       review = isDone(it);
     }
   };
-  const next = () => { idx++; enterItem(); draw(); };
+  const next = () => { idx = retMode ? items.length : idx + 1; retMode = false; enterItem(); draw(); };
+  const planOf = (x) => (x.reps ? `${x.sets}×${x.reps[1]}` : x.secs ? `${x.secs[1]} сек` : x.minutes ? `${x.minutes} мин` : "");
+  const varOf = (x) => { const c = trainCfg(); return [lc1(x.vlabel || ""), x.vk === "db" && c.dumbbellKg ? `${fmt(c.dumbbellKg)} кг` : ""].filter(Boolean).join(" · "); };
+  // Шапка: кольцо прогресса (зелёное — сделано, красное — пропущено), название, вариант
+  const bandHtml = (title, sub, label) => {
+    const n = items.length, dn = items.filter(isDone).length, sk = items.filter((i) => !isDone(i) && skipped.has(i.key)).length;
+    return `<div class="wk-band">${ringSvg(52, dn, sk, n, label || `${Math.min(idx + 1, n)}/${n}`)}<div class="wk-bt"><h2 class="wk-name">${esc(title)}</h2>${sub ? `<div class="wk-var">${esc(sub)}</div>` : ""}</div><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>`;
+  };
+  const ARROW_L = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>';
+  const ARROW_R = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  // Силовое упражнение: плашки подходов, отдых, «Следом»
+  const strengthHtml = (it) => {
+    const n = it.sets, lo = it.reps[0], hi = it.reps[1];
+    const dc = phase === "work" ? setNo : phase === "rest" ? setNo + 1 : n;
+    const cur = phase === "work" ? setNo : phase === "rest" ? setNo + 1 : -1;
+    const prev = exHist(it.id, addDays(date, -1)).slice(-1)[0];
+    const plates = reps.slice(0, n).map((v, i) => {
+      const dn = i < dc;
+      const chip = dn ? (v < lo ? `−${lo - v}` : v > hi ? `+${v - hi}` : "цель") : "";
+      return `<div class="wk-pl${dn ? " dn" : ""}${i === cur ? " cur" : ""}" data-g="pl" data-i="${i}"><small>№ ${i + 1}</small><b>${v}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${dn ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
+    }).join("");
+    const nx = items[idx + 1];
+    const resting = phase === "rest" || phase === "restx";
+    const rc = resting ? `<div class="wk-rc" data-g="rest"><div class="l">${phase === "restx" ? "Отдых перед следующим" : "Отдых"}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +15 с · свайп влево — ${phase === "restx" ? "открыть сейчас" : "пропустить"}</div></div>` : "";
+    const midTxt = phase === "work" ? "нажмите — выполнено<br>зажмите — число" : phase === "rest" ? `подход ${setNo + 2} из ${n}<br>начнётся сам` : "следующее<br>откроется само";
+    const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${midTxt}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
+    let nxHtml = "";
+    if (nx && phase === "restx") {
+      const nex = TR.EXERCISES[nx.id] || {};
+      nxHtml = `<div class="wk-nxc"><div class="th">${PHOTOS.has(`${nx.id}:${nx.vk}`) ? `<img src="img/${nx.id}-${nx.vk}-p.webp" alt="">` : nex.frames ? TR.illustration(nx.id, nx.vk) : ""}</div><div><small>Следом</small><div class="n">${esc(nx.name)}</div><div class="v">${esc([varOf(nx), planOf(nx)].filter(Boolean).join(" · "))}</div></div></div>`;
+    } else if (nx) {
+      nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
+    }
+    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}<div class="wk-hint" data-g="hint"><i></i><span>Свайпните вверх — подробнее</span></div>`;
+  };
+  const endHtml = () => {
+    const n = items.length, dn = items.filter(isDone).length, sk = n - dn;
+    const rows = items.map((x, k) => {
+      const d = isDone(x);
+      const val = d ? (x.reps ? doneSets(x).join(" / ") : factMin(x) ? `${factMin(x)} мин` : "") : "";
+      return `<div class="wk-sr${d ? "" : " no"}"><span class="ic">${d ? "✓" : "→"}</span><span class="nm">${esc(x.name)}</span>${d ? `<span class="v">${esc(val)}</span>` : `<button type="button" class="back" data-w="ret" data-k="${k}">Вернуть</button>`}</div>`;
+    }).join("");
+    return `${bandHtml("Готово", "", `${n}/${n}`)}<div class="wk-sum"><div class="wk-cnt"><span class="g">${dn} выполнено</span>${sk ? ` · <span class="r">${sk} пропущено</span>` : ""}</div><div class="wk-sl">${rows}</div></div><div class="wk-foot"><button type="button" class="btn primary full" data-w="finish">Завершить тренировку</button><button type="button" class="btn ghost full" data-close style="margin-top:8px">Закрыть</button></div>`;
+  };
   const draw = () => {
     if (idx >= items.length) {
-      root.innerHTML = `<div class="wk-end"><div class="wk-big">Готово</div><p>Тренировка выполнена. Оцените её, чтобы приложение подстроило нагрузку.</p><button type="button" class="btn primary full" data-w="finish">Завершить тренировку</button><button type="button" class="btn ghost full" data-close style="margin-top:8px">Закрыть</button></div>`;
+      root.classList.remove("wk-str");
+      root.innerHTML = endHtml();
+      if (!winOn) { winOn = true; SND.win(); }
       return;
     }
+    winOn = false;
     const it = items[idx], ex = TR.EXERCISES[it.id] || {};
-    const prog = `<div class="wk-top"><span>Упражнение ${idx + 1} из ${items.length}</span><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div class="track"><i style="width:${Math.round((idx / items.length) * 100)}%"></i></div>`;
     const fig = ex.frames ? `<div class="ex-fig wk-fig${PHOTOS.has(`${it.id}:${it.vk}`) ? " wk-ph" : ""}">${exFig(it.id, it.vk)}</div>` : "";
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
-    const head = `<h2 class="wk-name">${nameVar(it.name, [it.vlabel || "", eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · "))}</h2>`;
-    let mid = "", foot = "";
+    const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
+    const head = bandHtml(it.name, sub);
     const sw = isMinIt(it);
+    root.classList.toggle("wk-str", !!(it.reps && !review));
+    if (it.reps && !review) { root.innerHTML = `${head}${fig}${strengthHtml(it)}`; return; }
+    let mid = "", foot = "";
     if (review) {
       const sv = it.reps ? doneSets(it) : [];
       mid = `<div class="wk-rest wk-ok"><span>Выполнено</span><div class="wk-time">${it.reps ? (sv.length ? esc(sv.join(" / ")) : "✓") : factMin(it) ? `${factMin(it)} мин` : "✓"}</div><p class="foot-note">${it.reps ? "повторы по подходам" : factMin(it) ? "по факту" : "отмечено в плане"}</p></div>`;
       foot = `<button type="button" class="btn primary full" data-w="skip">Дальше</button><button type="button" class="btn ghost full" data-w="redo" style="margin-top:8px">Выполнить ещё раз</button>`;
-    } else if (it.reps) {
-      if (phase === "rest") {
-        mid = `<div class="wk-rest"><span>Отдых</span><div class="wk-time" id="wk-t">${fmtT(left())}</div><div class="track"><i id="wk-bar" style="width:0"></i></div><p class="foot-note">Следующий: подход ${setNo + 2} из ${it.sets}</p></div>`;
-        foot = `<button type="button" class="btn primary full" data-w="skiprest">Пропустить отдых</button><div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="plus15">+15 сек</button></div>`;
-      } else {
-        mid = `<div class="wk-set"><span>Подход ${setNo + 1} из ${it.sets}</span>${setNo > 0 ? `<small>уже сделано: ${reps.slice(0, setNo).join(" / ")}</small>` : ""}<div class="wk-step"><button type="button" class="wk-pm" data-w="minus" aria-label="Меньше">−</button><b id="wk-r">${reps[setNo]}</b><button type="button" class="wk-pm" data-w="plus" aria-label="Больше">+</button></div><small>повторов (цель ${it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`})</small></div>`;
-        foot = `<button type="button" class="btn primary full" data-w="setdone">${setNo + 1 >= it.sets ? "Упражнение выполнено" : "Подход выполнен"}</button>`;
-      }
     } else if (sw) {
       // ходьба/бег: время выбираете сами, можно по таймеру, по секундомеру или просто указать факт
       if (swStart) {
@@ -349,25 +438,102 @@ function openTrainWorkout(date) {
       else mid = `<p class="wk-txt">${esc(trainDetail(it))}</p>`;
       foot = `${sec && !endAt ? `<button type="button" class="btn ghost full" data-w="timer" style="margin-bottom:8px">Запустить таймер ${fmtT(sec)}</button>` : ""}<button type="button" class="btn primary full" data-w="itemdone">Готово</button>`;
     }
-    root.innerHTML = `${prog}${head}${fig}${mid}<div class="wk-foot">${foot}<div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="prev"${idx === 0 ? " disabled" : ""}>Назад</button><button type="button" class="btn ghost grow" data-w="info">Подробнее</button><button type="button" class="btn ghost grow" data-w="skip">Пропустить</button></div></div>`;
+    root.innerHTML = `${head}${fig}${mid}<div class="wk-foot">${foot}<div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="prev"${idx === 0 ? " disabled" : ""}>Назад</button><button type="button" class="btn ghost grow" data-w="info">Подробнее</button><button type="button" class="btn ghost grow" data-w="skip">Пропустить</button></div></div>`;
   };
   const recMin = (it, m) => { saveTrainLog(date, { mins: { [it.key]: m }, done: { [it.key]: true } }); next(); };
+  const toast = (txt, undo) => {
+    ov.querySelectorAll(".wk-toast").forEach((e) => e.remove());
+    const t = document.createElement("div");
+    t.className = "wk-toast";
+    t.innerHTML = `<span>${esc(txt)}</span><u>Отменить</u>`;
+    t.querySelector("u").addEventListener("click", () => { t.remove(); undo(); });
+    ov.appendChild(t);
+    setTimeout(() => t.remove(), 5000);
+  };
+  // Подход выполнен: сохраняем сразу, дальше сам включается отдых (между подходами или перед следующим упражнением)
+  const setDone = () => {
+    const it = items[idx];
+    saveTrainLog(date, { sets: { [it.id]: reps.slice(0, setNo + 1) } });
+    const rest = it.rest || 40;
+    if (setNo + 1 >= it.sets) {
+      markDone(it);
+      if (idx < items.length - 1 && !retMode) { phase = "restx"; startTimer(rest); SND.start(); draw(); } else next();
+    } else { phase = "rest"; startTimer(rest); SND.start(); draw(); }
+  };
+  const restSkip = () => { if (phase === "rest") { endAt = 0; phase = "work"; setNo++; draw(); } else if (phase === "restx") { endAt = 0; next(); } };
+  const rest15 = () => {
+    if (!endAt) return;
+    endAt += 15000; total += 15;
+    const rc = $(".wk-rc", ov);
+    if (rc) { const b = document.createElement("span"); b.className = "plus"; b.textContent = "+15 с"; rc.appendChild(b); setTimeout(() => b.remove(), 900); }
+  };
+  const doneCount = (it) => (phase === "work" ? setNo : phase === "rest" ? setNo + 1 : it.sets);
+  // Выбранное колесом число: для текущей плашки подход сразу засчитывается, для выполненной значение правится
+  const pick = (i, v) => {
+    const it = items[idx];
+    if (!it || !it.reps) return;
+    reps[i] = v;
+    if (phase === "work" && i === setNo) { setDone(); return; }
+    if (i < doneCount(it)) saveTrainLog(date, { sets: { [it.id]: reps.slice(0, doneCount(it)) } });
+    draw();
+  };
+  ov.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-g]")) e.preventDefault(); });
+  let g = null;
+  const wheel = (G) => {
+    const P = G.picker, rows = [2, 1, 0, -1, -2].map((d) => { const v = P.sel + d; return `<div class="${d === 0 ? "sel" : Math.abs(d) === 1 ? "m" : ""}">${v >= 0 && v <= 99 ? v : "&nbsp;"}</div>`; }).join("");
+    P.box.innerHTML = rows;
+  };
+  const openPicker = (G) => {
+    const i = Number(G.el.dataset.i), it = items[idx];
+    if (!it || !it.reps) return;
+    const r = G.el.getBoundingClientRect(), box = document.createElement("div");
+    box.className = "wk-wheel";
+    box.style.cssText = `left:${Math.round(r.left + r.width / 2 - 52)}px;bottom:${Math.round(window.innerHeight - r.top + 10)}px`;
+    G.picker = { i, base: reps[i], sel: reps[i], box };
+    wheel(G);
+    ov.appendChild(box);
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* ignore */ }
+  };
+  ov.addEventListener("pointerdown", (e) => {
+    sndUnlock();
+    const el = e.target.closest("[data-g]");
+    if (!el) { g = null; return; }
+    g = { k: el.dataset.g, el, x: e.clientX, y: e.clientY, pid: e.pointerId, lp: 0, picker: null, moved: false };
+    if (g.k === "pl") { const G = g; G.lp = setTimeout(() => { if (g === G && !G.moved) openPicker(G); }, 420); }
+  });
+  ov.addEventListener("pointermove", (e) => {
+    if (!g || e.pointerId !== g.pid) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (g.picker) {
+      const P = g.picker, v = Math.max(0, Math.min(99, P.base + Math.round(-dy / 30)));
+      if (v !== P.sel) { P.sel = v; wheel(g); }
+      return;
+    }
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) { g.moved = true; clearTimeout(g.lp); }
+  });
+  const endG = (e, cancel) => {
+    if (!g || e.pointerId !== g.pid) return;
+    const G = g; g = null; clearTimeout(G.lp);
+    const dx = e.clientX - G.x, dy = e.clientY - G.y, tap = Math.abs(dx) < 10 && Math.abs(dy) < 10;
+    if (G.picker) { G.picker.box.remove(); if (!cancel) pick(G.picker.i, G.picker.sel); return; }
+    if (cancel) return;
+    const it = items[idx];
+    if (!it) return;
+    if (G.k === "pl" && tap) { if (phase === "work" && Number(G.el.dataset.i) === setNo) setDone(); }
+    else if (G.k === "rest") { if (dx < -50 && Math.abs(dy) < 60) restSkip(); else if (tap) rest15(); }
+    else if (G.k === "hint") { if (tap || dy < -25) openTrainExercise(date, it.key); }
+  };
+  ov.addEventListener("pointerup", (e) => endG(e, false));
+  ov.addEventListener("pointercancel", (e) => endG(e, true));
   ov.addEventListener("click", (e) => {
     const b = e.target.closest("[data-w]");
     if (!b) return;
     const w = b.dataset.w, it = items[idx];
     if (w === "finish") { ov.close(); openTrainFinish(date); return; }
-    if (w === "minus" || w === "plus") { reps[setNo] = Math.max(0, Math.min(99, reps[setNo] + (w === "plus" ? 1 : -1))); const r = $("#wk-r", ov); if (r) r.textContent = reps[setNo]; return; }
     if (w === "mminus" || w === "mplus") { mins = Math.max(1, Math.min(300, mins + (w === "mplus" ? 1 : -1))); draw(); return; }
-    if (w === "setdone") {
-      // каждый выполненный подход сразу сохраняется: при выходе и возвращении откроется следующий подход
-      saveTrainLog(date, { sets: { [it.id]: reps.slice(0, setNo + 1) } });
-      if (setNo + 1 >= it.sets) { markDone(it); next(); } else { phase = "rest"; startTimer(it.rest || 40); draw(); }
-      return;
-    }
+    if (w === "ret") { const k = Number(b.dataset.k); skipped.delete(items[k].key); idx = k; retMode = true; enterItem(); draw(); return; }
+    if (!it) return;
     if (w === "redo") { review = false; setNo = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
-    if (w === "skiprest") { endAt = 0; phase = "work"; setNo++; draw(); return; }
-    if (w === "plus15") { endAt += 15000; total += 15; return; }
     if (w === "timer") { startTimer(it.secs[1]); draw(); return; }
     if (w === "tm") { startTimer(mins * 60); draw(); return; }
     if (w === "tmstop") { endAt = 0; draw(); return; }
@@ -376,7 +542,13 @@ function openTrainWorkout(date) {
     if (w === "swstop") { const m = Math.max(1, Math.round((Date.now() - swStart) / 60000)); swStart = 0; recMin(it, m); return; }
     if (w === "swdone") { endAt = 0; recMin(it, mins); return; }
     if (w === "itemdone") { markDone(it); next(); return; }
-    if (w === "skip") { next(); return; }
+    if (w === "skip") {
+      const was = idx, wasDone = isDone(it);
+      if (!wasDone) skipped.add(it.key);
+      next();
+      if (!wasDone) toast(`Пропущено: ${it.name}`, () => { skipped.delete(it.key); idx = was; enterItem(); draw(); });
+      return;
+    }
     if (w === "prev") { if (idx > 0) { idx--; enterItem(); draw(); } return; }
     if (w === "info") openTrainExercise(date, it.key);
   });
