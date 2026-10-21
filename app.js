@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 211;
-const APP_VERSION_LABEL = "2.8"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 213;
+const APP_VERSION_LABEL = "2.10"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4252,12 +4252,14 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const v0 = (x) => (Number(x) > 0 ? v(x) : "");
     const cafInit = d.c > 0 ? r1((d.c / 240) * 100) : 0;
     const alcOpts = [["Слабый алкоголь", "Слабый (пиво, сидр)"], ["Легкий алкоголь", "Лёгкий"], ["Умеренный алкоголь", "Умеренный"], ["Средний алкоголь", "Средний (вино, вермут)"], ["Крепкий алкоголь", "Крепкий (водка, виски, коньяк)"]];
+    const hideN = !isNew && ![d.k, d.p, d.f, d.cb].some((x) => Number(x) > 0), hideB = !isNew && bcs.length === 0;
     const alcSel0 = alcOpts.some((o) => o[0] === d.a) ? d.a : "Средний алкоголь";
     setHead(false);
     body.innerHTML = `
       <div class="pf-top-row">
         <button type="button" class="pf-ava-btn" id="dc-ava" aria-label="Эмодзи и цвет" style="${d.e ? `background:${esc(d.col || AVA_COLORS[0])};border-style:solid;border-color:${esc(d.col || AVA_COLORS[0])}` : ""}"><span id="dc-ava-ic">${d.e ? esc(d.e) : "🥤"}</span><span class="pf-ava-pencil">✎</span></button>
         <label class="field pf-top-name"><span>${isNew ? "Новый напиток" : "Название"}</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
+        ${isNew ? "" : `<button type="button" class="star pk-star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>`}
       </div>
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
       <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}${isNew ? "" : `<option value="__prod__">🍽️ Продукты (перенести в продукты)</option>`}</select></label>
@@ -4267,6 +4269,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <label class="field"><span>Гидратация, %</span><div class="inp-wrap"><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"><button type="button" class="mini-sign" id="dc-sign" aria-label="Сменить знак гидратации (минус для алкоголя)">±</button></div></label>
         <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
       </div>
+      ${hideN ? `<button type="button" class="opt-add" data-reveal="dc-nutr-wrap">+ Добавить калории и БЖУ (на 100 мл)</button>` : ""}
+      <div id="dc-nutr-wrap"${hideN ? ' style="display:none"' : ""}>
       <div class="field sec-label"><span>Значения на 100 мл</span></div>
       <div class="field-grid">
         <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" placeholder="0" value="${v0(d.k)}" autocomplete="off"></label>
@@ -4274,12 +4278,19 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <label class="field"><span>Жиры, г</span><input id="dc-f" class="input" inputmode="decimal" placeholder="0" value="${v0(d.f)}" autocomplete="off"></label>
         <label class="field"><span>Углеводы, г</span><input id="dc-cb" class="input" inputmode="decimal" placeholder="0" value="${v0(d.cb)}" autocomplete="off"></label>
       </div>
-      <div class="field"><span>Штрих-коды (можно несколько: другие упаковки и партии)</span>
+      </div>
+      ${hideB ? `<button type="button" class="opt-add" data-reveal="dc-bc-wrap">+ Добавить штрих-код</button>` : ""}
+      <div class="field" id="dc-bc-wrap"${hideB ? ' style="display:none"' : ""}><span>Штрих-коды (можно несколько: другие упаковки и партии)</span>
         <div id="dc-bc-list" class="chips"></div>
         <div class="inline"><input id="dc-bc-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код" autocomplete="off"><button type="button" class="icon-btn" id="dc-bc-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>
         <p class="foot-note" style="margin:6px 2px 0">Код добавится сам: после сканирования, при выходе из поля и при «Сохранить».</p>
       </div>
       <div class="row">${isNew ? `<button type="button" class="btn ghost" id="dc-back">Назад</button>` : `<button type="button" class="btn danger" id="dc-del">Удалить</button>`}<button type="button" class="btn primary grow" id="dc-save">Сохранить</button></div>`;
+    body.querySelectorAll("[data-reveal]").forEach((b) => b.addEventListener("click", () => {
+      const w = document.getElementById(b.dataset.reveal);
+      if (w) { w.style.display = ""; const x = w.querySelector("input"); if (x) x.focus(); }
+      b.remove();
+    }));
     const list = $("#dc-bc-list", ov), inp = $("#dc-bc-in", ov);
     const drawBc = () => { list.innerHTML = bcs.map((c) => `<span class="chip alias">${esc(c)}<button type="button" class="alias-x" data-bcdel="${esc(c)}" aria-label="Убрать код">×</button></span>`).join(""); };
     drawBc();
@@ -4412,7 +4423,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const lastMl = existing ? existing.ml : (presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250));
     setHead(!existing);
     body.innerHTML = `
-      ${isCustom ? `<div class="picked"><div class="p-name">${existing ? "Свой напиток" : "Новый напиток"}</div></div>` : `<div class="picked pk-row"><span class="pk-ava"${d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div><div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div></div>${existing ? "" : `<button type="button" class="pk-edit" id="dk-card" aria-label="Карточка напитка">✎</button>`}</div>`}
+      ${isCustom ? `<div class="picked"><div class="p-name">${existing ? "Свой напиток" : "Новый напиток"}</div></div>` : `<div class="picked pk-row"><span class="pk-ava"${d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div><div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div></div><button type="button" class="star pk-star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>${existing ? "" : `<button type="button" class="pk-edit" id="dk-card" aria-label="Карточка напитка">✎</button>`}</div>`}
       ${isCustom ? `${existing ? "" : `<label class="field"><span>Категория</span><select id="dk-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
         <label class="field hidden" id="dk-alc-box"><span>Крепость</span><select id="dk-alc" class="input"><option value="Слабый алкоголь">Слабый (пиво, сидр)</option><option value="Легкий алкоголь">Лёгкий</option><option value="Умеренный алкоголь">Умеренный</option><option value="Средний алкоголь" selected>Средний (вино, вермут)</option><option value="Крепкий алкоголь">Крепкий (водка, виски, коньяк)</option></select></label>`}
         <label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>

@@ -2238,3 +2238,6 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .sheet-head.dk-head .icon-btn{flex:none;width:44px;height:44px;border-radius:50%;background:#EEF3F0;color:#44574C;font-size:24px;line-height:1;display:grid;place-items:center;margin-left:auto}
 :root[data-theme="dark"] .sheet-head.dk-head select#dk-meal{background-color:#1F3328;border-color:#2F5240;color:#CFEBDB}
 :root[data-theme="dark"] .sheet-head.dk-head .icon-btn{background:#26352C;color:#C9D8CE}
+/* v2.10: звёздочка избранного в окне и карточке напитка */
+.pk-star{flex:none}
+.pf-top-row .pk-star{align-self:flex-end;margin-bottom:6px}
