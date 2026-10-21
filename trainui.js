@@ -161,6 +161,14 @@ function nextTrainDay(from) {
 const trainDayName = (d) => `${TR.DAY_NAMES[TR.dowOf(d)]}, ${dateShort(d)}`;
 
 // Плашка в дневнике: «Сегодня тренировка»
+// склонение «упражнение/упражнения/упражнений»
+function plExer(n) {
+  const n10 = n % 10, n100 = n % 100;
+  if (n100 >= 11 && n100 <= 14) return "упражнений";
+  if (n10 === 1) return "упражнение";
+  if (n10 >= 2 && n10 <= 4) return "упражнения";
+  return "упражнений";
+}
 function trainBannerHtml(day) {
   const ses = trainSession(day);
   if (!ses) return "";
@@ -168,10 +176,14 @@ function trainBannerHtml(day) {
   const today = todayStr();
   const fin = k >= n || trainFinished(day);
   const head = fin ? "Тренировка выполнена" : day === today ? "Сегодня тренировка" : day < today ? "Тренировка в этот день" : `Тренировка: ${dayLabel(day).toLowerCase()}`;
+  const mid = fin
+    ? `<span>Вау, вы молодец! 💪 ${k} из ${n}</span>`
+    : `<span class="tr-ban-sub">${esc(ses.title)}</span><span class="tr-ban-chips"><span class="chip">⏱ ${ses.est} мин</span><span class="chip">${n} ${plExer(n)}</span></span>`;
+  const tail = fin ? "" : `<span class="tr-ban-btn">${k > 0 ? "Далее" : "Начать"}</span>`;
   return `<button type="button" class="card tr-banner${fin ? " done" : ""}" data-act="goTab" data-tab="health" data-h="train">
-    <span class="tr-ban-ic">${DUMBBELL_SVG}</span>
-    <span class="tr-ban-main"><b>${head}</b><span>${esc(ses.title)} · около ${ses.est} мин · выполнено ${k} из ${n}</span><span class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></span></span>
-    <span class="tr-ban-go">${CHEV_R}</span></button>`;
+    <span class="tr-ban-ic">${fin ? "🏆" : "💪"}</span>
+    <span class="tr-ban-main"><b>${head}${fin ? " 🎉" : ""}</b>${mid}<span class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></span></span>
+    ${tail}</button>`;
 }
 
 function trainRowHtml(day, it, done) {
@@ -233,10 +245,10 @@ function trainCardHtml(day) {
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
         ${ses.customOnly ? "" : `<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button>`}</div>
-      ${ses.customOnly ? "" : `<div class="tr-timerow"><span>Время, мин</span><div class="chips tr-times">${TR.TIMES.map((t) => `<button type="button" class="chip${t === m ? " sel" : " muted"}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div></div>`}
-      <div class="tr-prog"><div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><b>${k}/${n}</b></div>
+      ${ses.customOnly ? "" : `<div class="tr-segl"><span>Сколько времени есть</span><span>мин</span></div><div class="tr-seg">${TR.TIMES.map((t) => `<button type="button" class="${t === m ? "on" : ""}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>`}
+      ${k >= n && n > 0 ? "" : `<div class="tr-prog"><div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><b>${k}/${n}</b></div>`}
       ${ses.bump || (ses.swapped && ses.swapped.length) ? `<p class="foot-note tr-adapt" style="margin:8px 2px 0">Подстроено по вашим итогам:${ses.bump ? ` повторы ${ses.bump > 0 ? "+" : "−"}${Math.abs(ses.bump)}` : ""}${ses.swapped && ses.swapped.length ? `${ses.bump ? "," : ""} ${ses.swapped.map((s) => `вместо «${esc(TR.EXERCISES[s.from].name.toLowerCase())}» — «${esc(TR.EXERCISES[s.to].name.toLowerCase())}»`).join(", ")}` : ""}.</p>` : ""}
-      ${k >= n ? `<p class="foot-note" style="margin:8px 2px 0">Тренировка выполнена, отличная работа!</p>` : `<button type="button" class="btn primary full" style="margin-top:10px" data-act="trainStart" data-date="${day}">${k > 0 ? "Продолжить тренировку" : "Начать тренировку"}</button>`}
+      ${k >= n ? `<div class="tr-win"><span class="cf">🎉🔥</span><div class="em">🏆</div><h3>Тренировка выполнена!</h3><p>Класс, вы молодец, так держать 🙌</p><div class="bar"><i></i></div><div class="nn"><span>${k} из ${n}</span><span>100%</span></div></div>` : `<button type="button" class="btn primary full" style="margin-top:10px" data-act="trainStart" data-date="${day}">${k > 0 ? "Продолжить тренировку" : "Начать тренировку"}</button>`}
       ${watchCmpHtml(day, ses, k, n)}
       <div class="tr-list">${rows}</div>
       <div class="tr-actions"><button type="button" class="tr-addrow" data-act="trainAdd" data-date="${day}"><span class="plus">+</span><b>Добавить упражнение</b></button>

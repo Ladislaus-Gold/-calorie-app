@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=14";
+import { createTrainUI } from "./trainui.js?v=21";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,7 +76,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 190;
+const APP_VERSION = 199;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -84,8 +84,8 @@ const FLOOR_DATE = "2020-01-01"; // нижняя граница для кале�
 const MEALS = [
   { id: "breakfast", name: "Завтрак", icon: "sunrise", emoji: "🍳" },
   { id: "lunch", name: "Обед", icon: "sun", emoji: "🍲" },
-  { id: "dinner", name: "Ужин", icon: "moon", emoji: "🍽️" },
-  { id: "snack", name: "Перекус", icon: "apple", emoji: "🍎" },
+  { id: "dinner", name: "Ужин", icon: "moon", emoji: "🍝" },
+  { id: "snack", name: "Перекус", icon: "apple", emoji: "🍪" },
 ];
 const ICONS = {
   sunrise: '<path d="M5 18a7 7 0 0 1 14 0"/><path d="M12 6v3M4.9 10.9l1.8 1.8M19.1 10.9l-1.8 1.8M2 18h20"/>',
@@ -563,24 +563,6 @@ function render() {
   $("#view").innerHTML = banner + views[state.tab]();
 }
 
-function donut(t) {
-  const kP = t.protein * 4, kC = t.carbs * 4, kF = t.fat * 9;
-  const sum = kP + kC + kF;
-  const R = 44, C = 2 * Math.PI * R;
-  let segs = "", off = 0;
-  if (sum > 0) {
-    for (const [k, col] of [[kP, "var(--protein)"], [kC, "var(--carbs)"], [kF, "var(--fat)"]]) {
-      const len = (k / sum) * C;
-      if (len > 0.5) segs += `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${col}" stroke-width="14" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;
-      off += len;
-    }
-  }
-  return `<svg viewBox="0 0 120 120" class="donut" role="img" aria-label="Калории и БЖУ">
-    <circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>${segs}
-    <text x="60" y="59" text-anchor="middle" class="d-num">${fmtInt(t.kcal)}</text>
-    <text x="60" y="73" text-anchor="middle" class="d-unit">ккал</text></svg>`;
-}
-
 /* ================= Дневник ================= */
 function dateShort(s) { const d = parseD(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
 
@@ -616,7 +598,7 @@ function dayTipHtml(day, list, t, left, mg) {
   const wt = waterTarget(day), hy = hydrationOn(day);
   if (new Date().getHours() >= 15 && wt > 0 && hy / wt < 0.5 && parts.length < 2) parts.push(`Жидкости выпито ${Math.round((hy / wt) * 100)}% нормы: пора выпить воды.`);
   if (!parts.length) parts.push("День идёт по плану: калории и белок в пределах цели.");
-  return `<section class="card day-tip"><span class="dt-ic">★</span><div><b>Главное на сегодня</b><p>${esc(parts.slice(0, 2).join(" "))}</p></div></section>`;
+  return `<section class="card day-tip"><span class="dt-ic">⭐</span><div><b>Главное на сегодня</b><p>${esc(parts.slice(0, 2).join(" "))}</p></div></section>`;
 }
 function macroGoals() {
   const pf = state.profile, P = Number(pf.goalProtein), F = Number(pf.goalFat), C = Number(pf.goalCarbs);
@@ -660,6 +642,61 @@ function splitFieldsHtml() {
     <div class="field-grid">${MEALS.map((m) => `<label class="field"><span>${m.name}, % · ${fmtInt(mealTarget(m.id))} ккал</span><input id="split-${m.id}" class="input" inputmode="numeric" value="${sp[m.id]}" autocomplete="off"></label>`).join("")}</div>`;
 }
 
+/* v194: «Баланс дня» — спидометр 270° из коротких дуг, цвет плавно меняется мятный → жёлтый → коралловый */
+const GZ_STOPS = [[0, [134, 211, 163]], [0.5, [246, 213, 142]], [0.8, [242, 156, 148]], [1, [242, 156, 148]]];
+function gzColor(t) {
+  t = Math.max(0, Math.min(1, t));
+  let i = 0;
+  while (i < GZ_STOPS.length - 2 && t > GZ_STOPS[i + 1][0]) i++;
+  const [a, ca] = GZ_STOPS[i], [b, cb] = GZ_STOPS[i + 1];
+  let s = b > a ? (t - a) / (b - a) : 0;
+  s = Math.max(0, Math.min(1, s)); s = s * s * (3 - 2 * s);
+  return `rgb(${ca.map((v, k) => Math.round(v + (cb[k] - v) * s)).join(",")})`;
+}
+function gaugeSvg(frac) {
+  const cx = 100, cy = 100, R = 78, A0 = 135, SW = 270, N = 135, f = Math.max(0, Math.min(1, frac));
+  const P = (deg) => { const r = (deg * Math.PI) / 180; return [cx + R * Math.cos(r), cy + R * Math.sin(r)]; };
+  const arc = (d0, d1, big) => { const [x0, y0] = P(d0), [x1, y1] = P(d1); return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${R} ${R} 0 ${big ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; };
+  const [tx0, ty0] = P(A0), [tx1, ty1] = P(A0 + SW);
+  let segs = "";
+  const n = Math.max(1, Math.round(N * f));
+  for (let i = 0; i < n; i++) {
+    const d0 = A0 + (SW * f * i) / n, d1 = A0 + (SW * f * (i + 1)) / n + (i < n - 1 ? 0.7 : 0);
+    segs += `<path d="${arc(d0, d1)}" stroke="${gzColor(((i + 0.5) / n) * f)}"/>`;
+  }
+  let caps = "";
+  if (f > 0.004) {
+    const [ex, ey] = P(A0 + SW * f);
+    caps = `<circle cx="${tx0.toFixed(2)}" cy="${ty0.toFixed(2)}" r="7" fill="${gzColor(0)}"/><circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="7" fill="${gzColor(f)}"/><circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="3" fill="#fff"/>`;
+  }
+  return `<svg viewBox="0 6 200 176" class="gz-svg" role="img" aria-label="Калории за день"><g fill="none" stroke-width="14"><path class="gz-track" d="${arc(A0, A0 + SW, true)}" stroke="currentColor" stroke-linecap="round"/>${segs}</g>${caps}</svg>`;
+}
+// кольцо приёма пищи: прогресс калорий, внутри эмодзи (используется в «Куда добавить?»)
+function mealRingSvg(ratio, emoji) {
+  const R = 19, C = 2 * Math.PI * R, r = Math.max(0, ratio), len = Math.min(1, r) * C;
+  const col = r > 1 ? "#F29C94" : r >= 0.85 ? "#F3C27A" : "#86D3A3";
+  return `<span class="m-ring"><svg viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="${R}" fill="none" class="m-ring-bg" stroke-width="5"/>${len > 0.5 ? `<circle cx="23" cy="23" r="${R}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${len} ${C - len}" transform="rotate(-90 23 23)"/>` : ""}</svg><span class="m-ring-e">${emoji}</span></span>`;
+}
+// мини-кольцо БЖУ внутри карточки приёма пищи
+function miniRingSvg(val, goal, color) {
+  const R = 14, C = 2 * Math.PI * R, r = goal > 0 ? Math.min(1, val / goal) : 0, len = r * C;
+  const fg = len > 0.3 ? `<circle cx="18" cy="18" r="${R}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" transform="rotate(-90 18 18)"/>` : "";
+  return `<span class="mr-ring"><svg viewBox="0 0 36 36" class="mr-svg" aria-hidden="true"><circle cx="18" cy="18" r="${R}" fill="none" class="mr-bg" stroke-width="4"/>${fg}</svg><span class="mr-v">${fmtInt(val)}</span></span>`;
+}
+function macroRingsHtml(items) {
+  return `<div class="m-rings">${items.map(([name, val, goal, color]) => `<div class="mr">${miniRingSvg(val, goal, color)}<div class="mr-t"><b style="color:${color}">${name}</b><small>из ${fmtInt(goal)} г</small></div></div>`).join("")}</div>`;
+}
+// три колонки БЖУ с полосками: «съедено из нормы»
+function macroColsHtml(items, cls = "") {
+  return `<div class="mcols ${cls}">${items.map(([name, col, v, g, key]) => {
+    const over = g > 0 && v > g;
+    const w = g > 0 ? Math.min(100, (v / g) * 100) : 0;
+    const val = g > 0 ? `<b class="${over ? "over" : ""}">${fmt(v)}</b><small> из ${fmtInt(g)} г</small>` : `<b>${fmt(v)}</b><small> г</small>`;
+    const tag = key ? "button" : "div";
+    return `<${tag} ${key ? `type="button" data-act="macroTop" data-key="${key}"` : ""} class="mcol"><span class="mcol-n">${name}</span><span class="mcol-bar"><i style="width:${w}%;background:${over ? "#F29C94" : col}"></i></span><span class="mcol-v">${val}</span></${tag}>`;
+  }).join("")}</div>`;
+}
+
 function viewDiary() {
   const day = state.date;
   const list = entriesOn(day);
@@ -681,30 +718,29 @@ function viewDiary() {
   const streakText = st > 0 ? `Серия записей: <b>${st} дн.</b>` : "Запишите еду сегодня, чтобы начать серию";
 
   // сводка
-  const kP = t.protein * 4, kC = t.carbs * 4, kF = t.fat * 9, sum = kP + kC + kF;
-  const pct = (k) => (sum > 0 ? Math.round((k / sum) * 100) : 0);
   const left = state.goal - t.kcal;
   const over = left < 0;
-  const barPct = Math.min(100, (t.kcal / state.goal) * 100);
-  const calLevel = levelOf(t.kcal / state.goal);
   const mg = macroGoals();
-  const legend = [
-    ["Белки", "var(--protein)", t.protein, pct(kP), mg && Math.round(mg.protein), "protein"],
-    ["Углеводы", "var(--carbs)", t.carbs, pct(kC), mg && Math.round(mg.carbs), "carbs"],
-    ["Жиры", "var(--fat)", t.fat, pct(kF), mg && Math.round(mg.fat), "fat"],
-  ].map(([n, c, g, p, tg, key]) => `<button type="button" class="lg-row" data-act="macroTop" data-key="${key}"><span class="lg-dot" style="background:${c}"></span><span class="lg-name">${n}${tg ? `<small>цель ${fmtInt(tg)} г</small>` : ""}</span><span class="lg-val${tg && g > tg ? " over" : ""}">${fmt(g)} г<small>${p}%</small></span></button>`).join("");
+  const ratio = state.goal > 0 ? t.kcal / state.goal : 0;
+  const zone = ratio > 1 ? "over" : ratio >= 0.9 ? "hot" : ratio >= 0.6 ? "mid" : "low";
+  const burned = actBurned(day);
+  const plate = ratio > 1 ? `<div class="gz-plate over">🔥 Калории превышены на ${fmtInt(-left)}</div>` : ratio >= 0.85 ? `<div class="gz-plate">🔥 Калории почти закончились</div>` : "";
+  const macroCols = macroColsHtml([
+    ["Углеводы", "#98BDEE", t.carbs, mg ? Math.round(mg.carbs) : 0, "carbs"],
+    ["Белки", "#BDA6E6", t.protein, mg ? Math.round(mg.protein) : 0, "protein"],
+    ["Жиры", "#F3C48F", t.fat, mg ? Math.round(mg.fat) : 0, "fat"],
+  ], "gz-mc");
 
   // приёмы пищи
   const mealsHtml = MEALS.map((m) => {
     const items = list.filter((e) => e.meal === m.id).sort((a, b) => createdMs(a) - createdMs(b));
     const mt = sumEntries(items);
     const target = mealTarget(m.id);
-    const mp = target > 0 ? Math.min(100, (mt.kcal / target) * 100) : 0;
     const sh = mealSplit()[m.id] / 100;
     const mplan = mg ? { p: Math.round(mg.protein * sh), f: Math.round(mg.fat * sh), c: Math.round(mg.carbs * sh) } : null;
     const mKey = `${day}:${m.id}`, mOpen = !!state.mealOpen[mKey], shown = mOpen ? items : [];
     if (!items.length) {
-      return `<section class="card meal m-${m.id} meal-empty-card"><button type="button" class="meal-empty" data-act="addFood" data-meal="${m.id}"><span class="meal-ic ${m.id}">${m.emoji}</span><span class="me-main"><b>${m.name}</b><small>цель ${fmtInt(target)} ккал, пока пусто</small></span><span class="me-plus">+</span></button></section>`;
+      return `<section class="card meal m-${m.id} meal-empty-card"><div class="meal-top meal-flat"><span class="m-emoji dim">${m.emoji}</span><div class="m-info"><b class="m-name">${m.name}</b><span class="m-sub">цель ${fmtInt(target)} ккал, пока пусто</span><span class="m-bar"><i style="width:0%"></i></span></div></div></section>`;
     }
     const rows = shown.map((e) => `
       <div class="sw" data-sw="${esc(e.id)}"><div class="sw-bg"><span class="sw-edit">✎ Граммы</span><span class="sw-del">Удалить 🗑</span></div>
@@ -712,20 +748,21 @@ function viewDiary() {
         <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
         <span class="e-kcal">${fmtInt(e.kcal)}<small>ккал</small></span>
       </button></div>`).join("");
+    const over = target > 0 && mt.kcal > target;
+    const pct = target > 0 ? Math.min(100, (mt.kcal / target) * 100) : 0;
+    const barCol = over ? "linear-gradient(90deg,#F6B7AE,#E8665A)" : pct > 80 ? "linear-gradient(90deg,#86D3A3,#F5B73A)" : "linear-gradient(90deg,#9ADDB5,#58BE86)";
     return `<section class="card meal m-${m.id}">
-      <div class="meal-top" role="button" tabindex="0" data-act="toggleMeal" data-key="${mKey}"><div class="meal-head">
-        <span class="meal-ic ${m.id}">${m.emoji}</span>
-        <div class="meal-name">${m.name}</div>
-        <div class="meal-kcal${mt.kcal > target ? " over" : ""}">${fmtInt(mt.kcal)}<small>из ${fmtInt(target)} ккал</small></div>
-        <div class="meal-macros">${macrosHtml(mt.protein, mt.fat, mt.carbs, mplan)}</div>
-        <span class="meal-tog">${chev(mOpen)}</span>
+      <div class="meal-top" role="button" tabindex="0" data-act="toggleMeal" data-key="${mKey}">
+        <div class="meal-flat"><span class="m-emoji">${m.emoji}</span>
+          <div class="m-info"><b class="m-name">${m.name}</b><span class="m-sub${over ? " over" : ""}"><b>${fmtInt(mt.kcal)}</b> из ${fmtInt(target)} ккал</span><span class="m-bar"><i style="width:${pct}%;background:${barCol}"></i></span></div>
+          <span class="meal-tog">${chev(mOpen)}</span></div>
+        ${macroRingsHtml([["Белки", mt.protein, mplan ? mplan.p : 0, "#8B66EA"], ["Углеводы", mt.carbs, mplan ? mplan.c : 0, "#4A93E0"], ["Жиры", mt.fat, mplan ? mplan.f : 0, "#F08A3C"]])}
       </div>
-      <div class="meal-plan"><div class="track ${target > 0 ? levelOf(mt.kcal / target) : ""}"><i style="width:${mp}%"></i></div></div></div>
       ${rows ? `<div class="entries">${rows}</div>` : ""}
     </section>`;
   }).join("");
 
-  return `
+  return `<div class="dv">
     ${pageHead("Дневник", dayLabel(day), `
       <button type="button" class="iconbtn" data-act="prevDay" aria-label="Предыдущий день" ${day <= min ? "disabled" : ""}>${CHEV_L}</button>
       <button type="button" class="chip-btn" data-act="today">${dateShort(day)}</button>
@@ -733,18 +770,19 @@ function viewDiary() {
     <section class="card week"><div class="week-row">${weekHtml}</div><p class="streak">${streakText}</p></section>
     ${trainBannerHtml(day)}
     ${miniTiles(day)}
-    <section class="card balance">
-      <div class="card-top"><h2 class="h2">Баланс БЖУ</h2><span class="pill">цель ${fmtInt(state.goal)} ккал</span></div>
-      <div class="sum-grid">${donut(t)}<div class="legend">${legend}</div></div>
-      <div class="cal-sum">
-        <div class="cal-row"><span class="cal-lbl">${over ? "Перебор" : "Осталось"}</span><span class="cal-val ${calLevel}">${fmtInt(Math.abs(left))}<small>ккал</small></span></div>
-        <div class="track ${calLevel}"><i style="width:${barPct}%"></i></div>
-        <div class="cal-foot">Съедено ${fmtInt(t.kcal)} из ${fmtInt(state.goal)} ккал · ${Math.round((t.kcal / state.goal) * 100)}%</div>
+    <section class="card balance gz-card">
+      <div class="card-top"><h2 class="h2">Баланс дня</h2><span class="pill">цель ${fmtInt(state.goal)} ккал</span></div>
+      <div class="gz-sum">
+        <div class="gz-side"><b>${fmtInt(t.kcal)}</b><span>Съедено</span></div>
+        <div class="gz-wrap">${gaugeSvg(ratio)}<div class="gz-c z-${zone}"><b>${fmtInt(Math.abs(left))}</b><span>${over ? "Перебор" : "Осталось"}</span></div></div>
+        <div class="gz-side"><b>${fmtInt(burned)}</b><span>Сожжено</span></div>
       </div>
+      ${plate}
+      ${macroCols}
     </section>
     ${dayTipHtml(day, list, t, left, mg)}
     ${mealsHtml}
-    <button type="button" class="fab" data-act="pickMeal" aria-label="Добавить еду">+</button>`;
+    <button type="button" class="fab" data-act="pickMeal" aria-label="Добавить еду">+</button></div>`;
 }
 
 /* ================= Продукты ================= */
@@ -2329,7 +2367,7 @@ function chooseCardKind(code) {
       <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Что создать?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
       <div class="lm">
         <div class="note lk-note">${code ? `Код ${esc(code)} не найден ни среди продуктов, ни среди напитков. ` : ""}Напиток считается как жидкость (и кофеин), а если есть калории, то и как еда. Продукт считается только как еда.</div>
-        <div class="af-btns lk-btns"><button type="button" class="btn primary" id="ck-drink">Напиток</button><button type="button" class="btn primary" id="ck-prod">Продукт</button></div>
+        <div class="ck-choice"><button type="button" class="ck-opt water" id="ck-drink"><span class="ck-ic">💧</span><b>Напиток</b></button><button type="button" class="ck-opt food" id="ck-prod"><span class="ck-ic">🍽️</span><b>Продукт</b></button></div>
         ${mine.length ? `<p class="foot-note" style="margin:6px 2px 8px">Или это новая упаковка уже имеющегося напитка:</p>
         <input id="ck-q" class="input search" type="search" placeholder="Найти напиток для привязки" autocomplete="off">
         <div id="ck-list" class="plist"></div>` : ""}
@@ -2906,7 +2944,7 @@ function openProductForm(product, onSaved, prefill = {}) {
       <div id="pf-alias-list" class="chips"></div>
       <div class="inline"><input id="pf-alias-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код другой упаковки" autocomplete="off"><button type="button" class="icon-btn" id="pf-alias-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="pf-alias-add">Добавить</button></div>
       <p class="foot-note" id="pf-alias-msg" style="margin:6px 2px 0">Коды общие: любой пользователь, отсканировав эту упаковку, получит этот продукт. Убрать код может тот, кто его добавил.</p></div>` : ""}
-    <div class="field"><span>Значения на 100 г</span></div>
+    <div class="field sec-label"><span>Значения на 100 г</span></div>
     <div class="field-grid">
       <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
       <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.protein) > 0 ? val(p.protein) : ""}" autocomplete="off"></label>
@@ -3235,14 +3273,14 @@ function miniTiles(day) {
   const banner = caf.level !== "ok" ? `<div class="warn ${caf.level === "over" ? "over" : ""}" style="margin:0 0 12px">${esc(caf.msgs[0].t)}</div>` : "";
   return `<div class="mini-row">
     <button type="button" class="mini water" data-act="goTab" data-tab="health" data-h="today">
-      <span class="mini-top"><span class="mini-ic">${DROP_SVG}</span><span class="mini-label">Жидкость</span></span>
+      <span class="mini-top"><span class="mini-ic">💧</span><span class="mini-label">Жидкость</span></span>
       <span class="mini-val">${fmtInt(ml)}<small>мл</small></span>
       <span class="mini-sub">норма ${fmtInt(tg)} мл</span>
       ${caf.mg > 0 ? `<span class="mini-sub caf ${caf.level}">кофеин ${caf.mg} из ${caf.limit} мг</span>` : ""}
       <span class="mini-bar"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></span>
     </button>
     <button type="button" class="mini act" data-act="goTab" data-tab="health" data-h="train">
-      <span class="mini-top"><span class="mini-ic">${PULSE_SVG}</span><span class="mini-label">Нагрузка</span></span>
+      <span class="mini-top"><span class="mini-ic">🔥</span><span class="mini-label">Нагрузка</span></span>
       <span class="mini-val">${fmtInt(mins)}<small>мин</small></span>
       <span class="mini-sub">сожжено ${fmtInt(burned)} ккал</span>
       ${stepsOn(day) ? `<span class="mini-sub">${fmtInt(stepsOn(day))} шагов</span>` : ""}
@@ -3990,14 +4028,14 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
       <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
-      <p class="foot-note" id="dc-hint" style="margin:-4px 2px 10px"></p>
+      <p class="note" id="dc-hint" style="margin-top:-4px"></p>
       <label class="field"><span>Название</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
         <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
       </div>
-      <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dc-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
-      <div class="field"><span>Значения на 100 мл</span></div>
+      <button type="button" class="btn ghost full sub-open-like" id="dc-sign" style="margin:-4px 0 14px">± Сменить знак гидратации (минус для алкоголя)</button>
+      <div class="field sec-label"><span>Значения на 100 мл</span></div>
       <div class="field-grid">
         <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" placeholder="0" value="${v0(d.k)}" autocomplete="off"></label>
         <label class="field"><span>Белки, г</span><input id="dc-p" class="input" inputmode="decimal" placeholder="0" value="${v0(d.p)}" autocomplete="off"></label>
@@ -4292,7 +4330,8 @@ const actions = {
     const cur = mealByTime();
     const ov = openSheet(`
       <div class="sheet-head"><h2>Куда добавить?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-      <div class="meal-pick">${MEALS.map((m) => `<button type="button" class="meal-pick-btn m-${m.id}${m.id === cur ? " cur" : ""}" data-meal="${m.id}"><span class="meal-ic ${m.id}">${m.emoji}</span><span>${m.name}</span></button>`).join("")}</div>`);
+      <div class="meal-pick">${MEALS.map((m) => { const mt = sumEntries(entriesOn(state.date).filter((e) => e.meal === m.id)); const tg = mealTarget(m.id);
+        return `<button type="button" class="meal-pick-btn m-${m.id}${m.id === cur ? " cur" : ""}" data-meal="${m.id}">${mealRingSvg(tg > 0 ? mt.kcal / tg : 0, m.emoji)}<span class="mp-t"><b>${m.name}</b><small>${fmtInt(mt.kcal)} из ${fmtInt(tg)} ккал</small></span></button>`; }).join("")}</div>`);
     ov.addEventListener("click", (e) => {
       const b = e.target.closest("[data-meal]");
       if (!b) return;

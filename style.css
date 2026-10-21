@@ -1654,3 +1654,349 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 :root[data-theme="dark"] .tr-addrow .plus { background: #1F3327; border-color: #2F5A3F; }
 :root[data-theme="dark"] .tr-addrow { color: #8FD3A8; }
 :root[data-theme="dark"] .tr-actions > [data-act="trainReset"] { background: #1C2620; border-color: var(--line); color: var(--red); }
+
+/* v191: «Перенести» — красноватая, «Анкета» — жёлтая */
+.btn[data-act="trainMove"] { color: #C03A3A; border-color: #F2CBC8; background: linear-gradient(180deg, #FFF7F6, #FFE8E6); box-shadow: 0 4px 12px rgba(214, 69, 69, .16); }
+.card-top .btn[data-act="trainForm"] { color: #8A5A00; border-color: #EFD9A0; background: linear-gradient(180deg, #FFFBEE, #FFF0C9); box-shadow: 0 4px 12px rgba(214, 160, 20, .2); }
+:root[data-theme="dark"] .btn[data-act="trainMove"] { color: #F29A97; border-color: #5A2E30; background: linear-gradient(180deg, #3A2224, #301C1E); box-shadow: none; }
+:root[data-theme="dark"] .card-top .btn[data-act="trainForm"] { color: #F2CF7A; border-color: #5A4A1E; background: linear-gradient(180deg, #3A3220, #2F2819); box-shadow: none; }
+
+/* v192: единый переключатель времени и яркая карточка «Тренировка выполнена» */
+.tr-segl { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin: 14px 2px 6px; }
+.tr-seg { display: flex; background: #EEF4F0; border-radius: 16px; padding: 4px; box-shadow: inset 0 1px 3px rgba(20, 60, 35, .12); }
+.tr-seg button { flex: 1; font: inherit; font-weight: 700; font-size: 15px; color: #5C6D63; background: transparent; border: 0; border-radius: 12px; padding: 10px 0; cursor: pointer; }
+.tr-seg button.on { background: linear-gradient(180deg, #2DB462, #1B9D4B); color: #fff; box-shadow: 0 4px 10px rgba(27, 157, 75, .35); }
+.tr-win { position: relative; overflow: hidden; margin-top: 12px; padding: 14px 16px; border-radius: 22px; color: #fff; background: linear-gradient(135deg, #2DB462, #17894A 70%); box-shadow: 0 12px 26px rgba(27, 157, 75, .38); }
+.tr-win .em { font-size: 34px; line-height: 1; }
+.tr-win h3 { margin: 6px 0 2px; font-size: 20px; letter-spacing: -.02em; font-weight: 800; color: #fff; }
+.tr-win p { margin: 0; font-size: 13.5px; opacity: .93; }
+.tr-win .cf { position: absolute; right: 12px; top: 8px; font-size: 26px; letter-spacing: 4px; }
+.tr-win .bar { height: 8px; border-radius: 5px; background: rgba(255, 255, 255, .28); margin-top: 12px; overflow: hidden; }
+.tr-win .bar i { display: block; width: 100%; height: 100%; background: #fff; border-radius: 5px; }
+.tr-win .nn { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; margin-top: 6px; }
+:root[data-theme="dark"] .tr-seg { background: #1C2620; box-shadow: none; }
+:root[data-theme="dark"] .tr-seg button { color: #9FB3A6; }
+:root[data-theme="dark"] .tr-seg button.on { color: #fff; }
+.tr-seg + .tr-prog { margin-top: 12px; }
+
+/* v193: выполненная тренировка на «Дневнике» — яркая зелёная карточка */
+.card.tr-banner.done { opacity: 1; border: 0; color: #fff; background: linear-gradient(135deg, #2DB462, #17894A 70%); box-shadow: 0 12px 26px rgba(27, 157, 75, .38); }
+.tr-banner.done .tr-ban-ic { background: rgba(255, 255, 255, .22); color: #fff; font-size: 28px; display: grid; place-items: center; }
+.tr-banner.done .tr-ban-main b { color: #fff; font-size: 19px; letter-spacing: -.02em; font-weight: 800; }
+.tr-banner.done .tr-ban-main > span { color: rgba(255, 255, 255, .92); }
+.tr-banner.done .track { background: rgba(255, 255, 255, .28); }
+.tr-banner.done .track i { background: #fff; }
+.tr-banner.done .tr-ban-go { color: #fff; }
+.tr-banner.done .tr-ban-go svg { color: #fff; }
+.tr-banner.done .tr-ban-go svg, .tr-banner.done .tr-ban-go svg * { fill: #fff; stroke: #fff; }
+
+/* ===== v194: новый «Дневник» в стиле iOS (всё под .dv, другие вкладки не затронуты) ===== */
+.dv { --g1: #6FCD9A; --g2: #37A873; --ink: #1F2723; --sec: #7A8780; --cardsh: 0 2px 4px rgba(31, 39, 35, .04), 0 8px 22px rgba(31, 39, 35, .07);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; letter-spacing: -.011em; }
+.dv .card { border: 0; border-radius: 20px; box-shadow: var(--cardsh); }
+.dv .head .overline { font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--sec); }
+.dv .head .title { font-size: 34px; line-height: 1.08; font-weight: 700; letter-spacing: -.026em; }
+.dv .iconbtn, .dv .chip-btn { border: 0; background: #fff; box-shadow: 0 1px 3px rgba(31, 39, 35, .08), 0 4px 12px rgba(31, 39, 35, .06); }
+.dv .chip-btn { font-size: 15px; font-weight: 600; border-radius: 14px; min-height: 38px; }
+.dv .h2 { font-size: 17px; font-weight: 600; letter-spacing: -.022em; }
+.dv .pill { background: #EAF7EF; color: #2F8F5E; font-size: 13px; font-weight: 600; }
+
+/* неделя */
+.dv .wd { font-size: 12px; font-weight: 600; }
+.dv .wd-dot { width: 36px; height: 36px; border: 0; background: #EEF2EF; }
+.dv .wd.done .wd-dot { background: #CDEBD9; color: #2F8F5E; }
+.dv .wd.sel .wd-dot { background: #fff; box-shadow: 0 0 0 2px var(--g2); }
+.dv .wd.sel.done .wd-dot { background: linear-gradient(var(--g1), var(--g2)); color: #fff; box-shadow: 0 4px 10px rgba(55, 168, 115, .35); }
+.dv .wd.today .wd-name { color: var(--g2); }
+.dv .streak { font-size: 13px; color: var(--sec); }
+
+/* баннер тренировки */
+.dv .tr-banner { border: 0; }
+.dv .tr-ban-ic { background: #EAF7EF; border-radius: 13px; }
+.dv .tr-ban-main b { font-size: 17px; font-weight: 600; }
+.dv .tr-ban-main > span:not(.track) { font-size: 14px; color: var(--sec); }
+.dv .tr-banner .track { height: 8px; background: #EEF2EF; }
+.dv .tr-banner .track i { background: linear-gradient(90deg, var(--g1), var(--g2)); }
+.dv .card.tr-banner.done { background: linear-gradient(135deg, #E5718C, #F2994F); box-shadow: 0 12px 26px rgba(229, 113, 140, .38); color: #fff; }
+.dv .tr-banner.done .tr-ban-ic { background: #fff; color: #1F2723; }
+.dv .tr-banner.done .tr-ban-main b { font-size: 19px; font-weight: 800; text-shadow: 0 1px 2px rgba(120, 30, 40, .25); }
+.dv .tr-banner.done .tr-ban-main > span:not(.track) { color: #fff; font-weight: 600; text-shadow: 0 1px 2px rgba(120, 30, 40, .22); }
+.dv .tr-banner.done .track { background: rgba(255, 255, 255, .35); }
+.dv .tr-banner.done .track i { background: #fff; }
+
+/* мини-плитки */
+.dv .mini { border: 0; border-radius: 20px; box-shadow: var(--cardsh); padding: 14px; }
+.dv .mini-ic { font-size: 16px; line-height: 1; border-radius: 10px; }
+.dv .mini.water .mini-ic { background: #E4F0FC; }
+.dv .mini.act .mini-ic { background: #1F2723; }
+.dv .mini-label { font-size: 13px; font-weight: 600; color: var(--sec); }
+.dv .mini-val { font-size: 26px; font-weight: 700; letter-spacing: -.03em; }
+.dv .mini-val small { font-size: 13px; }
+.dv .mini-sub { font-size: 12.5px; color: var(--sec); }
+.dv .mini-bar { height: 7px; background: #EEF2EF; }
+.dv .mini.water .mini-bar > i { background: linear-gradient(90deg, #5BA0DF, #93C8F1); }
+.dv .mini.act .mini-bar > i { background: #1F2723; }
+
+/* баланс дня: спидометр */
+.dv .gz-sum { display: grid; grid-template-columns: 1fr minmax(0, 170px) 1fr; align-items: center; gap: 4px; }
+.dv .gz-side { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.dv .gz-side b { font-size: 22px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.dv .gz-side span { font-size: 13px; color: var(--sec); }
+.dv .gz-wrap { position: relative; }
+.dv .gz-svg { display: block; width: 100%; height: auto; color: #EDF1EE; }
+.dv .gz-svg path { stroke-linecap: butt; }
+.dv .gz-svg .gz-track { stroke-linecap: round; }
+.dv .gz-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 6px; }
+.dv .gz-c b { font-size: 34px; line-height: 1; font-weight: 700; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.dv .gz-c span { margin-top: 4px; font-size: 13px; font-weight: 600; }
+.dv .gz-c.z-low b, .dv .gz-c.z-low span { color: #3E9A62; }
+.dv .gz-c.z-mid b, .dv .gz-c.z-mid span { color: #BF922A; }
+.dv .gz-c.z-hot b, .dv .gz-c.z-hot span, .dv .gz-c.z-over b, .dv .gz-c.z-over span { color: #D2685D; }
+.dv .gz-plate { margin: 10px auto 0; width: max-content; max-width: 100%; padding: 8px 14px; border-radius: 999px; background: #FFF3DC; color: #A97B16; font-size: 13px; font-weight: 600; }
+.dv .gz-plate.over { background: #FDE6E3; color: #C0554A; }
+
+/* колонки БЖУ */
+.dv .mcols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.dv .mcol { display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0; padding: 0; background: none; border: 0; font: inherit; color: inherit; }
+.dv .mcol-n { font-size: 13px; font-weight: 600; color: var(--sec); }
+.dv .mcol-bar { display: block; height: 6px; border-radius: 999px; background: #EEF2EF; overflow: hidden; }
+.dv .mcol-bar i { display: block; height: 100%; border-radius: 999px; }
+.dv .mcol-v { font-size: 12.5px; color: var(--sec); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dv .mcol-v b { font-size: 15px; font-weight: 700; color: var(--ink); }
+.dv .mcol-v b.over { color: #D2685D; }
+.dv .mcol:active { opacity: .7; }
+.dv .m-cols { margin-top: 10px; gap: 8px; }
+.dv .m-cols .mcol-n { font-size: 12px; }
+.dv .m-cols .mcol-bar { height: 5px; }
+.dv .m-cols .mcol-v b { font-size: 13.5px; }
+.dv .m-cols .mcol-v { font-size: 11.5px; }
+
+/* совет дня */
+.dv .day-tip .dt-ic { width: 32px; height: 32px; border-radius: 11px; background: #FFF3DC; font-size: 17px; }
+.dv .day-tip b { font-size: 16px; font-weight: 600; }
+.dv .day-tip p { font-size: 14px; color: var(--sec); }
+
+/* приёмы пищи */
+.dv .meal { padding: 6px; }
+.dv .meal .meal-top, .dv .meal.m-breakfast .meal-top, .dv .meal.m-lunch .meal-top, .dv .meal.m-dinner .meal-top, .dv .meal.m-snack .meal-top,
+.dv .meal-empty-card .meal-top { background: none; box-shadow: none; border-radius: 16px; padding: 10px 10px 8px; }
+.dv .meal .meal-top:active { filter: none; background: #F6F8F6; }
+.dv .meal-empty-card .meal-top { padding: 10px; cursor: default; }
+.dv .meal-flat { display: flex; align-items: center; gap: 12px; }
+.dv .m-ring { position: relative; flex: none; width: 46px; height: 46px; }
+.dv .m-ring svg { display: block; width: 46px; height: 46px; }
+.dv .m-ring-bg { stroke: #EDF1EE; }
+.dv .m-ring-e { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; line-height: 1; }
+.dv .m-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dv .m-name { font-size: 17px; font-weight: 600; letter-spacing: -.022em; }
+.dv .m-sub { font-size: 14px; color: var(--sec); font-variant-numeric: tabular-nums; }
+.dv .m-sub b { font-weight: 700; color: var(--ink); }
+.dv .m-sub.over, .dv .m-sub.over b { color: #D2685D; }
+.dv .meal-tog { flex: none; display: flex; color: var(--sec); }
+.dv .meal-tog .cv { background: none; width: 24px; height: 24px; margin: 0; }
+.dv .m-plus { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; color: #fff; font-size: 24px; line-height: 1; font-weight: 400; display: grid; place-items: center; padding: 0 0 2px;
+  background: linear-gradient(#6FCD9A, #37A873); box-shadow: 0 6px 14px rgba(55, 168, 115, .32); }
+.dv .m-plus:active { transform: scale(.94); filter: brightness(.96); }
+.dv .meal .entries { margin: 2px 4px 4px; }
+
+/* кнопка «+» */
+.dv .fab { background: linear-gradient(#6FCD9A, #37A873); box-shadow: 0 10px 22px rgba(55, 168, 115, .38); font-weight: 300; }
+.dv .fab:active { background: linear-gradient(#5FC08C, #2F9A67); }
+
+/* тёмная тема */
+:root[data-theme="dark"] .dv { --sec: #9FB3A6; --ink: #EAF2EC; --cardsh: 0 8px 22px rgba(0, 0, 0, .35); }
+:root[data-theme="dark"] .dv .iconbtn, :root[data-theme="dark"] .dv .chip-btn { background: #1C2620; box-shadow: none; }
+:root[data-theme="dark"] .dv .pill { background: rgba(111, 205, 154, .16); color: #8EDDB0; }
+:root[data-theme="dark"] .dv .wd-dot, :root[data-theme="dark"] .dv .mcol-bar, :root[data-theme="dark"] .dv .tr-banner .track, :root[data-theme="dark"] .dv .mini-bar { background: #2A362E; }
+:root[data-theme="dark"] .dv .wd.done .wd-dot { background: rgba(111, 205, 154, .28); color: #8EDDB0; }
+:root[data-theme="dark"] .dv .wd.sel .wd-dot { background: #1C2620; }
+:root[data-theme="dark"] .dv .wd.sel.done .wd-dot { background: linear-gradient(#6FCD9A, #37A873); }
+:root[data-theme="dark"] .dv .tr-ban-ic { background: rgba(111, 205, 154, .16); }
+:root[data-theme="dark"] .dv .mini.water .mini-ic { background: rgba(91, 160, 223, .22); }
+:root[data-theme="dark"] .dv .mini.act .mini-ic { background: #000; }
+:root[data-theme="dark"] .dv .mini.act .mini-bar > i { background: #E7EEE9; }
+:root[data-theme="dark"] .dv .gz-svg { color: #2A362E; }
+:root[data-theme="dark"] .dv .gz-c.z-low b, :root[data-theme="dark"] .dv .gz-c.z-low span { color: #7FD6A1; }
+:root[data-theme="dark"] .dv .gz-c.z-mid b, :root[data-theme="dark"] .dv .gz-c.z-mid span { color: #EDC567; }
+:root[data-theme="dark"] .dv .gz-c.z-hot b, :root[data-theme="dark"] .dv .gz-c.z-hot span, :root[data-theme="dark"] .dv .gz-c.z-over b, :root[data-theme="dark"] .dv .gz-c.z-over span { color: #F2958B; }
+:root[data-theme="dark"] .dv .gz-plate { background: rgba(243, 194, 122, .18); color: #EDC567; }
+:root[data-theme="dark"] .dv .gz-plate.over { background: rgba(242, 156, 148, .2); color: #F2958B; }
+:root[data-theme="dark"] .dv .day-tip .dt-ic { background: rgba(243, 194, 122, .2); }
+:root[data-theme="dark"] .dv .m-ring-bg { stroke: #2A362E; }
+:root[data-theme="dark"] .dv .meal .meal-top:active { background: #1F2A23; }
+:root[data-theme="dark"] .dv .mcol-v b.over, :root[data-theme="dark"] .dv .m-sub.over, :root[data-theme="dark"] .dv .m-sub.over b { color: #F2958B; }
+.dv .h2::before { display: none; }
+.dv .gz-card .card-top { margin-bottom: 4px; }
+.dv .meal-tog .cv { box-shadow: none; border: 0; background: none; color: var(--sec); }
+.dv .meal-tog .cv svg { stroke: currentColor; }
+.dv .sw .entry { padding-right: 6px; }
+:root[data-theme="dark"] .dv .meal .meal-top, :root[data-theme="dark"] .dv .meal.m-breakfast .meal-top, :root[data-theme="dark"] .dv .meal.m-lunch .meal-top,
+:root[data-theme="dark"] .dv .meal.m-dinner .meal-top, :root[data-theme="dark"] .dv .meal.m-snack .meal-top, :root[data-theme="dark"] .dv .meal-empty-card .meal-top { background: none; box-shadow: none; }
+:root[data-theme="dark"] .dv .meal .meal-top:active { background: #1F2A23; }
+:root[data-theme="dark"] .dv .meal-ic { background: none; }
+
+/* v195: компактный баннер тренировки, выбор приёма пищи со значками-кольцами */
+.dv .tr-banner { padding: 12px 14px; gap: 12px; }
+.dv .tr-ban-ic { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(#E9F8EF, #D3F0E0); color: #2F8F5E; }
+.dv .tr-ban-main { gap: 2px; }
+.dv .tr-ban-main b { font-size: 17px; }
+.dv .tr-ban-main > span:not(.track) { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dv .tr-banner .track { margin-top: 7px; height: 6px; }
+.tr-ban-n { flex: none; font-size: 20px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: #1F2723; }
+.tr-ban-n small { font-size: 13px; font-weight: 600; color: #7A8780; }
+.dv .tr-banner.done .tr-ban-n, .dv .tr-banner.done .tr-ban-n small { color: #fff; }
+.meal-pick-btn { gap: 12px; padding: 12px; background: #fff !important; border: 0 !important; border-radius: 18px; box-shadow: 0 2px 4px rgba(31,39,35,.04), 0 8px 20px rgba(31,39,35,.08); text-align: left; }
+.meal-pick-btn.cur { box-shadow: 0 0 0 2px #37A873, 0 8px 20px rgba(55,168,115,.2); padding: 12px; }
+.meal-pick-btn .m-ring { position: relative; flex: none; width: 46px; height: 46px; }
+.meal-pick-btn .m-ring svg { display: block; width: 46px; height: 46px; }
+.meal-pick-btn .m-ring-bg { stroke: #EDF1EE; }
+.meal-pick-btn .m-ring-e { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; }
+.meal-pick-btn .mp-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.meal-pick-btn .mp-t b { font-size: 16px; font-weight: 600; }
+.meal-pick-btn .mp-t small { font-size: 12px; color: #7A8780; white-space: nowrap; }
+:root[data-theme="dark"] .meal-pick-btn { background: #1C2620 !important; box-shadow: none; }
+:root[data-theme="dark"] .meal-pick-btn .m-ring-bg { stroke: #2A362E; }
+:root[data-theme="dark"] .tr-ban-n { color: #EAF2EC; }
+
+/* v196: эмодзи в кольцах крупнее */
+.dv .m-ring, .meal-pick-btn .m-ring { width: 54px; height: 54px; }
+.dv .m-ring svg, .meal-pick-btn .m-ring svg { width: 54px; height: 54px; }
+.dv .m-ring-e, .meal-pick-btn .m-ring-e { font-size: 27px; }
+
+/* v196: баннер тренировки — оранжевый (не начата) / синий (в процессе), эмодзи на белой плитке, светлая кнопка */
+.dv .card.tr-banner.fresh { background: linear-gradient(135deg, #FFF3E6, #FFD9CF); }
+.dv .card.tr-banner.going { background: linear-gradient(135deg, #EEE9FC, #D6E8FB); }
+.dv .tr-banner.fresh .tr-ban-ic, .dv .tr-banner.going .tr-ban-ic { width: 60px; height: 60px; border-radius: 50%; background: #fff; font-size: 33px; line-height: 1; display: grid; place-items: center; }
+.dv .tr-banner.fresh .tr-ban-ic { box-shadow: 0 6px 14px rgba(238, 123, 106, .30); }
+.dv .tr-banner.going .tr-ban-ic { box-shadow: 0 6px 14px rgba(108, 127, 224, .30); }
+.dv .tr-banner.fresh .track, .dv .tr-banner.going .track { background: rgba(31, 39, 35, .09); }
+.dv .tr-banner.fresh .track i { background: linear-gradient(90deg, #FBC08A, #F5958A); }
+.dv .tr-banner.going .track i { background: linear-gradient(90deg, #B5A8EE, #86A2EC); }
+.dv .tr-banner.fresh .tr-ban-main > span:not(.track), .dv .tr-banner.going .tr-ban-main > span:not(.track) { color: #6F7C75; }
+.tr-ban-btn { flex: none; padding: 9px 16px; border-radius: 999px; color: #fff; font-size: 14px; font-weight: 600; letter-spacing: -.01em; text-shadow: 0 1px 1px rgba(0, 0, 0, .12); }
+.dv .tr-banner.fresh .tr-ban-btn { background: linear-gradient(135deg, #FBC08A, #F5958A); box-shadow: 0 6px 14px rgba(245, 149, 138, .38); }
+.dv .tr-banner.going .tr-ban-btn { background: linear-gradient(135deg, #B5A8EE, #86A2EC); box-shadow: 0 6px 14px rgba(134, 162, 236, .38); }
+:root[data-theme="dark"] .dv .card.tr-banner.fresh { background: linear-gradient(135deg, #3A2B27, #35262A); }
+:root[data-theme="dark"] .dv .card.tr-banner.going { background: linear-gradient(135deg, #2B2A40, #25324A); }
+:root[data-theme="dark"] .dv .tr-banner.fresh .tr-ban-main > span:not(.track), :root[data-theme="dark"] .dv .tr-banner.going .tr-ban-main > span:not(.track) { color: #B8C6BD; }
+:root[data-theme="dark"] .dv .tr-banner.fresh .track, :root[data-theme="dark"] .dv .tr-banner.going .track { background: rgba(255, 255, 255, .12); }
+.dv .tr-banner.fresh .tr-ban-btn { background: linear-gradient(135deg, #F9AC72, #EE7F72); }
+.dv .tr-banner.going .tr-ban-btn { background: linear-gradient(135deg, #A597EA, #7494E8); }
+.tr-ban-btn { padding: 9px 14px; }
+.dv .tr-ban-main b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 16.5px; }
+.dv .tr-banner.fresh .tr-ban-ic, .dv .tr-banner.going .tr-ban-ic { width: 56px; height: 56px; font-size: 31px; }
+.dv .tr-banner.fresh, .dv .tr-banner.going { gap: 11px; }
+
+/* v197: баннер тренировки — градиенты (синий — в работе, оранжевый — выполнена), эмодзи на белой плитке, светлая кнопка */
+.dv .card.tr-banner { background: linear-gradient(100deg, #5266D4 0%, #7487E8 55%, #9DAFF8 100%); color: #fff; box-shadow: 0 12px 26px rgba(95, 115, 221, .38); padding: 14px 16px; gap: 14px; }
+.dv .tr-banner .tr-ban-ic { width: 60px; height: 60px; border-radius: 50%; background: #fff; color: #1F2723; font-size: 32px; line-height: 1; display: grid; place-items: center; box-shadow: 0 6px 14px rgba(40, 55, 150, .28); }
+.dv .tr-banner .tr-ban-main b { color: #fff; font-size: 18px; font-weight: 700; text-shadow: 0 1px 2px rgba(30, 40, 120, .25); }
+.dv .tr-banner .tr-ban-main > span:not(.track) { color: rgba(255, 255, 255, .92); font-weight: 500; text-shadow: 0 1px 2px rgba(30, 40, 120, .2); }
+.dv .tr-banner .track { background: rgba(255, 255, 255, .3); }
+.dv .tr-banner .track i { background: #fff; }
+.dv .tr-banner .tr-ban-btn { flex: none; padding: 9px 15px; border-radius: 999px; font-size: 14px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(30, 40, 120, .3);
+  background: linear-gradient(#D6DDFF, #B1BFFC); box-shadow: 0 6px 14px rgba(40, 55, 150, .28); }
+.dv .card.tr-banner.done { background: linear-gradient(100deg, #EC6A50 0%, #F58B5C 55%, #FFBA7A 100%); box-shadow: 0 12px 26px rgba(240, 118, 92, .4); }
+.dv .tr-banner.done .tr-ban-ic { box-shadow: 0 6px 14px rgba(170, 60, 30, .3); }
+.dv .tr-banner.done .tr-ban-main b, .dv .tr-banner.done .tr-ban-main > span:not(.track) { text-shadow: 0 1px 2px rgba(130, 40, 20, .3); }
+.dv .tr-banner:active { filter: brightness(.97); }
+.dv .card.tr-banner { background: linear-gradient(100deg, #4E63D2 0%, #6F82E4 55%, #93A4F3 100%); }
+.dv .card.tr-banner.done { background: linear-gradient(100deg, #EA6650 0%, #F68B5A 55%, #FFB26B 100%); }
+
+/* v197: баннер тренировки (в работе) — сиреневый градиент, коралловая кнопка; выполненная остаётся оранжевой */
+.dv .card.tr-banner:not(.done) { background: linear-gradient(120deg, #DDCBF8 0%, #FBDDE8 100%); color: #1F2723; box-shadow: 0 2px 4px rgba(31, 39, 35, .04), 0 10px 24px rgba(138, 108, 224, .18); }
+.dv .tr-banner:not(.done) .tr-ban-ic { box-shadow: 0 5px 12px rgba(138, 108, 224, .22); }
+.dv .tr-banner:not(.done) .tr-ban-main b { color: #1F2723; text-shadow: none; }
+.dv .tr-banner:not(.done) .tr-ban-main > span:not(.track) { color: #66746C; text-shadow: none; font-weight: 500; }
+.dv .tr-banner:not(.done) .track { background: rgba(31, 39, 35, .1); }
+.dv .tr-banner:not(.done) .track i { background: linear-gradient(90deg, #B79CEF, #8A6CE0); }
+.dv .tr-banner:not(.done) .tr-ban-btn { padding: 10px 17px; font-size: 15px; background: linear-gradient(#FF8E7C, #E5506C); box-shadow: 0 7px 16px rgba(229, 80, 108, .4); }
+:root[data-theme="dark"] .dv .card.tr-banner:not(.done) { background: linear-gradient(120deg, #3A3055 0%, #4A2F3E 100%); color: #EAF2EC; box-shadow: none; }
+:root[data-theme="dark"] .dv .tr-banner:not(.done) .tr-ban-main b { color: #fff; }
+:root[data-theme="dark"] .dv .tr-banner:not(.done) .tr-ban-main > span:not(.track) { color: #C9BFD8; }
+:root[data-theme="dark"] .dv .tr-banner:not(.done) .track { background: rgba(255, 255, 255, .14); }
+
+/* ===== v198: итоговый вид Дневника — финальный баннер, карточки приёмов, «Нагрузка» ===== */
+/* спидометр: подложка больше не рисуется багованной дугой (исправлено выше через big-arc-flag) */
+
+/* баннер тренировки (в работе): сиреневый градиент, насыщенный текст, чипы времени/упражнений, коралловая кнопка */
+.dv .card.tr-banner:not(.done) { background: linear-gradient(120deg, #D7C4F8 0%, #FAD3E2 100%); }
+.dv .tr-banner:not(.done) .tr-ban-ic { background: #fff; box-shadow: 0 5px 12px rgba(138, 108, 224, .24); }
+.dv .tr-ban-sub { font-size: 15px; font-weight: 600; color: #5B3FC4; }
+.dv .tr-ban-chips { display: flex; gap: 6px; margin-top: 6px; }
+.dv .tr-ban-chips .chip { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, .75); color: #4A3AA8; }
+.dv .tr-banner:not(.done) .track { background: rgba(110, 80, 200, .22); margin-top: 8px; }
+.dv .tr-banner:not(.done) .track i { background: linear-gradient(90deg, #9B7BF0, #6A45E0); }
+.dv .tr-banner:not(.done) .tr-ban-btn { padding: 10px 17px; font-size: 15px; background: linear-gradient(#FF8E7C, #E5506C); box-shadow: 0 7px 16px rgba(229, 80, 108, .4); }
+:root[data-theme="dark"] .dv .card.tr-banner:not(.done) { background: linear-gradient(120deg, #3A3055 0%, #4A2F3E 100%); }
+:root[data-theme="dark"] .dv .tr-ban-sub { color: #C9BFD8; }
+:root[data-theme="dark"] .dv .tr-ban-chips .chip { background: rgba(255, 255, 255, .14); color: #E6DEF7; }
+:root[data-theme="dark"] .dv .tr-banner:not(.done) .track { background: rgba(255, 255, 255, .14); }
+
+/* мини-плитка «Нагрузка»: лёгкий зелёный фон, 🔥, зелёная полоска (светлая и тёмная тема) */
+.dv .mini.act .mini-ic { background: #E4F6EB; }
+.dv .mini.act .mini-bar > i { background: linear-gradient(90deg, #2E7D4F, #46C173); }
+:root[data-theme="dark"] .dv .mini.act .mini-ic { background: rgba(111, 205, 154, .16); }
+:root[data-theme="dark"] .dv .mini.act .mini-bar > i { background: linear-gradient(90deg, #2E7D4F, #46C173); }
+
+/* карточки приёмов пищи: крупный эмодзи без кольца, полоса калорий, мини-кольца БЖУ */
+.dv .m-emoji { flex: none; font-size: 40px; line-height: 1; filter: drop-shadow(0 4px 5px rgba(31, 39, 35, .15)); }
+.dv .m-emoji.dim { opacity: .55; filter: grayscale(.15) drop-shadow(0 3px 4px rgba(31, 39, 35, .1)); }
+.dv .m-bar { display: block; height: 7px; border-radius: 9px; background: #EEF2EF; margin-top: 7px; overflow: hidden; }
+.dv .m-bar i { display: block; height: 100%; border-radius: 9px; }
+.dv .m-rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; padding: 0 2px; }
+.dv .mr { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dv .mr-ring { position: relative; flex: none; width: 36px; height: 36px; display: block; }
+.dv .mr-svg { display: block; width: 36px; height: 36px; }
+.dv .mr-bg { stroke: #EDF1EE; }
+.dv .mr-v { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--ink); }
+.dv .mr-t { min-width: 0; }
+.dv .mr-t b { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dv .mr-t small { display: block; font-size: 11px; color: var(--sec); white-space: nowrap; }
+:root[data-theme="dark"] .dv .m-bar { background: #2A362E; }
+:root[data-theme="dark"] .dv .mr-bg { stroke: #2A362E; }
+
+/* ===== v199: Запись/вес, «Что создать?», формы «Новый продукт/напиток» — референс-доводка ===== */
+/* нейтральная карточка вычета веса вместо красно-зелёной дихотомии */
+.sub-open{border:1.5px solid #CDE6D8;color:#2E8F58;background:#F3FAF6;font-weight:700}
+.sub-panel{background:#F7FAF8;border:1.5px solid #E3EAE5;border-radius:18px}
+.sub-panel .input{border-color:#E3EAE5;background:#fff}
+.sub-panel .input:focus{border-color:#37A873;box-shadow:0 0 0 3px rgba(55,168,115,.18)}
+.sub-res,.sub-panel .sub-res{color:#2E8F58}
+.sub-res.bad,.sub-panel .sub-res.bad{color:#D85C4E}
+.sub-panel .sub-cancel{border-color:#E3EAE5;color:#5C6D63;background:#fff}
+.sub-ok,.sub-panel .sub-ok.btn.primary,.sub-panel.plus .sub-ok.btn.primary{background:linear-gradient(180deg,#5F7AE0,#3F55C9);border:1px solid #3348B0;color:#fff;box-shadow:0 5px 12px rgba(63,85,201,.33)}
+.sub-panel.plus{background:#F7FAF8;border-color:#E3EAE5}
+.sub-panel.plus .input{border-color:#E3EAE5;background:#fff}
+.sub-panel.plus .input:focus{border-color:#37A873;box-shadow:0 0 0 3px rgba(55,168,115,.18)}
+.sub-panel.plus .sub-res,.sub-panel.plus .sub-res.bad{color:#2E8F58}
+.sub-panel.plus .sub-res.bad{color:#D85C4E}
+.sub-panel.plus .sub-cancel{border-color:#E3EAE5;color:#5C6D63;background:#fff}
+.sub-seg{background:#fff;border-radius:12px;padding:3px;box-shadow:0 1px 2px rgba(31,39,35,.08)}
+.sub-seg button{border-radius:10px;color:#8A998F;font-weight:700}
+.sub-seg button[data-s="-"].on{background:linear-gradient(180deg,#FF9683,#E35A3F);color:#fff;box-shadow:0 4px 10px rgba(227,90,63,.35)}
+.sub-seg button[data-s="+"].on{background:#fff;color:#2E8F58;box-shadow:0 0 0 1.5px #37A873,0 4px 10px rgba(55,168,115,.22)}
+:root[data-theme="dark"] .sub-open{border-color:#2F6B47;color:#8FE0AE;background:rgba(55,168,115,.12)}
+:root[data-theme="dark"] .sub-panel,:root[data-theme="dark"] .sub-panel.plus{background:#20291F;border-color:#324A37}
+:root[data-theme="dark"] .sub-panel .input,:root[data-theme="dark"] .sub-panel.plus .input{background:#17201A;border-color:#324A37}
+:root[data-theme="dark"] .sub-res,:root[data-theme="dark"] .sub-panel.plus .sub-res{color:#8FE0AE}
+:root[data-theme="dark"] .sub-res.bad,:root[data-theme="dark"] .sub-panel.plus .sub-res.bad{color:#F0A092}
+:root[data-theme="dark"] .sub-panel .sub-cancel,:root[data-theme="dark"] .sub-panel.plus .sub-cancel{border-color:#324A37;color:#A9B8AE;background:transparent}
+:root[data-theme="dark"] .sub-seg{background:#17201A}
+:root[data-theme="dark"] .sub-seg button[data-s="-"].on{background:linear-gradient(180deg,#F0A092,#D14A33);color:#fff}
+:root[data-theme="dark"] .sub-seg button[data-s="+"].on{background:#1C2620;color:#8FE0AE;box-shadow:0 0 0 1.5px #3C9A63}
+
+/* «Что создать?»: цветные блоки вместо двух одинаковых зелёных кнопок */
+.ck-choice{display:flex;gap:12px;margin:2px 0 4px}
+.ck-opt{flex:1;border:0;border-radius:20px;padding:22px 10px;text-align:center}
+.ck-opt .ck-ic{font-size:34px;line-height:1;display:block;margin-bottom:10px}
+.ck-opt b{font-size:15.5px;font-weight:800}
+.ck-opt.water{background:linear-gradient(150deg,#D8ECFB,#B9DDF5);color:#1D5F8E}
+.ck-opt.food{background:linear-gradient(150deg,#D7F2E3,#B3E6C8);color:#1E7A4C}
+:root[data-theme="dark"] .ck-opt.water{background:linear-gradient(150deg,#1E3A52,#15293B);color:#AFD8F5}
+:root[data-theme="dark"] .ck-opt.food{background:linear-gradient(150deg,#1D3A28,#15291C);color:#9FE0B8}
+
+/* заголовки секций «Значения на 100 г/мл» в формах продукта/напитка */
+.field.sec-label{margin:16px 2px 8px}
+.field.sec-label span{font-size:12px;font-weight:700;color:#5E7066;text-transform:uppercase;letter-spacing:.04em}
+:root[data-theme="dark"] .field.sec-label span{color:#8FA396}
