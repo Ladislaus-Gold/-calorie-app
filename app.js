@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 207;
-const APP_VERSION_LABEL = "2.4"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 208;
+const APP_VERSION_LABEL = "2.5"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -839,6 +839,17 @@ function prodCategoryOptions() {
   const usedFold = new Set(used.map((c) => fold(c)));
   const suggest = COMMON_CATS.filter((c) => !usedFold.has(fold(c)));
   return [...used, ...suggest].map((c) => `<option value="${esc(c)}">`).join("");
+}
+
+// Выпадающий список категорий: «Без категории», все использованные в базе, затем подсказки; текущая категория всегда в списке
+function catSelectOptions(cur) {
+  const set = new Set();
+  state.products.forEach((p) => { const c = (p.category || "").trim(); if (c) set.add(c); });
+  if (cur) set.add(cur);
+  const used = [...set].sort((a, b) => a.localeCompare(b, "ru"));
+  const usedFold = new Set(used.map((c) => fold(c)));
+  const all = [...used, ...COMMON_CATS.filter((c) => !usedFold.has(fold(c)))];
+  return `<option value="">Без категории</option>` + all.map((c) => `<option value="${esc(c)}"${c === cur ? " selected" : ""}>${esc(c)}</option>`).join("");
 }
 
 function prodCatChips() {
@@ -3023,9 +3034,12 @@ function openProductForm(product, onSaved, prefill = {}) {
     <label class="field" id="pf-brand-wrap" ${product && !ro && !p.brand ? 'style="display:none"' : ""}><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
     ${product && !ro && !p.barcode ? `<button type="button" class="opt-add" data-reveal="pf-barcode-wrap pf-alias">+ Добавить штрих-код</button>` : ""}
     <div class="field" id="pf-barcode-wrap" ${product && !ro && !p.barcode ? 'style="display:none"' : ""}><span>Штрих-код (необязательно)</span>${barcodeField}</div>
-    ${product && !ro && !p.category ? `<button type="button" class="opt-add" data-reveal="pf-cat-wrap">+ Добавить категорию</button>` : ""}
-    <label class="field" id="pf-cat-wrap" ${product && !ro && !p.category ? 'style="display:none"' : ""}><span>Категория (необязательно)</span><input id="pf-cat" class="input" list="pf-cat-list" maxlength="40" ${dis} value="${esc(p.category || "")}" placeholder="Например, Фрукты" autocomplete="off"></label>
-    <datalist id="pf-cat-list">${prodCategoryOptions()}</datalist>
+    <div class="field" id="pf-cat-wrap"><span>Категория (необязательно)</span>
+      <div class="cat-row"><select id="pf-cat" class="input" ${dis} aria-label="Категория">${catSelectOptions(p.category || "")}</select>
+        <button type="button" class="cat-btn" id="pf-cat-add" ${dis} aria-label="Новая категория">+</button>
+        <button type="button" class="cat-btn minus" id="pf-cat-del" ${dis} aria-label="Убрать категорию">−</button></div>
+      <div class="cat-new" id="pf-cat-new" style="display:none"><input id="pf-cat-in" class="input" maxlength="40" placeholder="Название новой категории" autocomplete="off"><button type="button" class="btn" id="pf-cat-ok">Готово</button></div>
+    </div>
     ${product ? `<div class="field" id="pf-alias"${hideAlias ? ' style="display:none"' : ""}><span>Другие упаковки: ещё штрих-коды этого продукта</span>
       <div id="pf-alias-list" class="chips"></div>
       <div class="inline"><input id="pf-alias-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код другой упаковки" autocomplete="off"><button type="button" class="icon-btn" id="pf-alias-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="pf-alias-add">Добавить</button></div>
@@ -3123,6 +3137,23 @@ function openProductForm(product, onSaved, prefill = {}) {
       toast(r.state === "none" ? "В базе нет этого кода. Введите данные с упаковки." : "Не удалось связаться с Open Food Facts.");
     }
   }));
+
+  { // категория: выпадающий список, «+» — добавить свою, «−» — убрать категорию у этого продукта
+    const catSel = $("#pf-cat", ov), catNew = $("#pf-cat-new", ov), catIn = $("#pf-cat-in", ov);
+    const catCommit = () => {
+      const v = catIn.value.trim().slice(0, 40);
+      if (v) {
+        let o = [...catSel.options].find((x) => fold(x.value) === fold(v));
+        if (!o) { o = new Option(v, v); catSel.add(o); }
+        catSel.value = o.value;
+      }
+      catNew.style.display = "none";
+    };
+    $("#pf-cat-add", ov).addEventListener("click", () => { catNew.style.display = "flex"; catIn.value = ""; catIn.focus(); });
+    $("#pf-cat-ok", ov).addEventListener("click", catCommit);
+    catIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); catCommit(); } });
+    $("#pf-cat-del", ov).addEventListener("click", () => { catSel.value = ""; catNew.style.display = "none"; });
+  }
 
   $("#pf-save", ov).addEventListener("click", async () => {
     const name = $("#pf-name", ov).value.trim();

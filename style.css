@@ -2090,6 +2090,16 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 /* v2.4: кнопки «+» на экране «Продукты» — палитра зелёного как у кнопки «+» в Дневнике */
 .p-plus,.round-btn{background:linear-gradient(#6FCD9A,#37A873);box-shadow:0 6px 14px rgba(55,168,115,.38);font-weight:300}
 .p-plus:active,.round-btn:active{background:linear-gradient(#5FC08C,#2F9A67);filter:none}
+/* v2.5: категория — выпадающий список + кнопки «+» / «−» */
+.cat-row{display:flex;align-items:center;gap:8px}
+.cat-row select.input{flex:1;min-width:0}
+.cat-btn{flex:none;width:44px;height:44px;border-radius:14px;border:0;background:linear-gradient(#6FCD9A,#37A873);color:#fff;font-size:24px;font-weight:300;line-height:1;display:grid;place-items:center;box-shadow:0 4px 10px rgba(55,168,115,.3)}
+.cat-btn.minus{background:#EEF3F0;color:#5E7066;box-shadow:none;border:1px solid var(--line,#DCE6DF)}
+.cat-btn:disabled{opacity:.5}
+.cat-new{display:flex;gap:8px;margin-top:8px}
+.cat-new .input{flex:1;min-width:0}
+.cat-new .btn{flex:none}
+:root[data-theme="dark"] .cat-btn.minus{background:#26352C;color:#C9D8CE;border-color:#324A37}
 /* v2.4: окно «Добавить запись» — аккуратная шапка: пилюля-селект и круглая ×, отступ от края */
 .overlay.top .sheet{padding-top:calc(14px + env(safe-area-inset-top,0px))}
 .sheet-head.af-head{align-items:center;gap:12px;margin-bottom:14px}
