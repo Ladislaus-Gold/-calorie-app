@@ -239,9 +239,9 @@ function trainCardHtml(day) {
       ${k >= n ? `<p class="foot-note" style="margin:8px 2px 0">Тренировка выполнена, отличная работа!</p>` : `<button type="button" class="btn primary full" style="margin-top:10px" data-act="trainStart" data-date="${day}">${k > 0 ? "Продолжить тренировку" : "Начать тренировку"}</button>`}
       ${watchCmpHtml(day, ses, k, n)}
       <div class="tr-list">${rows}</div>
-      <div class="tr-actions"><button type="button" class="btn ghost full" data-act="trainAdd" data-date="${day}">+ Добавить упражнение</button>
+      <div class="tr-actions"><button type="button" class="tr-addrow" data-act="trainAdd" data-date="${day}"><span class="plus">+</span><b>Добавить упражнение</b></button>
       ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><div class="tr-btns"><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button><button type="button" class="btn ghost sm tr-wipe" data-act="trainWipe" data-date="${day}">Удалить итоги</button></div></div>` : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
-      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}</div>`;
+      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить день</button>` : ""}</div>`;
     sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · около ${ses.est} мин · выполнено ${k} из ${n}</span></p>`;
   } else {
     const nx = nextTrainDay(day);
