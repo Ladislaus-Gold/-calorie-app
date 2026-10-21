@@ -2077,6 +2077,27 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .ap-colors{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px}
 .ap-col{width:38px;height:38px;border-radius:12px;border:2px solid transparent}
 .ap-col.sel{border-color:#1F2723}
+/* v2.3: эмодзи по группам в прокручиваемом блоке */
+.ap-emo-box{max-height:42vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:0 -4px 6px;padding:0 4px}
+.ap-gl{font-size:12px;font-weight:700;color:#5E7066;margin:10px 2px 6px}
+.ap-emo-box .ap-grid{margin-bottom:0}
+:root[data-theme="dark"] .ap-gl{color:#8FA396}
+/* v2.3: группы мышц в баннере тренировки в Дневнике — чёрным (в светлой теме; тёмная остаётся светлой) */
+:root[data-theme="light"] .dv .tr-banner .tr-ban-main > span.tr-ban-sub:not(.track){color:#000;font-weight:700}
+/* v2.4: «+ Добавить» в зелёном сегменте белым: старое правило .sub-panel.plus .sub-seg button.on (тёмно-зелёный текст) перекрывало белый */
+.sub-panel.plus .sub-seg button[data-s="+"].on,:root[data-theme="dark"] .sub-panel.plus .sub-seg button[data-s="+"].on{color:#fff}
+.sub-panel .sub-seg button[data-s="-"].on{color:#fff}
+/* v2.4: кнопки «+» на экране «Продукты» — палитра зелёного как у кнопки «+» в Дневнике */
+.p-plus,.round-btn{background:linear-gradient(#6FCD9A,#37A873);box-shadow:0 6px 14px rgba(55,168,115,.38);font-weight:300}
+.p-plus:active,.round-btn:active{background:linear-gradient(#5FC08C,#2F9A67);filter:none}
+/* v2.4: окно «Добавить запись» — аккуратная шапка: пилюля-селект и круглая ×, отступ от края */
+.overlay.top .sheet{padding-top:calc(14px + env(safe-area-inset-top,0px))}
+.sheet-head.af-head{align-items:center;gap:12px;margin-bottom:14px}
+.sheet-head.af-head select#af-meal{height:44px;border-radius:22px;padding:0 18px;font-weight:700;font-size:16px;background-color:#EAF6EF;border:1.5px solid #BFE3CF;color:#1F5C3A}
+.sheet-head.af-head .icon-btn{flex:none;width:44px;height:44px;border-radius:50%;background:#EEF3F0;color:#44574C;font-size:24px;line-height:1;display:grid;place-items:center}
+.overlay.top .picked{border-radius:18px;padding:12px 14px;margin-bottom:12px}
+:root[data-theme="dark"] .sheet-head.af-head select#af-meal{background-color:#1F3328;border-color:#2F5240;color:#CFEBDB}
+:root[data-theme="dark"] .sheet-head.af-head .icon-btn{background:#26352C;color:#C9D8CE}
 :root[data-theme="dark"] .ap-col.sel{border-color:#EAF2EC}
 :root[data-theme="dark"] .ap-em.sel{background:rgba(55,168,115,.18)}
 :root[data-theme="dark"] .pf-ava-btn{border-color:#324A37}

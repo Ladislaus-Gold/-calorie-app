@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 205;
-const APP_VERSION_LABEL = "2.2"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 207;
+const APP_VERSION_LABEL = "2.4"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2700,7 +2700,7 @@ function openAddFood(mealId, presetProduct) {
     upd();
     input.addEventListener("input", upd);
     attachSubtract(body.querySelector(".chips"), input, info ? "мл" : "г", upd);
-    input.focus(); input.select();
+    input.focus({ preventScroll: true }); input.select(); body.scrollTop = 0; // без прокрутки: иначе название продукта обрезается сверху
     body.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { input.value = c.dataset.g; upd(); }));
     $("#af-back", ov).addEventListener("click", showList);
     $("#af-add", ov).addEventListener("click", () => {
@@ -2957,7 +2957,17 @@ function openCopyEntry(entry, p100, grams0, meal0) {
 }
 
 /* ----- Эмодзи и цвет аватара продукта/напитка ----- */
-const AVA_EMOJIS = ["🍜", "🥘", "🍚", "🍝", "🍲", "🍱", "🍕", "🍔", "🌮", "🥗", "🍳", "🥐", "🥟", "🍇", "🍎", "🍌", "🥦", "🍗", "🧀", "🍞", "🥑", "🍉", "🍰", "☕"];
+// Эмодзи для аватара продукта по группам (v2.3); первый — эмодзи по умолчанию, повторов между группами нет
+const AVA_EMOJI_GROUPS = [
+  ["Блюда", ["🍜", "🥘", "🍚", "🍝", "🍲", "🍱", "🍛", "🍣", "🍕", "🍔", "🌮", "🌯", "🥙", "🥪", "🌭", "🍟", "🥗", "🍳", "🥞", "🧇", "🥟", "🍥", "🍢", "🍙", "🍘", "🥡", "🧆", "🍿", "🥣"]],
+  ["Мясо, рыба, яйца", ["🍗", "🍖", "🥩", "🥓", "🐟", "🍤", "🦐", "🦀", "🥚"]],
+  ["Овощи и грибы", ["🥦", "🥑", "🍅", "🥕", "🌽", "🥒", "🥔", "🍠", "🍆", "🥬", "🍄", "🧄", "🧅", "🫑", "🥜", "🌰"]],
+  ["Фрукты и ягоды", ["🍇", "🍎", "🍏", "🍌", "🍉", "🍊", "🍋", "🍓", "🍒", "🍑", "🍍", "🥭", "🥝", "🍐", "🍈", "🫐"]],
+  ["Молочное и выпечка", ["🧀", "🥛", "🧈", "🍞", "🥖", "🥨", "🥯", "🥐", "🍰", "🎂", "🧁", "🍩", "🍪", "🍫", "🍬", "🍮", "🍦", "🍨"]],
+  ["Соусы и приправы", ["🥫", "🍯", "🧂", "🌶️", "🫒", "🍶", "🥄"]],
+  ["Напитки", ["☕", "🍵", "🫖", "🧃", "🥤", "🧋", "🍺", "🍻", "🍷", "🥂", "🍸", "🍹", "🥃", "🍾", "🧉", "🍼", "💧", "🧊"]],
+];
+const AVA_EMOJIS = AVA_EMOJI_GROUPS.flatMap((g) => g[1]);
 const AVA_COLORS = ["#EAF7EF", "#FFE9D4", "#FFF9DB", "#FDE7E4", "#EFE7F7", "#E3F2FD", "#FDEBDD", "#F2F2F2", "#FCE4EC", "#E0F7F4"];
 function openAvatarPicker(cur, onDone) {
   const sel = { emoji: cur.emoji || AVA_EMOJIS[0], color: cur.color || AVA_COLORS[0] };
@@ -2965,7 +2975,7 @@ function openAvatarPicker(cur, onDone) {
     <div class="sheet-head"><h2>Эмодзи и цвет</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="ap-prev"><span class="pf-ava-btn" id="ap-prev-ava" style="background:${esc(sel.color)}"><span id="ap-prev-ic">${esc(sel.emoji)}</span></span></div>
     <div class="field sec-label"><span>Выбрать эмодзи</span></div>
-    <div class="ap-grid" id="ap-emo">${AVA_EMOJIS.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>
+    <div class="ap-emo-box" id="ap-emo">${AVA_EMOJI_GROUPS.map(([t, list]) => `<div class="ap-gl">${t}</div><div class="ap-grid">${list.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>`).join("")}</div>
     <div class="field sec-label"><span>Цвет фона (для контраста с эмодзи)</span></div>
     <div class="ap-colors" id="ap-col">${AVA_COLORS.map((c) => `<button type="button" class="ap-col${c === sel.color ? " sel" : ""}" data-c="${c}" style="background:${c}" aria-label="Цвет фона"></button>`).join("")}</div>
     <button type="button" class="btn primary full" id="ap-done" style="margin-top:14px">Готово</button>`);
