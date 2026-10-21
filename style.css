@@ -2241,3 +2241,15 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 /* v2.10: звёздочка избранного в окне и карточке напитка */
 .pk-star{flex:none}
 .pf-top-row .pk-star{align-self:flex-end;margin-bottom:6px}
+/* v2.11: один цвет всех зелёных кнопок, как у «+» в Продуктах: градиент #6FCD9A → #37A873, тень rgba(55,168,115,.38) */
+.btn.primary,.add-btn,.fab,.tr-seg button.on,.wk-pl.dn,.cv,:root[data-theme="dark"] .cv,
+.seg button.on,.sub-panel.plus .sub-seg button.on,.sub-seg button[data-s="+"].on,
+:root[data-theme="dark"] .seg button.on,:root[data-theme="dark"] .sub-seg button[data-s="+"].on{background:linear-gradient(180deg,#6FCD9A,#37A873);color:#fff;box-shadow:0 6px 14px rgba(55,168,115,.38);text-shadow:none}
+.seg button.on,.sub-panel.plus .sub-seg button.on,.sub-seg button[data-s="+"].on,.tr-seg button.on,.cv{box-shadow:0 4px 10px rgba(55,168,115,.34)}
+.btn.primary:active:not(.dk-new):not(.sub-ok):not([data-act="addDrink"]),.add-btn:active,.fab:active{background:linear-gradient(180deg,#5FC08C,#2F9A67)}
+.chip.sel,:root[data-theme="dark"] .chip.sel{background:linear-gradient(180deg,#6FCD9A,#37A873);color:#fff;box-shadow:0 4px 10px rgba(55,168,115,.3)}
+/* синие и особые кнопки остаются своими */
+.fl-fold .cv{background:#E7F0FC;color:#27559A;box-shadow:none}
+:root[data-theme="dark"] .fl-fold .cv{background:#1E3550;color:#9CC4F2}
+.caf-card .cv{background:#FBEBC6;color:#9A5F05;box-shadow:0 1px 3px rgba(150,90,0,.25)}
+:root[data-theme="dark"] .caf-card .cv{background:rgba(240,221,176,.18);color:#F0DDB0;box-shadow:0 1px 3px rgba(0,0,0,.45)}
