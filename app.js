@@ -76,7 +76,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 201;
+const APP_VERSION = 204;
 const APP_VERSION_LABEL = "2.1"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
@@ -831,10 +831,14 @@ function productsForTab() {
   });
 }
 
+const COMMON_CATS = ["🍎 Фрукты", "🥦 Овощи", "🍗 Мясо", "🐟 Рыба", "🥛 Молочка", "🍲 Готовые блюда", "🍞 Выпечка", "🥤 Напитки"];
 function prodCategoryOptions() {
   const set = new Set();
   state.products.forEach((p) => { const c = (p.category || "").trim(); if (c) set.add(c); });
-  return [...set].sort((a, b) => a.localeCompare(b, "ru")).map((c) => `<option value="${esc(c)}">`).join("");
+  const used = [...set].sort((a, b) => a.localeCompare(b, "ru"));
+  const usedFold = new Set(used.map((c) => fold(c)));
+  const suggest = COMMON_CATS.filter((c) => !usedFold.has(fold(c)));
+  return [...used, ...suggest].map((c) => `<option value="${esc(c)}">`).join("");
 }
 
 function prodCatChips() {
@@ -2623,7 +2627,6 @@ function openAddFood(mealId, presetProduct) {
       <div class="af-btns">
         <button type="button" class="btn primary" id="af-scan">${SCAN_SVG}<span>Скан</span></button>
         <button type="button" class="btn ghost" id="af-new">+ Карточка</button>
-        <button type="button" class="btn ghost" id="af-ai">Блюдо (ИИ)</button>
       </div>
       <input id="af-q" class="input search" type="search" placeholder="Найти в общей базе" value="${esc(q)}" autocomplete="off">
       <div id="af-list" class="plist"></div>`;
@@ -2648,7 +2651,6 @@ function openAddFood(mealId, presetProduct) {
     $("#af-q", ov).addEventListener("input", (e) => { q = e.target.value; draw(); });
     $("#af-scan", ov).addEventListener("click", () => openScanner((code) => processBarcode(code, showDetail, showDetail, (id, pre) => { ov.close(); openDrinkSheet(null, id, 0, pre); })));
     $("#af-new", ov).addEventListener("click", () => newCardFlow({ name: q.trim() }, (p) => showDetail(p), (id, pre) => { ov.close(); openDrinkSheet(null, id, 0, pre); }));
-    $("#af-ai", ov).addEventListener("click", () => { const meal = $("#af-meal", ov).value; ov.close(); openAiDish(meal); });
     $("#af-list", ov).addEventListener("click", (e) => {
       const b = e.target.closest("[data-pick]");
       if (!b) return;
@@ -3003,14 +3005,16 @@ function openProductForm(product, onSaved, prefill = {}) {
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
-    ${product ? `<button type="button" class="pf-usage-row" id="pf-usage"><span class="pf-u-ic">📅${state.entries.filter((e) => e.productId === product.id).length ? `<span class="pf-u-badge">${state.entries.filter((e) => e.productId === product.id).length}</span>` : ""}</span><span class="pf-u-t">Когда я это ел</span><span class="pf-u-ch">›</span></button>` : ""}
     <div class="pf-top-row">
       <button type="button" class="pf-ava-btn" id="pf-ava" ${dis} aria-label="Эмодзи и цвет" style="${p.emoji ? `background:${esc(p.color || AVA_COLORS[0])};border-style:solid;border-color:${esc(p.color || AVA_COLORS[0])}` : ""}"><span id="pf-ava-ic">${p.emoji ? esc(p.emoji) : "🍽️"}</span><span class="pf-ava-pencil">✎</span></button>
       <label class="field pf-top-name"><span>Название</span><input id="pf-name" class="input" maxlength="120" ${dis} value="${esc(p.name)}" autocomplete="off" placeholder="Например, Картофель варёный"></label>
     </div>
-    <label class="field"><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
-    <div class="field"><span>Штрих-код (необязательно)</span>${barcodeField}</div>
-    <label class="field"><span>Категория (необязательно)</span><input id="pf-cat" class="input" list="pf-cat-list" maxlength="40" ${dis} value="${esc(p.category || "")}" placeholder="Например, Фрукты" autocomplete="off"></label>
+    ${product && !ro && !p.brand ? `<button type="button" class="opt-add" data-reveal="pf-brand-wrap">+ Добавить бренд</button>` : ""}
+    <label class="field" id="pf-brand-wrap" ${product && !ro && !p.brand ? 'style="display:none"' : ""}><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
+    ${product && !ro && !p.barcode ? `<button type="button" class="opt-add" data-reveal="pf-barcode-wrap">+ Добавить штрих-код</button>` : ""}
+    <div class="field" id="pf-barcode-wrap" ${product && !ro && !p.barcode ? 'style="display:none"' : ""}><span>Штрих-код (необязательно)</span>${barcodeField}</div>
+    ${product && !ro && !p.category ? `<button type="button" class="opt-add" data-reveal="pf-cat-wrap">+ Добавить категорию</button>` : ""}
+    <label class="field" id="pf-cat-wrap" ${product && !ro && !p.category ? 'style="display:none"' : ""}><span>Категория (необязательно)</span><input id="pf-cat" class="input" list="pf-cat-list" maxlength="40" ${dis} value="${esc(p.category || "")}" placeholder="Например, Фрукты" autocomplete="off"></label>
     <datalist id="pf-cat-list">${prodCategoryOptions()}</datalist>
     ${product ? `<div class="field" id="pf-alias"><span>Другие упаковки: ещё штрих-коды этого продукта</span>
       <div id="pf-alias-list" class="chips"></div>
@@ -3024,6 +3028,7 @@ function openProductForm(product, onSaved, prefill = {}) {
       <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.carbs) > 0 ? val(p.carbs) : ""}" autocomplete="off"></label>
     </div>
     ${drinkBlock}
+    ${product ? `<button type="button" class="pf-usage-row" id="pf-usage"><span class="pf-u-ic">📅${state.entries.filter((e) => e.productId === product.id).length ? `<span class="pf-u-badge">${state.entries.filter((e) => e.productId === product.id).length}</span>` : ""}</span><span class="pf-u-t">Когда я это ел</span><span class="pf-u-ch">›</span></button>` : ""}
     <div class="row">${ro
       ? `<button type="button" class="btn ghost full" data-close>Закрыть</button>`
       : `${product ? `<button type="button" class="btn danger" id="pf-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="pf-save">Сохранить</button>`}</div>`);
@@ -3060,6 +3065,12 @@ function openProductForm(product, onSaved, prefill = {}) {
     });
   }
   if (ro) return;
+
+  ov.querySelectorAll("[data-reveal]").forEach((b) => b.addEventListener("click", () => {
+    const wrap = document.getElementById(b.dataset.reveal);
+    if (wrap) { wrap.style.display = ""; const inp = wrap.querySelector("input"); if (inp) inp.focus(); }
+    b.remove();
+  }));
 
   let curEmoji = p.emoji || "", curColor = p.color || "";
   const avaBtn = $("#pf-ava", ov), avaIc = $("#pf-ava-ic", ov);
