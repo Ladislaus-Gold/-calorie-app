@@ -9,12 +9,11 @@ const PHOTOS = new Set(["squat:db"]);
 function exFig(id, vk) {
   if (!PHOTOS.has(`${id}:${vk}`)) return TR.illustration(id, vk);
   const b = `img/${id}-${vk}`;
-  return `<div class="ex-ph" data-i="0">
-    <div class="ex-ph-tabs"><button type="button" class="la" data-phi="0">Профиль</button><button type="button" class="lb" data-phi="1">Анфас</button></div>
+  return `<div class="ex-ph" data-i="0" data-id="${id}" data-vk="${vk}">
     <div class="ex-ph-imgs"><img src="${b}-p.webp" alt="Профиль" decoding="async"><img src="${b}-f.webp" alt="Анфас" decoding="async"></div>
     <div class="ex-ph-dots"><i></i><i></i></div></div>`;
 }
-// Листание картинок свайпом (scroll-snap) и кнопки «Профиль / Анфас»: слушатели на документе, перерисовка им не мешает
+// Листание картинок свайпом (scroll-snap), точки показывают текущий вид (профиль / анфас): слушатель на документе, перерисовка ему не мешает
 if (typeof document !== "undefined" && !window.__exPh) {
   window.__exPh = true;
   document.addEventListener("scroll", (e) => {
@@ -22,12 +21,11 @@ if (typeof document !== "undefined" && !window.__exPh) {
     if (!s || !s.classList || !s.classList.contains("ex-ph-imgs")) return;
     s.parentElement.dataset.i = s.scrollLeft > s.clientWidth / 2 ? "1" : "0";
   }, true);
-  document.addEventListener("click", (e) => {
-    const b = e.target.closest && e.target.closest("[data-phi]");
-    if (!b) return;
-    const box = b.closest(".ex-ph"), s = box && box.querySelector(".ex-ph-imgs");
-    if (s) s.scrollTo({ left: Number(b.dataset.phi) * s.clientWidth, behavior: "smooth" });
-  });
+  // нет файла картинки (например, папка img/ не загружена) — вместо сломанной рамки показываем рисунок-схему
+  document.addEventListener("error", (e) => {
+    const im = e.target, box = im && im.closest && im.closest(".ex-ph");
+    if (box) box.outerHTML = TR.illustration(box.dataset.id, box.dataset.vk);
+  }, true);
 }
 
 export function createTrainUI(env) {
