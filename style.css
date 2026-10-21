@@ -2087,4 +2087,6 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 /* v2.1: необязательные поля (бренд/штрих-код/категория) в карточке существующего продукта — скрыты, если пустые, с кнопкой-ссылкой для добавления */
 .opt-add{display:block;background:none;border:0;color:#37A873;font-weight:700;font-size:14px;padding:4px 2px;margin:-6px 0 10px}
 .opt-add:active{opacity:.7}
+/* v2.2: кнопки «Удалить» и «Сохранить» в карточке продукта всегда видны внизу окна */
+.sheet .row:has(#pf-save){position:sticky;bottom:0;z-index:3;background:var(--card);padding:10px 0 4px;margin-top:4px}
 :root[data-theme="dark"] .opt-add{color:#6FCD9A}

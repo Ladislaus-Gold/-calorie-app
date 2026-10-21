@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 204;
-const APP_VERSION_LABEL = "2.1"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 205;
+const APP_VERSION_LABEL = "2.2"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -897,7 +897,7 @@ function viewProducts() {
     <input id="prod-search" class="input search" type="search" placeholder="Название, штрих-код или автор" value="${esc(state.prodSearch)}" autocomplete="off">
     ${prodCatChips()}
     <section class="card list-card"><div id="plist" class="plist">${productListHtml()}</div></section>
-    <p class="foot-note">Продукты видят все пользователи. Править или удалять продукт может только тот, кто его добавил.</p>
+    <p class="foot-note">Продукты видят все пользователи. Править и удалять продукты может любой пользователь.</p>
     ${missing ? `<section class="card">
       <h2 class="h2">Базовые продукты</h2>
       <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный, тушёный. У жареных и тушёных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
@@ -2988,13 +2988,13 @@ function openAvatarPicker(cur, onDone) {
 /* ----- Форма продукта ----- */
 function openProductForm(product, onSaved, prefill = {}) {
   const uid = state.user.uid;
-  const ro = !!product && product.createdBy !== uid; // чужой продукт: только просмотр
+  const ro = false; // с v2.2 править и удалять любой продукт может любой пользователь (режима «только просмотр» нет)
   const p = product || { name: "", brand: "", barcode: "", kcal: "", protein: "", fat: "", carbs: "", ...prefill };
-  const note = ro
-    ? `Добавил(а): ${product.createdByName || "другой пользователь"}. Править и удалять продукт может только автор.`
-    : (product ? "" : (prefill.note || ""));
+  const note = product ? "" : (prefill.note || "");
   const val = (v) => (v === "" || v == null ? "" : String(v).replace(".", ","));
   const dis = ro ? "disabled" : "";
+  // «Другие упаковки» не занимают место в форме: показываются, если уже есть коды или после «+ Добавить штрих-код»
+  const hideAlias = !!product && !p.barcode && !aliasCodes(product.id).length;
   const barcodeField = ro
     ? `<input id="pf-barcode" class="input" value="${esc(p.barcode || "")}" disabled>`
     : `<div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" maxlength="20" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>`;
@@ -3011,18 +3011,18 @@ function openProductForm(product, onSaved, prefill = {}) {
     </div>
     ${product && !ro && !p.brand ? `<button type="button" class="opt-add" data-reveal="pf-brand-wrap">+ Добавить бренд</button>` : ""}
     <label class="field" id="pf-brand-wrap" ${product && !ro && !p.brand ? 'style="display:none"' : ""}><span>Бренд (необязательно)</span><input id="pf-brand" class="input" maxlength="80" ${dis} value="${esc(p.brand || "")}" autocomplete="off"></label>
-    ${product && !ro && !p.barcode ? `<button type="button" class="opt-add" data-reveal="pf-barcode-wrap">+ Добавить штрих-код</button>` : ""}
+    ${product && !ro && !p.barcode ? `<button type="button" class="opt-add" data-reveal="pf-barcode-wrap pf-alias">+ Добавить штрих-код</button>` : ""}
     <div class="field" id="pf-barcode-wrap" ${product && !ro && !p.barcode ? 'style="display:none"' : ""}><span>Штрих-код (необязательно)</span>${barcodeField}</div>
     ${product && !ro && !p.category ? `<button type="button" class="opt-add" data-reveal="pf-cat-wrap">+ Добавить категорию</button>` : ""}
     <label class="field" id="pf-cat-wrap" ${product && !ro && !p.category ? 'style="display:none"' : ""}><span>Категория (необязательно)</span><input id="pf-cat" class="input" list="pf-cat-list" maxlength="40" ${dis} value="${esc(p.category || "")}" placeholder="Например, Фрукты" autocomplete="off"></label>
     <datalist id="pf-cat-list">${prodCategoryOptions()}</datalist>
-    ${product ? `<div class="field" id="pf-alias"><span>Другие упаковки: ещё штрих-коды этого продукта</span>
+    ${product ? `<div class="field" id="pf-alias"${hideAlias ? ' style="display:none"' : ""}><span>Другие упаковки: ещё штрих-коды этого продукта</span>
       <div id="pf-alias-list" class="chips"></div>
       <div class="inline"><input id="pf-alias-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код другой упаковки" autocomplete="off"><button type="button" class="icon-btn" id="pf-alias-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="pf-alias-add">Добавить</button></div>
-      <p class="foot-note" id="pf-alias-msg" style="margin:6px 2px 0">Коды общие: любой пользователь, отсканировав эту упаковку, получит этот продукт. Убрать код может тот, кто его добавил.</p></div>` : ""}
+      <p class="foot-note" id="pf-alias-msg" style="margin:6px 2px 0">Коды общие: любой пользователь, отсканировав эту упаковку, получит этот продукт. Убрать код может любой.</p></div>` : ""}
     <div class="field sec-label"><span>Значения на 100 г</span></div>
     <div class="field-grid">
-      <label class="field"><span>Калории, ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
+      <label class="field"><span>Ккал</span><input id="pf-kcal" class="input" inputmode="decimal" ${dis} value="${val(p.kcal)}" autocomplete="off"></label>
       <label class="field"><span>Белки, г</span><input id="pf-protein" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.protein) > 0 ? val(p.protein) : ""}" autocomplete="off"></label>
       <label class="field"><span>Жиры, г</span><input id="pf-fat" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.fat) > 0 ? val(p.fat) : ""}" autocomplete="off"></label>
       <label class="field"><span>Углеводы, г</span><input id="pf-carbs" class="input" inputmode="decimal" placeholder="0" ${dis} value="${Number(p.carbs) > 0 ? val(p.carbs) : ""}" autocomplete="off"></label>
@@ -3038,7 +3038,7 @@ function openProductForm(product, onSaved, prefill = {}) {
     const list = $("#pf-alias-list", ov), msg = $("#pf-alias-msg", ov), inp = $("#pf-alias-in", ov);
     const drawAliases = () => {
       const codes = aliasCodes(product.id);
-      list.innerHTML = codes.length ? codes.map((c) => `<span class="chip alias">${esc(c)}${state.bcOwner[c] === uid ? `<button type="button" class="alias-x" data-del="${esc(c)}" aria-label="Убрать код">×</button>` : ""}</span>`).join("") : "";
+      list.innerHTML = codes.length ? codes.map((c) => `<span class="chip alias">${esc(c)}<button type="button" class="alias-x" data-del="${esc(c)}" aria-label="Убрать код">×</button></span>`).join("") : "";
     };
     drawAliases();
     const add = (raw) => {
@@ -3067,8 +3067,10 @@ function openProductForm(product, onSaved, prefill = {}) {
   if (ro) return;
 
   ov.querySelectorAll("[data-reveal]").forEach((b) => b.addEventListener("click", () => {
-    const wrap = document.getElementById(b.dataset.reveal);
-    if (wrap) { wrap.style.display = ""; const inp = wrap.querySelector("input"); if (inp) inp.focus(); }
+    b.dataset.reveal.split(" ").forEach((id, i) => {
+      const wrap = document.getElementById(id);
+      if (wrap) { wrap.style.display = ""; if (i === 0) { const inp = wrap.querySelector("input"); if (inp) inp.focus(); } }
+    });
     b.remove();
   }));
 
@@ -3269,7 +3271,6 @@ const drinkData = (it, existingCreatedAt) => ({
 });
 const saveSharedDrink = (it) => {
   const cur = (state.sharedDrinks || []).find((x) => x.id === it.id);
-  if (cur && cur.createdBy !== state.user.uid) { toast("Менять карточку может только её автор"); return Promise.resolve(); }
   return setDoc(doc(db, "drinkdb", it.id), drinkData(it, cur && cur.createdAt)).catch(writeFail);
 };
 // Ждём подтверждения записи от сервера: ok — сохранено, slow — нет связи (сохранится позже), fail — отказ
@@ -4234,13 +4235,12 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       const item = { id: isNew ? newDrinkId() : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs] };
       state.customDrinks = state.customDrinks.filter((x) => x.id !== item.id);
       const cur = (state.sharedDrinks || []).find((x) => x.id === item.id);
-      if (cur && cur.createdBy !== state.user.uid) { toast("Менять карточку может только её автор"); return; }
       const sv = $("#dc-save", ov);
       sv.disabled = true; sv.textContent = "Сохраняю…";
       const res = await confirmWrite(setDoc(doc(db, "drinkdb", item.id), drinkData(item, cur && cur.createdAt)));
       if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; saveErrShow(sv); return; }
       if (from) {
-        aliasCodes(from.id).forEach((c) => { if (state.bcOwner[c] === state.user.uid) unlinkBarcode(c); });
+        aliasCodes(from.id).forEach((c) => unlinkBarcode(c));
         deleteDoc(prodDoc(from.id)).catch(writeFail);
       }
       if (!(state.sharedDrinks || []).some((x) => x.id === item.id)) state.sharedDrinks = [...(state.sharedDrinks || []), { id: item.id, n: item.n, h: item.h, c: item.c, cat: item.cat, a: item.a, k: item.k, p: item.p, f: item.f, cb: item.cb, bc: [...item.bc], createdBy: state.user.uid, createdByName: "" }];
@@ -4277,7 +4277,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <div class="note" id="dk-knote">Попадёт и в жидкость, и в калории дневника одной записью. Повторно вносить как еду не нужно.</div>
         <label class="field"><span>Приём пищи</span><select id="dk-meal" class="input">${MEALS.map((m) => `<option value="${m.id}" ${m.id === mealByTime() ? "selected" : ""}>${m.name}</option>`).join("")}</select></label>
       </div>
-      <div class="row">${existing ? `<button type="button" class="btn danger" id="dk-del">Удалить</button>` : `<button type="button" class="btn ghost" id="dk-back">Назад</button>`}${d.mine && !existing ? `<button type="button" class="btn ghost" id="dk-card">Карточка</button>` : ""}<button type="button" class="btn primary grow" id="dk-save">${existing ? "Сохранить" : "Добавить"}</button></div>`;
+      <div class="row">${existing ? `<button type="button" class="btn danger" id="dk-del">Удалить</button>` : `<button type="button" class="btn ghost" id="dk-back">Назад</button>`}${!existing ? `<button type="button" class="btn ghost" id="dk-card">Карточка</button>` : ""}<button type="button" class="btn primary grow" id="dk-save">${existing ? "Сохранить" : "Добавить"}</button></div>`;
 
     const read = () => {
       const ml = num($("#dk-ml", ov).value);
