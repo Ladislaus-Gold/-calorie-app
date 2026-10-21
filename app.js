@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 209;
-const APP_VERSION_LABEL = "2.6"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 210;
+const APP_VERSION_LABEL = "2.7"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3022,8 +3022,8 @@ function openProductForm(product, onSaved, prefill = {}) {
     ? `<input id="pf-barcode" class="input" value="${esc(p.barcode || "")}" disabled>`
     : `<div class="inline"><input id="pf-barcode" class="input" inputmode="numeric" maxlength="20" value="${esc(p.barcode || "")}" autocomplete="off"><button type="button" class="icon-btn" id="pf-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>`;
   const drinkBlock = product && !ro
-    ? `${product.drink ? `<div class="note">Этот продукт отмечен как напиток (гидратация ${esc(val(product.hydrationPct))}%). Напитки теперь живут в своём списке: перенесите его туда.</div>` : ""}
-      <button type="button" class="pf-move" id="pf-todrink"><span class="pf-mv-ic">🥤</span><span class="pf-mv-t"><b>Это напиток?</b><small>Перенести в раздел «Напитки»</small></span><span class="pf-mv-ch">›</span></button>`
+    ? `${product.drink ? `<div class="note">Этот продукт отмечен как напиток (гидратация ${esc(val(product.hydrationPct))}%). Напитки теперь живут в своём списке: выберите категорию «Напитки» и нажмите «Продолжить».</div>` : ""}
+`
     : "";
   const ov = openSheet(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
@@ -3041,6 +3041,7 @@ function openProductForm(product, onSaved, prefill = {}) {
         <button type="button" class="cat-btn" id="pf-cat-add" ${dis} aria-label="Новая категория">+</button></div>
       <input type="hidden" id="pf-cat" value="${esc(p.category || "")}">
       <div class="cat-menu" id="pf-cat-menu" hidden></div>
+      <p class="note" id="pf-cat-dnote" style="display:none;margin:8px 0 0">Нажмите «Продолжить»: откроется карточка напитка — допишите гидратацию и кофеин. Ранее введённые данные перенесутся.</p>
       <div class="cat-new" id="pf-cat-new" style="display:none">
         <div class="cat-new-row"><input id="pf-cat-in" class="input" maxlength="36" placeholder="Название новой категории" autocomplete="off"><button type="button" class="btn" id="pf-cat-ok">Готово</button></div>
         <div class="cat-emo-row" id="pf-cat-emo" aria-label="Эмодзи категории"></div>
@@ -3115,14 +3116,17 @@ function openProductForm(product, onSaved, prefill = {}) {
     });
   });
 
-  const todrink = $("#pf-todrink", ov);
-  if (todrink) todrink.addEventListener("click", () => {
-    const codes = [product.barcode, ...aliasCodes(product.id)].filter(Boolean);
+  // Категория «Напитки»: «Продолжить» открывает карточку напитка с уже введёнными данными (для существующего продукта — с переносом, при сохранении он из продуктов исчезает)
+  const goDrink = () => {
+    const nv = (id) => { const t = $(id, ov).value.trim(); const x = t === "" ? 0 : num(t); return Number.isFinite(x) ? x : 0; };
+    const typed = $("#pf-barcode", ov).value.replace(/\D/g, "");
+    const codes = [typed, ...(product ? aliasCodes(product.id) : [])].filter(Boolean);
     const uniq = []; codes.forEach((c) => { if (!uniq.some((x) => normBC(x) === normBC(c))) uniq.push(c); });
+    const nm = $("#pf-name", ov).value.trim();
     ov.close();
-    openDrinkSheet(null, null, 0, { card: true, from: product, n: product.name, k: Number(product.kcal) || 0, p: Number(product.protein) || 0, f: Number(product.fat) || 0, cb: Number(product.carbs) || 0,
-      h: product.drink ? Number(product.hydrationPct) : 90, c: product.drink ? r1((Number(product.caffeineMg100) || 0) * 2.4) : 0, cat: "other", bc: uniq });
-  });
+    openDrinkSheet(null, null, 0, { card: true, from: product || undefined, n: nm, k: nv("#pf-kcal"), p: nv("#pf-protein"), f: nv("#pf-fat"), cb: nv("#pf-carbs"),
+      h: product && product.drink ? Number(product.hydrationPct) : 90, c: product && product.drink ? r1((Number(product.caffeineMg100) || 0) * 2.4) : 0, cat: "other", bc: uniq });
+  };
 
   $("#pf-scan", ov).addEventListener("click", () => openScanner(async (code) => {
     $("#pf-barcode", ov).value = code;
@@ -3157,10 +3161,15 @@ function openProductForm(product, onSaved, prefill = {}) {
       [...extra, ...COMMON_CATS].forEach((c) => { if (!list.some((x) => fold(x) === fold(c))) list.push(c); });
       return list.sort((a, b) => a.localeCompare(b, "ru"));
     };
-    const setVal = (v) => { hid.value = v; lbl.textContent = v || "Без категории"; lbl.classList.toggle("ph", !v); };
+    const DRINK_CAT = "__drink__";
+    const setVal = (v) => {
+      hid.value = v; lbl.textContent = v === DRINK_CAT ? "🥤 Напитки" : (v || "Без категории"); lbl.classList.toggle("ph", !v);
+      $("#pf-cat-dnote", ov).style.display = v === DRINK_CAT ? "block" : "none";
+      $("#pf-save", ov).textContent = v === DRINK_CAT ? "Продолжить" : "Сохранить";
+    };
     const drawMenu = () => {
       const used = usedMap(), cur = hid.value;
-      menu.innerHTML = `<button type="button" class="cat-opt${cur === "" ? " sel" : ""}" data-cv="">Без категории</button>`
+      menu.innerHTML = `<button type="button" class="cat-opt${cur === "" ? " sel" : ""}" data-cv="">Без категории</button><button type="button" class="cat-opt cat-drink${cur === DRINK_CAT ? " sel" : ""}" data-cv="${DRINK_CAT}">🥤 Напитки <small>перенести в напитки</small></button>`
         + allCats().map((c) => `<div class="cat-opt-row"><button type="button" class="cat-opt${c === cur ? " sel" : ""}" data-cv="${esc(c)}">${esc(c)}</button>${used.has(fold(c)) ? `<button type="button" class="cat-x" data-cx="${esc(c)}" aria-label="Удалить категорию">×</button>` : ""}</div>`).join("");
     };
     const closeMenu = () => { menu.hidden = true; trg.classList.remove("open"); };
@@ -3211,6 +3220,7 @@ function openProductForm(product, onSaved, prefill = {}) {
   }
 
   $("#pf-save", ov).addEventListener("click", async () => {
+    if ($("#pf-cat", ov).value === "__drink__") { goDrink(); return; }
     const name = $("#pf-name", ov).value.trim();
     const brand = $("#pf-brand", ov).value.trim();
     const barcode = $("#pf-barcode", ov).value.replace(/\D/g, "");
@@ -4236,7 +4246,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <label class="field pf-top-name"><span>${isNew ? "Новый напиток" : "Название"}</span><input id="dc-name" class="input" maxlength="60" value="${esc(d.n)}" autocomplete="off" placeholder="Например, Матэ"></label>
       </div>
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
-      <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
+      <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}${isNew ? "" : `<option value="__prod__">🍽️ Продукты (перенести в продукты)</option>`}</select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
       <p class="note" id="dc-hint" style="margin-top:-4px"></p>
       <div class="field-grid">
@@ -4255,7 +4265,6 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <div id="dc-bc-list" class="chips"></div>
         <div class="inline"><input id="dc-bc-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код" autocomplete="off"><button type="button" class="icon-btn" id="dc-bc-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="dc-bc-add">Добавить</button></div>
       </div>
-      ${isNew ? "" : `<button type="button" class="pf-move" id="dc-toprod"><span class="pf-mv-ic">🍽️</span><span class="pf-mv-t"><b>Это продукт?</b><small>Перенести в раздел «Продукты»</small></span><span class="pf-mv-ch">›</span></button>`}
       <div class="row">${isNew ? `<button type="button" class="btn ghost" id="dc-back">Назад</button>` : `<button type="button" class="btn danger" id="dc-del">Удалить</button>`}<button type="button" class="btn primary grow" id="dc-save">Сохранить</button></div>`;
     const list = $("#dc-bc-list", ov), inp = $("#dc-bc-in", ov);
     const drawBc = () => { list.innerHTML = bcs.map((c) => `<span class="chip alias">${esc(c)}<button type="button" class="alias-x" data-bcdel="${esc(c)}" aria-label="Убрать код">×</button></span>`).join(""); };
@@ -4326,8 +4335,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       removeFromList();
       showList();
     });
-    const toProd = $("#dc-toprod", ov);
-    if (toProd) toProd.addEventListener("click", () => {
+    const moveToProducts = () => {
       if (!confirm(`Перенести «${d.n}» в продукты? Гидратация и кофеин учитываться перестанут, напиток пропадёт из списка напитков. Прошлые записи останутся.`)) return;
       const codes = (d.bc || []).filter(Boolean);
       for (const c of codes) { const p = findByBarcode(c); if (p) { toast(`Код ${c} уже есть среди продуктов: ${p.name}`); return; } }
@@ -4339,8 +4347,9 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       removeFromList();
       toast("Перенесено в продукты");
       showList();
-    });
+    };
     $("#dc-save", ov).addEventListener("click", async () => {
+      if (catSel.value === "__prod__") { moveToProducts(); return; }
       const name = $("#dc-name", ov).value.trim();
       const opt = (sel) => { const t = $(sel, ov).value.trim(); return t === "" ? 0 : num(t); };
       const h = numS(pct.value), caf = opt("#dc-caf"), k = opt("#dc-k"), p = opt("#dc-p"), f = opt("#dc-f"), cb = opt("#dc-cb");

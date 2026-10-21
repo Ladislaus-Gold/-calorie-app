@@ -2121,7 +2121,12 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 :root[data-theme="dark"] .cat-opt.sel{background:#22402F;color:#9DE0B5}
 :root[data-theme="dark"] .cat-emo{background:#26352C}
 :root[data-theme="dark"] .cat-emo.sel{background:#22402F}
-/* v2.6: кнопка «Это напиток? / Это продукт?» */
+/* v2.7: пункт «Напитки» в списке категорий */
+.cat-opt.cat-drink{background:#E1EEFB;color:#27559A;margin:2px 0 6px;width:100%}
+.cat-opt.cat-drink small{font-weight:500;font-size:12px;opacity:.8;margin-left:6px}
+.cat-opt.cat-drink.sel{background:#CFE3F9}
+:root[data-theme="dark"] .cat-opt.cat-drink{background:#1E3550;color:#9CC4F2}
+/* v2.6: кнопка «Это напиток? / Это продукт?» (с v2.7 не используется) */
 .pf-move{display:flex;align-items:center;gap:12px;width:100%;margin:4px 0 12px;padding:12px 14px;border-radius:18px;border:1.5px solid #BFE3CF;background:linear-gradient(180deg,#F4FBF7,#E6F5EC);text-align:left;box-shadow:0 6px 14px rgba(55,168,115,.14)}
 .pf-move:active{transform:scale(.99)}
 .pf-mv-ic{flex:none;width:42px;height:42px;border-radius:14px;background:#fff;display:grid;place-items:center;font-size:22px;box-shadow:0 3px 8px rgba(55,168,115,.2)}
