@@ -1497,3 +1497,14 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .ex-ph-dots { display: flex; justify-content: center; gap: 6px; padding-top: 8px; }
 .ex-ph-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, transform .2s; }
 .ex-ph[data-i="0"] .ex-ph-dots i:nth-child(1), .ex-ph[data-i="1"] .ex-ph-dots i:nth-child(2) { background: var(--accent); transform: scale(1.25); }
+
+/* v179: экран тренировки — всё чуть выше, число повторов меньше, кнопки приподняты от нижнего края */
+#wk-root { gap: 6px; }
+.wk-name { margin-top: 0; }
+.wk-sub { margin-top: -2px; }
+.wk-fig { margin-top: -2px; }
+.wk-step b { font-size: 52px; min-width: 76px; }
+.wk-pm { width: 50px; height: 50px; border-radius: 16px; font-size: 26px; }
+.wk-time { font-size: 52px; }
+.wk-set, .wk-rest { padding: 2px 0; gap: 6px; }
+.wk-foot { padding-top: 6px; padding-bottom: calc(34px + env(safe-area-inset-bottom, 0px)); }
