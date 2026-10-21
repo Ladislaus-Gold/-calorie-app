@@ -1528,3 +1528,7 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .wk-ph .ex-ph-imgs { flex: 1 1 0; min-height: 0; }
 .wk-ph .ex-ph-imgs img { height: 100%; width: 100%; aspect-ratio: auto; object-fit: contain; }
 .wk-ph .ex-ph-dots { padding-top: 6px; }
+
+/* v183: вариант упражнения в скобках в заголовке (мельче и серым), подпись под заголовком убрана */
+.nm-v { font-size: .62em; font-weight: 600; letter-spacing: 0; color: var(--muted); white-space: normal; }
+.wk-name { line-height: 1.2; }

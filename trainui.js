@@ -30,6 +30,9 @@ if (typeof document !== "undefined" && !window.__exPh) {
 
 export function createTrainUI(env) {
   const { $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail } = env;
+  // Заголовок упражнения: название крупно, вариант в скобках мельче и серым (одной строкой с названием)
+  const lc1 = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : "");
+  const nameVar = (name, v) => `${esc(name)}${v ? ` <span class="nm-v">(${esc(lc1(v))})</span>` : ""}`;
 
 /* ================= Домашние тренировки: план по анкете ================= */
 // Отметки «выполнено» хранятся отдельно (users/{uid}/trainlog) и не попадают ни в тренировки, ни в отчёты, ни в ИИ-анализ.
@@ -313,7 +316,7 @@ function openTrainWorkout(date) {
     const prog = `<div class="wk-top"><span>Упражнение ${idx + 1} из ${items.length}</span><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div class="track"><i style="width:${Math.round((idx / items.length) * 100)}%"></i></div>`;
     const fig = ex.frames ? `<div class="ex-fig wk-fig${PHOTOS.has(`${it.id}:${it.vk}`) ? " wk-ph" : ""}">${exFig(it.id, it.vk)}</div>` : "";
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
-    const head = `<h2 class="wk-name">${esc(it.name)}</h2><p class="wk-sub">${esc(it.vlabel || "")}${eb && (it.vk === "band" || it.vk === "bandf") ? ` · ${esc(bandName(eb))}` : ""}</p>`;
+    const head = `<h2 class="wk-name">${nameVar(it.name, [it.vlabel || "", eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · "))}</h2>`;
     let mid = "", foot = "";
     const sw = isMinIt(it);
     if (review) {
@@ -474,9 +477,9 @@ function openTrainExercise(date, key) {
   };
   const bandsBlock = () => `<span class="ex-vars-t">Какой резинкой${!((((trainLogOn(date) || {}).ebands) || {})[it.id]) && lastB && comboKey(selBand) === comboKey(comboIds(lastB)) ? " · как в прошлый раз, можно сменить" : ""}${selBand.length ? ` · около ${fmt(comboKg(selBand))} кг` : ""}</span><div class="ex-bandrow">${TR.BAND_COLORS.map((c) => `<button type="button" class="ex-bd${selBand.includes(c.id) ? " on" : ""}" data-eb="${c.id}" style="--c:${c.hex}" aria-pressed="${selBand.includes(c.id)}"><i></i>${c.t}</button>`).join("")}</div><span class="ex-vars-t" style="margin-top:6px;font-weight:500">Можно выбрать несколько цветов: трубки складываются.</span>${upHint()}`;
   const ov = openSheet(`
-    <div class="sheet-head"><h2>${esc(it.name)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="sheet-head"><h2>${nameVar(it.name, it.vlabel)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="ex-fig">${exFig(it.id, it.vk)}</div>
-    <div class="ex-meta"><span class="pill">${esc(it.vlabel)}</span><span class="pill">${esc(ex.muscles)}</span></div>
+    <div class="ex-meta"><span class="pill">${esc(ex.muscles)}</span></div>
     ${it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : ""}
     ${ex.variants && ex.variants.length > 1 ? `<div class="ex-vars"><span class="ex-vars-t">Как выполнять сейчас</span><div class="chips" style="margin:0">${[["", "Авто"], ...ex.variants.map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div></div>` : ""}
     <p class="ex-do"><b>${esc(trainDetail(it))}</b>${it.cue ? ` ${esc(it.cue)}` : ""}</p>
