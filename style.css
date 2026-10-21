@@ -1517,3 +1517,5 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .wk-set, .wk-rest { margin-top: 8px; gap: 8px; }
 .wk-foot { padding-top: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
 .wk-foot .row { margin-top: 16px !important; }
+/* v181: нижний отступ экрана тренировки ровно 25px */
+.wk-foot { padding-bottom: 25px; }
