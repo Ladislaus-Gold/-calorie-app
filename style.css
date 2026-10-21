@@ -2198,3 +2198,43 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 /* v2.2: кнопки «Удалить» и «Сохранить» в карточке продукта всегда видны внизу окна */
 .sheet .row:has(#pf-save){position:sticky;bottom:0;z-index:3;background:var(--card);padding:10px 0 4px;margin-top:4px}
 :root[data-theme="dark"] .opt-add{color:#6FCD9A}
+/* v2.8: полоска вкладок как в референсе: белая плашка, активная вкладка — зелёная таблетка */
+.seg,.seg:not(.in-card){background:#fff;border:1px solid rgba(20,60,35,.08);border-radius:20px;padding:5px;gap:2px;box-shadow:0 2px 10px rgba(20,60,35,.10)}
+.seg button{height:40px;border-radius:16px;color:#1F3026;font-weight:600}
+.seg button.on,.sub-panel.plus .sub-seg button.on{background:linear-gradient(180deg,#4FBD7C,#27984F);color:#fff;box-shadow:0 4px 10px rgba(30,140,75,.30);text-shadow:none}
+:root[data-theme="dark"] .seg,:root[data-theme="dark"] .seg:not(.in-card){background:#1F2A23;border-color:rgba(255,255,255,.08);box-shadow:0 2px 10px rgba(0,0,0,.35)}
+:root[data-theme="dark"] .seg button{color:#B7C6BC}
+:root[data-theme="dark"] .seg button.on{background:linear-gradient(180deg,#3CB26C,#1F8F4B);color:#fff;box-shadow:0 4px 10px rgba(0,0,0,.4)}
+/* v2.8: «Ещё N» — круглая стрелка между линиями, без подписи */
+.fl-fold{display:flex;align-items:center;gap:12px;width:100%;margin-top:6px;padding:10px 0 2px;background:none;border:0}
+.fl-fold::before,.fl-fold::after{content:"";flex:1;height:1px;background:#DFE7E2}
+.fl-fold .cv{margin:0;width:36px;height:36px;background:#E7F0FC;border:1px solid #AFCBF0;color:#27559A}
+.fl-fold .cv svg{width:18px;height:18px}
+:root[data-theme="dark"] .fl-fold::before,:root[data-theme="dark"] .fl-fold::after{background:rgba(255,255,255,.10)}
+:root[data-theme="dark"] .fl-fold .cv{background:#1E3550;border-color:#35567F;color:#9CC4F2}
+/* v2.8: заголовки без зелёной палочки; у «Избранного» звёздочка */
+.fl-top .h2::before,.fl-fav .h2::before{display:none}
+.fl-fav .h2{gap:8px}
+.fl-star{font-size:20px;line-height:1}
+/* v2.8: кнопка «+ Новый напиток» голубая, как «+ Напиток» */
+.btn.primary.dk-new{background:linear-gradient(180deg,#5CB9F5,#2A86D8);color:#fff;border:1px solid #1F6DB5;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 6px 14px rgba(31,109,181,.40);text-shadow:0 1px 2px rgba(0,0,0,.2)}
+:root[data-theme="dark"] .btn.primary.dk-new{background:linear-gradient(180deg,#4AA8E8,#2373C4)}
+/* v2.8: окно добавления: плитка с эмодзи, маленькие кнопки ± */
+.picked.pk-row{display:flex;align-items:center;gap:12px}
+.pk-ava{flex:none;width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:20px;font-weight:700;background:#E1EEFB}
+.pk-ava.emo,.pk-row .pk-ava{font-size:24px}
+.pk-tx{flex:1;min-width:0}
+.pk-edit{flex:none;width:38px;height:38px;border-radius:12px;border:1.5px solid #CDE6D8;background:#fff;color:#2E8F58;font-size:16px;display:grid;place-items:center}
+:root[data-theme="dark"] .pk-ava{background:#1E3550}
+:root[data-theme="dark"] .pk-edit{background:#1F2A23;border-color:#2F6B47;color:#8FE0AE}
+.row .sub-mini{flex:none;width:50px;padding:0;font-size:20px;font-weight:800}
+.row .sub-mini.on{background:#E3F3E9}
+.inp-wrap{position:relative;display:block}
+.inp-wrap .input{padding-right:56px}
+.mini-sign{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:38px;height:32px;border-radius:11px;border:1.5px solid #CDE6D8;background:#fff;color:#2E8F58;font-weight:800;font-size:17px;display:grid;place-items:center}
+:root[data-theme="dark"] .mini-sign{background:#1F2A23;border-color:#2F6B47;color:#8FE0AE}
+/* v2.8: шапка окна объёма напитка как у продуктов */
+.sheet-head.dk-head select#dk-meal{height:44px;border-radius:22px;padding:0 18px;font-weight:700;font-size:16px;background-color:#EAF6EF;border:1.5px solid #BFE3CF;color:#1F5C3A}
+.sheet-head.dk-head .icon-btn{flex:none;width:44px;height:44px;border-radius:50%;background:#EEF3F0;color:#44574C;font-size:24px;line-height:1;display:grid;place-items:center;margin-left:auto}
+:root[data-theme="dark"] .sheet-head.dk-head select#dk-meal{background-color:#1F3328;border-color:#2F5240;color:#CFEBDB}
+:root[data-theme="dark"] .sheet-head.dk-head .icon-btn{background:#26352C;color:#C9D8CE}

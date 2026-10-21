@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 210;
-const APP_VERSION_LABEL = "2.7"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 211;
+const APP_VERSION_LABEL = "2.8"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -796,6 +796,11 @@ function filterProducts(q) {
     const hay = fold(`${p.name} ${p.brand || ""} ${p.barcode || ""} ${aliasCodes(p.id).join(" ")} ${p.createdByName || ""}`);
     return words.every((w) => hay.includes(w)); // все слова запроса должны встретиться: «куриная жарен»
   });
+}
+
+function prodAva(p) {
+  const hue = parseInt(fnv(fold(p.name)), 36) % 360, ch = (String(p.name || "?").trim()[0] || "?").toUpperCase();
+  return { emo: !!p.emoji, style: p.emoji ? `background:${esc(p.color || "#EAF7EF")}` : `background:hsl(${hue} 55% 92%);color:hsl(${hue} 45% 30%)`, inner: p.emoji ? esc(p.emoji) : esc(ch) };
 }
 
 function productRow(p, attr, withPlus) {
@@ -2699,18 +2704,18 @@ function openAddFood(mealId, presetProduct) {
     const info = p.drink ? { pct: Number(p.hydrationPct) || 0, caf100: Number(p.caffeineMg100) || 0 } : null;
     const last = Number(gramsHint) || Number(lsGet(`g:${p.id}`)) || (info ? 250 : 100);
     body.innerHTML = `
-      <div class="picked"><div class="p-name">${esc(p.name)}</div><div class="p-sub">${esc(per100Text(p))}</div></div>
+      <div class="picked pk-row">${(() => { const a = prodAva(p); return `<span class="pk-ava${a.emo ? " emo" : ""}" style="${a.style}">${a.inner}</span>`; })()}<div class="pk-tx"><div class="p-name">${esc(p.name)}</div><div class="p-sub">${esc(per100Text(p))}</div></div></div>
       ${info ? `<div class="note">Напиток: засчитается и как еда, и как жидкость${info.caf100 > 0 ? " с кофеином" : ""}. Повторно вносить не нужно.</div>` : ""}
       <label class="field"><span>${info ? "Объём, мл" : "Вес, г"}</span><input id="af-g" class="input big" inputmode="decimal" value="${last}" autocomplete="off"></label>
       <div class="chips">${(info ? [150, 250, 330, 500, 1000] : [50, 100, 150, 200, 250]).map((n) => `<button type="button" class="chip" data-g="${n}">${n}</button>`).join("")}</div>
       <div class="preview" id="af-prev"></div>
-      <div class="row"><button type="button" class="btn ghost" id="af-back">Назад</button><button type="button" class="btn primary grow" id="af-add">Добавить</button></div>`;
+      <div class="row"><button type="button" class="btn ghost sub-mini" id="af-sub" aria-label="Изменить вес: плюс или минус">±</button><button type="button" class="btn ghost" id="af-back">Назад</button><button type="button" class="btn primary grow" id="af-add">Добавить</button></div>`;
     const input = $("#af-g", ov);
     const p100 = per100Of(p);
     const upd = () => { $("#af-prev", ov).innerHTML = previewHtml(p100, num(input.value), info); };
     upd();
     input.addEventListener("input", upd);
-    attachSubtract(body.querySelector(".chips"), input, info ? "мл" : "г", upd);
+    attachSubtract(body.querySelector(".chips"), input, info ? "мл" : "г", upd, $("#af-sub", ov));
     input.focus({ preventScroll: true }); input.select(); body.scrollTop = 0; // без прокрутки: иначе название продукта обрезается сверху
     body.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { input.value = c.dataset.g; upd(); }));
     $("#af-back", ov).addEventListener("click", showList);
@@ -2733,10 +2738,10 @@ function openAddFood(mealId, presetProduct) {
 }
 
 /* ----- Калькулятор вычета у поля веса: взвесил с кожурой/упаковкой, вычел её вес ----- */
-function attachSubtract(anchor, input, unit, upd) {
+function attachSubtract(anchor, input, unit, upd, trigger) {
   const host = document.createElement("div");
   host.className = "sub-calc";
-  host.innerHTML = `<button type="button" class="btn ghost sub-open">± Изменить вес (плюс или минус)</button>
+  host.innerHTML = `${trigger ? "" : `<button type="button" class="btn ghost sub-open">± Изменить вес (плюс или минус)</button>`}
     <div class="sub-panel hidden">
       <div class="seg sub-seg" role="group" aria-label="Действие"><button type="button" class="seg-b on" data-s="-">− Вычесть</button><button type="button" class="seg-b" data-s="+">+ Добавить</button></div>
       <label class="field"><span class="sub-lab">Вычесть, ${unit}</span><input class="input big sub-val" inputmode="decimal" autocomplete="off" placeholder="например, 45"></label>
@@ -2745,7 +2750,7 @@ function attachSubtract(anchor, input, unit, upd) {
       <div class="row"><button type="button" class="btn ghost sub-cancel">Отмена</button><button type="button" class="btn primary grow sub-ok">Применить</button></div>
     </div>`;
   anchor.after(host);
-  const openBtn = $(".sub-open", host), panel = $(".sub-panel", host), val = $(".sub-val", host), res = $(".sub-res", host), lab = $(".sub-lab", host);
+  const openBtn = trigger || $(".sub-open", host), panel = $(".sub-panel", host), val = $(".sub-val", host), res = $(".sub-res", host), lab = $(".sub-lab", host);
   let sign = -1;
   const fmtG = (x) => String(Math.round(x * 10) / 10).replace(".", ",");
   const setSign = (v) => {
@@ -2768,8 +2773,9 @@ function attachSubtract(anchor, input, unit, upd) {
     res.classList.toggle("bad", a > 0 && r <= 0);
     return r;
   };
-  const close = () => { panel.classList.add("hidden"); openBtn.classList.remove("hidden"); val.value = ""; setSign(-1); };
-  openBtn.addEventListener("click", () => { openBtn.classList.add("hidden"); panel.classList.remove("hidden"); calc(); val.focus(); });
+  const close = () => { panel.classList.add("hidden"); if (trigger) openBtn.classList.remove("on"); else openBtn.classList.remove("hidden"); val.value = ""; setSign(-1); };
+  const openPanel = () => { if (trigger) openBtn.classList.add("on"); else openBtn.classList.add("hidden"); panel.classList.remove("hidden"); calc(); val.focus(); };
+  openBtn.addEventListener("click", () => { if (trigger && !panel.classList.contains("hidden")) close(); else openPanel(); });
   host.querySelectorAll(".seg-b").forEach((b) => b.addEventListener("click", () => { setSign(b.dataset.s === "+" ? 1 : -1); calc(); }));
   val.addEventListener("input", () => {
     const m = /^\s*([+\-−–])/.exec(val.value);
@@ -2909,13 +2915,13 @@ function openEditEntry(entry) {
     <label class="field"><span>${entry.drink ? "Объём, мл" : "Вес, г"}</span><input id="ee-g" class="input big" inputmode="decimal" value="${String(entry.grams).replace(".", ",")}" autocomplete="off"></label>
     <div class="preview" id="ee-prev"></div>
     <button type="button" class="btn ghost full" id="ee-copy" style="margin-bottom:12px">Копировать запись</button>
-    <div class="row"><button type="button" class="btn danger" id="ee-del">Удалить</button><button type="button" class="btn primary grow" id="ee-save">Сохранить</button></div>`);
+    <div class="row"><button type="button" class="btn ghost sub-mini" id="ee-sub" aria-label="Изменить вес: плюс или минус">±</button><button type="button" class="btn danger" id="ee-del">Удалить</button><button type="button" class="btn primary grow" id="ee-save">Сохранить</button></div>`);
   const input = $("#ee-g", ov);
   const oldCaf = entry.drink ? (Number(entry.grams) * Number(entry.drink.caf100)) / 100 : 0;
   const upd = () => { $("#ee-prev", ov).innerHTML = previewHtml(p100, num(input.value), entry.drink || null, oldCaf); };
   upd();
   input.addEventListener("input", upd);
-  attachSubtract(input.closest(".field"), input, entry.drink ? "мл" : "г", upd);
+  attachSubtract(input.closest(".field"), input, entry.drink ? "мл" : "г", upd, $("#ee-sub", ov));
   $("#ee-save", ov).addEventListener("click", () => {
     const grams = num(input.value);
     if (!(grams > 0)) { toast("Введите вес в граммах"); return; }
@@ -3544,7 +3550,7 @@ function viewHealth() {
   // Вода, записанная раньше суммой за день (до появления истории)
   const legacyRow = waterOn(day) > 0 ? `<div class="entry"><span class="e-main"><span class="e-name">Вода</span><span class="e-sub">${fmt(waterOn(day))} мл, записано суммой за день</span></span><span class="e-kcal">—<small>мг кофеина</small></span></div>` : "";
   const fluidMore = fluidSorted.length > FLUID_SHOW
-    ? `<button type="button" class="more-btn fold-row fl-more" data-act="toggleFluid" aria-expanded="${fluidOpen}">Ещё ${fluidSorted.length - FLUID_SHOW}${chev(fluidOpen)}</button>`
+    ? `<button type="button" class="fl-fold" data-act="toggleFluid" aria-expanded="${fluidOpen}" aria-label="${fluidOpen ? "Свернуть" : `Показать ещё ${fluidSorted.length - FLUID_SHOW}`}">${chev(fluidOpen)}</button>`
     : "";
   const fluidRows = fluidShown.map((i) => `
     <button type="button" class="entry fl-e" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
@@ -3567,7 +3573,7 @@ function viewHealth() {
       </div>
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
     </section>
-    ${favs.length ? `<section class="card fl-fav"><h2 class="h2">Избранное</h2><div class="chips fav-chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div></section>` : ""}
+    ${favs.length ? `<section class="card fl-fav"><h2 class="h2"><span class="fl-star" aria-hidden="true">⭐</span>Избранное</h2><div class="chips fav-chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div></section>` : ""}
     ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray">🥤</span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}
     <section class="card">
       <div class="caf-card lv-${caf.level}" style="--ch:${Math.round(130 * (1 - Math.min(1, Math.max(0, caf.ratio))))}">
@@ -4172,9 +4178,15 @@ function toggleFav(id) {
 // entry: запись, которую правим; presetId: сразу открыть напиток (из избранного)
 function openDrinkSheet(entry, presetId, presetMl, prefill) {
   const ov = openSheet(`
-    <div class="sheet-head"><h2>Напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="sheet-head" id="dk-head"><h2>Напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div id="dk-body"></div>`);
   const body = $("#dk-body", ov);
+  // В окне объёма шапка как у продуктов: приём пищи слева, закрыть справа
+  const headEl = $("#dk-head", ov);
+  const setHead = (meal) => {
+    headEl.className = meal ? "sheet-head af-head dk-head" : "sheet-head";
+    headEl.innerHTML = `${meal ? `<select id="dk-meal" class="input" aria-label="Приём пищи">${mealOptions(mealByTime())}</select>` : "<h2>Напиток</h2>"}<button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button>`;
+  };
   const st = { q: "", cat: "all" };
 
   const rowHtml = (d) => {
@@ -4189,6 +4201,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
 
   function showList() {
     const favs = favDrinks();
+    setHead(false);
     body.innerHTML = `
       ${presetMl > 0 ? `<p class="foot-note" style="margin:0 2px 8px">Выберите напиток для ${fmt(presetMl)} мл</p>` : ""}
       <button type="button" class="btn primary full dk-new" id="dk-new">+ Новый напиток</button>
@@ -4240,6 +4253,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const cafInit = d.c > 0 ? r1((d.c / 240) * 100) : 0;
     const alcOpts = [["Слабый алкоголь", "Слабый (пиво, сидр)"], ["Легкий алкоголь", "Лёгкий"], ["Умеренный алкоголь", "Умеренный"], ["Средний алкоголь", "Средний (вино, вермут)"], ["Крепкий алкоголь", "Крепкий (водка, виски, коньяк)"]];
     const alcSel0 = alcOpts.some((o) => o[0] === d.a) ? d.a : "Средний алкоголь";
+    setHead(false);
     body.innerHTML = `
       <div class="pf-top-row">
         <button type="button" class="pf-ava-btn" id="dc-ava" aria-label="Эмодзи и цвет" style="${d.e ? `background:${esc(d.col || AVA_COLORS[0])};border-style:solid;border-color:${esc(d.col || AVA_COLORS[0])}` : ""}"><span id="dc-ava-ic">${d.e ? esc(d.e) : "🥤"}</span><span class="pf-ava-pencil">✎</span></button>
@@ -4250,10 +4264,9 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
       <p class="note" id="dc-hint" style="margin-top:-4px"></p>
       <div class="field-grid">
-        <label class="field"><span>Гидратация, %</span><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"></label>
+        <label class="field"><span>Гидратация, %</span><div class="inp-wrap"><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"><button type="button" class="mini-sign" id="dc-sign" aria-label="Сменить знак гидратации (минус для алкоголя)">±</button></div></label>
         <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
       </div>
-      <button type="button" class="btn ghost full sub-open-like" id="dc-sign" style="margin:-4px 0 14px">± Сменить знак гидратации (минус для алкоголя)</button>
       <div class="field sec-label"><span>Значения на 100 мл</span></div>
       <div class="field-grid">
         <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" placeholder="0" value="${v0(d.k)}" autocomplete="off"></label>
@@ -4263,7 +4276,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       </div>
       <div class="field"><span>Штрих-коды (можно несколько: другие упаковки и партии)</span>
         <div id="dc-bc-list" class="chips"></div>
-        <div class="inline"><input id="dc-bc-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код" autocomplete="off"><button type="button" class="icon-btn" id="dc-bc-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button><button type="button" class="btn ghost sm" id="dc-bc-add">Добавить</button></div>
+        <div class="inline"><input id="dc-bc-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код" autocomplete="off"><button type="button" class="icon-btn" id="dc-bc-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>
+        <p class="foot-note" style="margin:6px 2px 0">Код добавится сам: после сканирования, при выходе из поля и при «Сохранить».</p>
       </div>
       <div class="row">${isNew ? `<button type="button" class="btn ghost" id="dc-back">Назад</button>` : `<button type="button" class="btn danger" id="dc-del">Удалить</button>`}<button type="button" class="btn primary grow" id="dc-save">Сохранить</button></div>`;
     const list = $("#dc-bc-list", ov), inp = $("#dc-bc-in", ov);
@@ -4277,7 +4291,15 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       if (msg) { toast(msg); return; }
       bcs.push(code); inp.value = ""; drawBc();
     };
-    $("#dc-bc-add", ov).addEventListener("click", () => addBc(inp.value));
+    // ручной ввод: код добавляется при выходе из поля и при сохранении (на iPhone у цифровой клавиатуры нет «Ввод»)
+    const flushBc = () => {
+      const digits = String(inp.value || "").replace(/\D/g, "");
+      if (!digits) return true;
+      const n = bcs.length;
+      addBc(digits);
+      return bcs.length > n;
+    };
+    inp.addEventListener("blur", () => { if (String(inp.value || "").replace(/\D/g, "").length >= 6) flushBc(); });
     $("#dc-bc-scan", ov).addEventListener("click", () => openScanner((code) => addBc(code)));
     list.addEventListener("click", (e) => {
       const b = e.target.closest("[data-bcdel]");
@@ -4350,6 +4372,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     };
     $("#dc-save", ov).addEventListener("click", async () => {
       if (catSel.value === "__prod__") { moveToProducts(); return; }
+      if (!flushBc()) return;
       const name = $("#dc-name", ov).value.trim();
       const opt = (sel) => { const t = $(sel, ov).value.trim(); return t === "" ? 0 : num(t); };
       const h = numS(pct.value), caf = opt("#dc-caf"), k = opt("#dc-k"), p = opt("#dc-p"), f = opt("#dc-f"), cb = opt("#dc-cb");
@@ -4387,16 +4410,16 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const isWater = d.id === "water" && !existing;
     const oldCaf = existing ? (Number(existing.ml) * Number(existing.caf100)) / 100 : 0;
     const lastMl = existing ? existing.ml : (presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250));
+    setHead(!existing);
     body.innerHTML = `
-      <div class="picked"><div class="p-name">${isCustom ? "" : `<span class="pk-em">${esc(drinkIcon(d))}</span> `}${isCustom ? (existing ? "Свой напиток" : "Новый напиток") : esc(d.n)}</div>${isCustom ? "" : `<div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div>`}</div>
+      ${isCustom ? `<div class="picked"><div class="p-name">${existing ? "Свой напиток" : "Новый напиток"}</div></div>` : `<div class="picked pk-row"><span class="pk-ava"${d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div><div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div></div>${existing ? "" : `<button type="button" class="pk-edit" id="dk-card" aria-label="Карточка напитка">✎</button>`}</div>`}
       ${isCustom ? `${existing ? "" : `<label class="field"><span>Категория</span><select id="dk-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
         <label class="field hidden" id="dk-alc-box"><span>Крепость</span><select id="dk-alc" class="input"><option value="Слабый алкоголь">Слабый (пиво, сидр)</option><option value="Легкий алкоголь">Лёгкий</option><option value="Умеренный алкоголь">Умеренный</option><option value="Средний алкоголь" selected>Средний (вино, вермут)</option><option value="Крепкий алкоголь">Крепкий (водка, виски, коньяк)</option></select></label>`}
         <label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
         <div class="field-grid">
-          <label class="field"><span>Гидратация, %</span><input id="dk-pct" class="input" inputmode="decimal" value="${String(d.h).replace(".", ",")}" autocomplete="off"></label>
+          <label class="field"><span>Гидратация, %</span><div class="inp-wrap"><input id="dk-pct" class="input" inputmode="decimal" value="${String(d.h).replace(".", ",")}" autocomplete="off"><button type="button" class="mini-sign" id="dk-sign" aria-label="Сменить знак гидратации (минус для алкоголя)">±</button></div></label>
           <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dk-caf" class="input" inputmode="decimal" placeholder="0" value="${existing && Number(existing.caf100) > 0 ? String(existing.caf100).replace(".", ",") : ""}" autocomplete="off"></label>
         </div>
-        <div class="chips" style="margin:-4px 0 10px"><button type="button" class="chip muted" id="dk-sign">± Сменить знак гидратации (минус для алкоголя)</button></div>
         <label class="field"><span>Калории, ккал на 100 мл (если есть)</span><input id="dk-kcal" class="input" inputmode="decimal" placeholder="0" value="" autocomplete="off"></label>
         ${existing ? "" : `<label class="check"><input type="checkbox" id="dk-keep" checked> <span>Сохранить в список напитков</span></label>`}` : ""}
       <label class="field"><span>Объём, мл</span><input id="dk-ml" class="input big" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"></label>
@@ -4404,9 +4427,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       <div class="preview" id="dk-prev"></div>
       <div id="dk-kbox" class="hidden">
         <div class="note" id="dk-knote">Попадёт и в жидкость, и в калории дневника одной записью. Повторно вносить как еду не нужно.</div>
-        <label class="field"><span>Приём пищи</span><select id="dk-meal" class="input">${MEALS.map((m) => `<option value="${m.id}" ${m.id === mealByTime() ? "selected" : ""}>${m.name}</option>`).join("")}</select></label>
       </div>
-      <div class="row">${existing ? `<button type="button" class="btn danger" id="dk-del">Удалить</button>` : `<button type="button" class="btn ghost" id="dk-back">Назад</button>`}${!existing ? `<button type="button" class="btn ghost" id="dk-card">Карточка</button>` : ""}<button type="button" class="btn primary grow" id="dk-save">${existing ? "Сохранить" : "Добавить"}</button></div>`;
+      <div class="row">${existing ? `<button type="button" class="btn danger" id="dk-del">Удалить</button>` : `<button type="button" class="btn ghost" id="dk-back">Назад</button>`}<button type="button" class="btn primary grow" id="dk-save">${existing ? "Сохранить" : "Добавить"}</button></div>`;
 
     const read = () => {
       const ml = num($("#dk-ml", ov).value);
@@ -4424,6 +4446,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       const kc = (!existing && r.ml > 0 && !isWater) ? calc(r.nutr, r.ml) : { kcal: 0, protein: 0, fat: 0, carbs: 0 };
       const kb = $("#dk-kbox", ov);
       if (kb) kb.classList.toggle("hidden", !(kc.kcal > 0));
+      const mp = $("#dk-meal", ov);
+      if (mp) mp.classList.toggle("hidden", !(kc.kcal > 0));
       $("#dk-prev", ov).innerHTML = `
         <div class="pv-kcal ${eff < 0 ? "neg" : ""}">${signed(Math.round(eff))}<small>мл жидкости засчитано</small></div>
         <div class="pv-macros"><div><b>${fmt(r.ml > 0 ? r.ml : 0)}</b>выпито, мл</div><div><b>${Number.isFinite(r.pct) ? fmt(r.pct) : 0}%</b>гидратация</div><div><b>${fmtInt(caf)}</b>кофеин, мг</div></div>
