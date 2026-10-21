@@ -1451,3 +1451,28 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .ms-chips .chip { padding: 6px 9px; font-size: 13px; flex: 1 1 auto; text-align: center; white-space: nowrap; }
 .offline-bar { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 9999; padding: 9px 14px; border-radius: 12px; background: #3A3F3C; color: #fff; font-size: 13px; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); transform: translateY(-140%); transition: transform .2s ease; pointer-events: none; }
 .offline-bar.on { transform: none; }
+
+/* v173: «Вчерашние блюда» и «Все блюда» отдельными блоками с тенью */
+.af-blk { margin: 0 0 14px; padding: 6px 6px 4px; border-radius: 18px; background: linear-gradient(180deg, #fff 0%, #F4FAF6 100%); border: 1px solid rgba(27, 157, 75, .14); box-shadow: 0 6px 18px rgba(20, 50, 35, .12), 0 1px 3px rgba(20, 50, 35, .07); }
+.af-blk.af-prev { background: linear-gradient(180deg, #FFFBEF 0%, #FFF3D6 100%); border-color: rgba(214, 160, 40, .30); }
+.af-blk-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px 4px; }
+.af-blk-h b { font-size: 15px; }
+.af-blk-h span { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: rgba(214, 160, 40, .22); color: #8A5A00; }
+.af-blk .qa-title { padding-left: 10px; }
+:root[data-theme="dark"] .af-blk { background: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .02)); border-color: rgba(255, 255, 255, .08); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
+:root[data-theme="dark"] .af-blk.af-prev { background: linear-gradient(180deg, rgba(240, 190, 80, .16), rgba(240, 190, 80, .06)); border-color: rgba(240, 190, 80, .28); }
+:root[data-theme="dark"] .af-blk-h span { background: rgba(240, 190, 80, .22); color: #F0CB75; }
+
+/* v174: каждый список выбора еды отдельным блоком */
+.af-blk.af-rec { background: linear-gradient(180deg, #FFFFFF 0%, #EEF5FF 100%); border-color: rgba(70, 120, 210, .20); }
+.af-blk.af-frq { background: linear-gradient(180deg, #FFFFFF 0%, #F6EEFB 100%); border-color: rgba(140, 90, 200, .20); }
+.af-blk .prow:last-child { border-bottom: 0; }
+:root[data-theme="dark"] .af-blk.af-rec { background: linear-gradient(180deg, rgba(90, 150, 240, .14), rgba(90, 150, 240, .04)); border-color: rgba(90, 150, 240, .26); }
+:root[data-theme="dark"] .af-blk.af-frq { background: linear-gradient(180deg, rgba(170, 120, 240, .14), rgba(170, 120, 240, .04)); border-color: rgba(170, 120, 240, .26); }
+.af-blk { margin: 0 0 18px; box-shadow: 0 10px 26px rgba(20, 50, 35, .20), 0 2px 5px rgba(20, 50, 35, .10); }
+:root[data-theme="dark"] .af-blk { box-shadow: 0 10px 26px rgba(0, 0, 0, .6), 0 2px 5px rgba(0, 0, 0, .4); }
+
+/* v175: блоки выбора еды заметно отделены тенью */
+#af-list { padding: 4px 6px 12px; overflow: visible; }
+.af-blk { margin: 0 0 22px; border: 1px solid rgba(20, 50, 35, .14); box-shadow: 0 14px 30px -6px rgba(20, 50, 35, .34), 0 4px 10px rgba(20, 50, 35, .16), 0 0 0 1px rgba(255, 255, 255, .6) inset; }
+:root[data-theme="dark"] .af-blk { box-shadow: 0 14px 30px -6px rgba(0, 0, 0, .8), 0 4px 10px rgba(0, 0, 0, .5); }

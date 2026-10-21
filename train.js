@@ -848,6 +848,100 @@ export const EXERCISES = {
     steps: ["Отрегулируйте сиденье: нога почти выпрямляется внизу.", "Крутите педали в ровном темпе.", "Спина прямая, плечи расслаблены."],
     mistakes: ["Слишком низкое сиденье: нагрузка на колени.", "Слишком тяжёлое сопротивление."],
   },
+
+  /* ---------- Суставная разминка (подбирается под группы мышц тренировки) ---------- */
+  mob_neck: {
+    name: "Наклоны и повороты головой", muscles: "Шея и верх трапеций", kind: "stretch", warm: true, joints: "шея",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Двигайтесь плавно и медленно, без круговых рывков." }],
+    anchor: "ankle",
+    frames: [{ ...STAND, a: [0, 0], hd: 115 }, { ...STAND, a: [0, 0], hd: 235 }],
+    steps: ["Встаньте прямо, плечи опущены.", "Медленно наклоните голову вперёд, затем влево и вправо.", "Плавно повернитесь, глядя через плечо в обе стороны.", "Назад голову откидывайте совсем немного."],
+    mistakes: ["Быстрые круги головой: нагрузка на шейные позвонки.", "Поднятые к ушам плечи."],
+  },
+  mob_shoulder: {
+    name: "Круги плечами", muscles: "Плечевые суставы, трапеции", kind: "stretch", warm: true, joints: "плечи",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Большие плавные круги назад, затем вперёд." }],
+    anchor: "ankle",
+    frames: [{ ...STAND, a: [40, 25] }, { ...STAND, a: [-40, -25] }],
+    steps: ["Встаньте прямо, руки свободно вдоль тела.", "Поднимите плечи к ушам, отведите назад и опустите: большой круг.", "Сделайте 10 кругов назад и 10 вперёд."],
+    mistakes: ["Маленькие быстрые круги.", "Наклон корпуса вперёд."],
+  },
+  mob_arm: {
+    name: "Круги прямыми руками", muscles: "Плечевые суставы, грудь и спина", kind: "stretch", warm: true, joints: "плечи",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Начинайте с маленьких кругов и постепенно увеличивайте." }],
+    anchor: "ankle",
+    frames: [{ ...STAND, a: [180, 180] }, { ...STAND, a: [-90, -90] }],
+    steps: ["Встаньте прямо, руки в стороны на уровне плеч.", "Делайте круги прямыми руками: сначала маленькие, затем больше.", "Через 10 кругов смените направление."],
+    mistakes: ["Рывки руками.", "Прогиб в пояснице при подъёме рук."],
+  },
+  mob_elbow: {
+    name: "Локти: сгибание с вращением ладоней", muscles: "Локтевые суставы, бицепсы и трицепсы", kind: "stretch", warm: true, joints: "локти",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Полный размах без боли, ладони поворачиваются вверх и вниз." }],
+    anchor: "ankle",
+    frames: [{ ...STAND, a: [0, 0] }, { ...STAND, a: [0, 160] }],
+    steps: ["Встаньте прямо, локти прижаты к корпусу.", "Согните руки в локтях до плеч, ладони вверх.", "Разогните, повернув ладони вниз, и повторите.", "Затем сделайте вращения предплечьями по кругу."],
+    mistakes: ["Локти уходят вперёд и в стороны.", "Резкое разгибание до упора."],
+  },
+  mob_wrist: {
+    name: "Круги кистями и пальцами", muscles: "Запястья и предплечья", kind: "stretch", warm: true, joints: "запястья",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Круги кистями в обе стороны, затем сгибания и разгибания." }],
+    anchor: "ankle",
+    frames: [{ ...STAND, a: [90, 90], hdir: -65 }, { ...STAND, a: [90, 90], hdir: 65 }],
+    steps: ["Вытяните руки перед собой.", "Сделайте 10 кругов кистями в одну и другую сторону.", "Согните и разогните кисти вверх и вниз, затем сожмите и разожмите пальцы."],
+    mistakes: ["Слишком резкое сгибание кисти.", "Круги только с одной стороны."],
+  },
+  mob_catcow: {
+    name: "Кошка-корова", muscles: "Позвоночник, спина и кор", kind: "stretch", warm: true, joints: "позвоночник", floor: true, mat: true, avoid: ["wrists"],
+    variants: [{ k: "bw", need: [], label: "На четвереньках", cue: "Движение идёт от таза и по одному позвонку." }],
+    anchor: "handF",
+    frames: [
+      { t: 90, la: [-27, 28, "d"], f: -90, a: [0, 0], LA: [-27, 28, "d"], F: -90, A: [0, 0], hd: 70 },
+      { t: 100, la: [-27, 28, "d"], f: -90, a: [0, 0], LA: [-27, 28, "d"], F: -90, A: [0, 0], hd: 130 },
+    ],
+    steps: ["Встаньте на четвереньки: ладони под плечами, колени под тазом.", "На выдохе округлите спину и опустите голову.", "На вдохе прогнитесь, подняв грудь и взгляд вперёд.", "Повторите 8–10 раз в медленном темпе."],
+    mistakes: ["Слишком резкий прогиб в пояснице.", "Задержка дыхания."],
+  },
+  mob_twist: {
+    name: "Повороты корпуса стоя", muscles: "Поясница и грудной отдел", kind: "stretch", warm: true, joints: "позвоночник",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Ноги стоят на месте, вращается только корпус." }],
+    anchor: "ankle",
+    frames: [{ ...STAND, a: [90, 90], A: [-90, -90] }, { ...STAND, a: [-90, -90], A: [90, 90] }],
+    steps: ["Встаньте на ширине плеч, руки согнуты у груди.", "Плавно поворачивайте корпус вправо и влево.", "Стопы и таз остаются на месте."],
+    mistakes: ["Поворот коленями вместо корпуса.", "Резкие рывки."],
+  },
+  mob_hip: {
+    name: "Круги коленом: тазобедренный сустав", muscles: "Тазобедренные суставы, ягодицы", kind: "stretch", side: true, warm: true, joints: "тазобедренные суставы",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Поднимите колено и рисуйте им большие круги в стороны." }],
+    anchor: "ankle",
+    frames: [{ t: 180, la: [26, 30, "f"], LA: [0, 55, "f"], a: [30, 20] }, { t: 180, la: [10, 26, "f"], f: 40, LA: [0, 55, "f"], a: [30, 20] }],
+    steps: ["Встаньте прямо, при необходимости обопритесь рукой.", "Поднимите колено и отведите его в сторону, затем назад.", "Сделайте 8 кругов и смените ногу."],
+    mistakes: ["Раскачивание корпусом.", "Маленькая амплитуда."],
+  },
+  mob_legswing: {
+    name: "Махи ногой вперёд-назад", muscles: "Задняя и передняя поверхность бедра", kind: "stretch", side: true, warm: true, joints: "тазобедренные суставы",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Нога прямая, амплитуда нарастает постепенно." }],
+    anchor: "ankle",
+    frames: [{ t: 180, la: [34, 42, "f"], LA: [0, 55, "f"], a: [30, 20] }, { t: 180, la: [-30, 46, "b"], LA: [0, 55, "f"], a: [30, 20] }],
+    steps: ["Обопритесь рукой о стену или стул.", "Плавно махните прямой ногой вперёд и назад.", "Сделайте 10 махов и смените ногу."],
+    mistakes: ["Резкие махи с отрывом.", "Прогиб поясницы при махе назад."],
+  },
+  mob_knee: {
+    name: "Круги коленями", muscles: "Коленные суставы", kind: "stretch", warm: true, joints: "колени",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Колени вместе, ладони на коленях, круги небольшие." }],
+    anchor: "ankle",
+    frames: [{ t: 172, la: [10, 52, "f"], a: [50, 55] }, { t: 172, la: [26, 44, "f"], a: [50, 55] }],
+    steps: ["Поставьте стопы вместе, слегка согните ноги, ладони на коленях.", "Делайте плавные круги коленями по 8–10 раз в каждую сторону."],
+    mistakes: ["Глубокий присед.", "Резкое выпрямление колен."],
+  },
+  mob_ankle: {
+    name: "Круги стопой", muscles: "Голеностопные суставы", kind: "stretch", side: true, warm: true, joints: "голеностопы",
+    variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Носок рисует большой круг, голень неподвижна." }],
+    anchor: "ankle",
+    frames: [{ t: 180, la: [14, 40, "f"], f: 30, LA: [0, 55, "f"], a: [30, 20] }, { t: 180, la: [14, 40, "f"], f: 150, LA: [0, 55, "f"], a: [30, 20] }],
+    steps: ["Обопритесь рукой, приподнимите одну стопу.", "Делайте круги стопой по 8–10 раз в каждую сторону.", "Смените ногу."],
+    mistakes: ["Двигается вся нога, а не стопа.", "Слишком быстрый темп."],
+  },
+
   march: {
     name: "Марш на месте", muscles: "Всё тело, разогрев", cardio: true, kind: "cardio",
     variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Поднимайте колени до уровня таза, руки работают в такт." }],
@@ -1070,6 +1164,14 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
     it.sub = group === "warm" ? "лёгкий темп" : ex.id === "walk_tm" ? "1 мин быстрее, 1 мин спокойнее" : ex.id === "march" ? "высоко поднимайте колени" : "быстрым шагом или трусцой";
     return it;
   }
+  if (ex.kind === "stretch" && ex.warm) {
+    it.sets = 1;
+    it.secs = [25, 30];
+    it.est = (ex.side ? 2 : 1) * 30 + 8;
+    it.text = ex.side ? "по 25–30 сек на сторону" : "25–30 сек";
+    it.sub = ex.joints ? `суставы: ${ex.joints}` : "плавно, без рывков";
+    return it;
+  }
   if (ex.kind === "stretch") {
     it.sets = 1;
     it.secs = [30, 40];
@@ -1099,7 +1201,7 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
 }
 
 // Своё упражнение, добавленное пользователем в день: spec { n, id, group, sets, reps, minutes, secs }
-export const GROUP_OF = (ex) => (ex.kind === "cardio" ? "cardio" : ex.kind === "stretch" ? "cool" : "main");
+export const GROUP_OF = (ex) => (ex.kind === "cardio" ? "cardio" : ex.warm ? "warm" : ex.kind === "stretch" ? "cool" : "main");
 const clampN = (v, lo, hi, d) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x > 0 ? Math.max(lo, Math.min(hi, x)) : d; };
 export function customItem(spec, cfgRaw, date) {
   const ex = spec && EXERCISES[spec.id];
@@ -1139,6 +1241,33 @@ export function customItem(spec, cfgRaw, date) {
 
 // minutesOverride: время на сегодня (15–60); профиль даёт цель (goal)
 // avoid: упражнения, которые пользователь стабильно пропускает; в слоте их заменяет другое подходящее
+// Суставная разминка: какие упражнения подходят к каждой группе мышц (порядок: самое важное сначала)
+const JOINT_WARM = {
+  legs: ["mob_hip", "mob_knee", "mob_ankle", "mob_legswing"],
+  glutes: ["mob_hip", "mob_legswing", "mob_catcow"],
+  back: ["mob_catcow", "mob_twist", "mob_shoulder", "mob_neck"],
+  chest: ["mob_arm", "mob_shoulder", "mob_wrist"],
+  shoulders: ["mob_shoulder", "mob_arm", "mob_neck"],
+  biceps: ["mob_elbow", "mob_wrist"],
+  triceps: ["mob_elbow", "mob_arm", "mob_wrist"],
+  forearms: ["mob_wrist", "mob_elbow"],
+  core: ["mob_twist", "mob_catcow"],
+};
+// Подбор суставной разминки под группы мышц, которые реально стоят в тренировке
+function jointWarm(mainItems, ctx, count) {
+  const freq = new Map();
+  mainItems.forEach((it, i) => { const g = it.mg; if (g && JOINT_WARM[g]) { const f = freq.get(g) || { n: 0, first: i }; f.n++; freq.set(g, f); } });
+  const groups = [...freq.entries()].sort((p, q) => q[1].n - p[1].n || p[1].first - q[1].first).map(([g]) => g);
+  const chosen = [];
+  for (let round = 0; chosen.length < count && round < 4; round++) {
+    for (const g of groups) {
+      const id = JOINT_WARM[g].filter((x) => usable(EXERCISES[x], ctx) && !chosen.includes(x))[0];
+      if (id) { chosen.push(id); if (chosen.length >= count) break; }
+    }
+  }
+  return chosen.map((id) => itemFor(EXERCISES[id], ctx, "warm", 1, 0));
+}
+
 export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds) {
   const cfg = normCfg(cfgRaw, date);
   const type = sessionType(cfg, date);
@@ -1154,12 +1283,13 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   const cardioPick = (ids) => ids.map((i) => EXERCISES[i]).find((e) => e && pickVariant(e, ctx));
   const cardioEx = cardioPick(cfg.place === "outdoor" ? ["walk_out", "march"] : ["walk_tm", "walk_out", "march"]);
   const warmMin = M <= 20 ? 2 : M <= 30 ? 3 : M <= 45 ? 4 : 5;
-  const warm = cardioEx ? [itemFor(cardioEx, ctx, "warm", 1, warmMin)] : [];
+  const warmCardio = cardioEx ? [itemFor(cardioEx, ctx, "warm", 1, warmMin)] : [];
+  const nMob = M <= 20 ? 2 : M <= 30 ? 4 : M <= 45 ? 5 : 6;
   const nStretch = M <= 20 ? 2 : 3;
   const cool = bp.cool.map((i) => EXERCISES[i]).filter((e) => usable(e, ctx)).slice(0, nStretch).map((e) => itemFor(e, ctx, "cool", 1, 0));
   let cardioMin = M >= 30 ? Math.round(M * (ctx.goal === "lose" ? 0.15 : ctx.goal === "gain" ? 0.1 : 0.13)) : 0;
   const sec = (arr) => arr.reduce((t, x) => t + x.est, 0);
-  let budget = M * 60 - sec(warm) - sec(cool) - cardioMin * 60;
+  let budget = M * 60 - sec(warmCardio) - nMob * 45 - sec(cool) - cardioMin * 60;
   const main = [];
   const used = new Set();
   let spent = 0;
@@ -1185,6 +1315,7 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   const left = budget - spent;
   if (left >= 150 && cardioEx) cardioMin = Math.min(15, cardioMin + Math.floor(left / 60));
   const fin = cardioEx && cardioMin > 0 ? [itemFor(cardioEx, ctx, "cardio", 1, cardioMin)] : [];
+  const warm = [...warmCardio, ...jointWarm(main, ctx, nMob)];
   const items = [...warm, ...main, ...fin, ...cool];
   return {
     date, type, minutes: M, title: bp.short, focus: bp.focus, items, bump: ctx.bump, swapped,

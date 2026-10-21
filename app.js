@@ -12,8 +12,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=11";
-import { createTrainUI } from "./trainui.js?v=1";
+import * as TR from "./train.js?v=13";
+import { createTrainUI } from "./trainui.js?v=3";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,7 +76,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 172;
+const APP_VERSION = 175;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2512,6 +2512,17 @@ function quickProducts() {
   return { recent, freq, seen };
 }
 
+// «Как вчера»: блюда этого приёма пищи за ближайший прошлый день, где они были (вес берётся из той записи)
+function mealRepeat(mealId) {
+  const byId = new Map(state.products.map((p) => [p.id, p]));
+  const es = state.entries.filter((e) => e.meal === mealId && e.date < state.date && byId.has(e.productId));
+  if (!es.length) return null;
+  const date = es.reduce((m, e) => (e.date > m ? e.date : m), "");
+  const items = new Map();
+  es.filter((e) => e.date === date).sort((x, y) => createdMs(x) - createdMs(y)).forEach((e) => items.set(e.productId, { p: byId.get(e.productId), g: Math.round(Number(e.grams) || 0) }));
+  return { date, items: [...items.values()] };
+}
+
 /* ----- Добавление еды в дневник ----- */
 function openAddFood(mealId, presetProduct) {
   const ov = openSheet(`
@@ -2543,9 +2554,15 @@ function openAddFood(mealId, presetProduct) {
     const draw = () => {
       if (!q.trim() && state.products.length) {
         const qs = quickProducts();
-        const sec = (title, arr) => (arr.length ? `<div class="qa-title">${title}</div>${arr.map((p) => productRow(p, "data-pick")).join("")}` : "");
+        const mealNow = $("#af-meal", ov).value, mr = mealRepeat(mealNow);
+        const mealName = (MEALS.find((m) => m.id === mealNow) || {}).name || "";
+        if (mr) { const ids = new Set(mr.items.map((x) => x.p.id)); qs.recent = qs.recent.filter((p) => !ids.has(p.id)); qs.freq = qs.freq.filter((p) => !ids.has(p.id)); ids.forEach((id) => qs.seen.add(id)); }
         const rest = state.products.filter((p) => !qs.seen.has(p.id)).slice(0, 60);
-        $("#af-list", ov).innerHTML = sec("Недавнее", qs.recent) + sec("Частое", qs.freq) + ((qs.recent.length || qs.freq.length) && rest.length ? `<div class="qa-title">Все продукты</div>` : "") + rest.map((p) => productRow(p, "data-pick")).join("");
+        const blk = (title, arr, cls, tag) => (arr.length ? `<div class="af-blk${cls ? ` ${cls}` : ""}"><div class="af-blk-h"><b>${title}</b>${tag ? `<span>${esc(tag)}</span>` : ""}</div>${arr.join("")}</div>` : "");
+        const rows = (arr) => arr.map((p) => productRow(p, "data-pick"));
+        const when = mr ? (mr.date === addDays(state.date, -1) ? "Вчерашние блюда" : `Блюда за ${esc(shortDate(mr.date))}`) : "";
+        $("#af-list", ov).innerHTML = blk(when, mr ? mr.items.map((x) => productRow(x.p, `data-gr="${x.g}" data-pick`)) : [], "af-prev", mealName)
+          + blk("Недавнее", rows(qs.recent), "af-rec") + blk("Частое", rows(qs.freq), "af-frq") + blk("Все продукты", rows(rest), "");
         return;
       }
       const items = filterProducts(q).slice(0, 60);
@@ -2560,8 +2577,9 @@ function openAddFood(mealId, presetProduct) {
       const b = e.target.closest("[data-pick]");
       if (!b) return;
       const p = state.products.find((x) => x.id === b.dataset.pick);
-      if (p) showDetail(p);
+      if (p) showDetail(p, Number(b.dataset.gr) || 0);
     });
+    $("#af-meal", ov).onchange = () => { if ($("#af-list", ov) && !q.trim()) draw(); };
   }
 
   async function showOff(term) {
@@ -2587,10 +2605,10 @@ function openAddFood(mealId, presetProduct) {
     }));
   }
 
-  function showDetail(p) {
+  function showDetail(p, gramsHint) {
     body.classList.remove("lm");
     const info = p.drink ? { pct: Number(p.hydrationPct) || 0, caf100: Number(p.caffeineMg100) || 0 } : null;
-    const last = Number(lsGet(`g:${p.id}`)) || (info ? 250 : 100);
+    const last = Number(gramsHint) || Number(lsGet(`g:${p.id}`)) || (info ? 250 : 100);
     body.innerHTML = `
       <div class="picked"><div class="p-name">${esc(p.name)}</div><div class="p-sub">${esc(per100Text(p))}</div></div>
       ${info ? `<div class="note">Напиток: засчитается и как еда, и как жидкость${info.caf100 > 0 ? " с кофеином" : ""}. Повторно вносить не нужно.</div>` : ""}

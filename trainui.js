@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=11";
+import * as TR from "./train.js?v=13";
 
 export function createTrainUI(env) {
   const { $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail } = env;
@@ -11,6 +11,8 @@ export function createTrainUI(env) {
 const DUMBBELL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>';
 const trainCfg = () => TR.normCfg(state.trainCfg, todayStr());
 const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
+// Кардио-пункт со временем в минутах (разминка-дорожка или кардио); суставные упражнения разминки идут по секундам
+const isMinIt = (it) => it.group === "cardio" || (it.group === "warm" && Number(it.minutes) > 0);
 const trainMinutes = (d) => { const l = trainLogOn(d); return l && Number(l.minutes) > 0 ? Number(l.minutes) : trainCfg().minutes; };
 // Упражнения с отметкой «болит» минимум в двух разных днях за последние 3 недели заменяются в будущих планах
 function painIds(d) {
@@ -89,7 +91,7 @@ function trainRowHtml(day, it, done) {
   const fm = Number((lg.mins || {})[it.key]) || 0;
   const sd = it.reps ? (((lg.sets || {})[it.id]) || []).filter((v) => Number(v) > 0).length : 0;
   const part = !on && sd > 0 && sd < it.sets ? ` · сделано ${sd} из ${it.sets} подх.` : "";
-  const sub = it.group === "cardio" || it.group === "warm" ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${part}`;
+  const sub = isMinIt(it) ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${part}`;
   return `<div class="tr-row${on ? " on" : ""}">
     <button type="button" class="tr-check" data-act="trainTick" data-date="${day}" data-key="${esc(it.key)}" aria-pressed="${on}" aria-label="Отметить выполненным">${CHECK}</button>
     <button type="button" class="tr-main" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}"><span class="tr-name">${esc(it.name)}</span><span class="tr-sub">${esc(sub)}</span></button>
@@ -169,8 +171,8 @@ function trainCardHtml(day) {
 
 const pluralSets = (n) => (n === 1 ? "подход" : "подхода");
 function trainDetail(it) {
-  if (it.group === "warm" || it.group === "cardio") return `${it.minutes} мин, ${it.sub}.`;
-  if (it.group === "cool") return `${it.text}. ${it.sub}.`;
+  if (isMinIt(it)) return `${it.minutes} мин, ${it.sub}.`;
+  if (it.group === "cool" || it.group === "warm") return `${it.text}. ${it.sub}.`;
   if (it.reps) return `${it.sets} ${pluralSets(it.sets)} по ${it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`} повторений${it.side ? " на каждую сторону" : ""}, отдых ${it.rest} сек.`;
   return `${it.sets} ${pluralSets(it.sets)} по ${it.secs[0]}–${it.secs[1]} секунд${it.side ? " на каждую сторону" : ""}, отдых ${it.rest} сек.`;
 }
@@ -186,7 +188,7 @@ function watchCmpHtml(day, ses, k, n) {
   const rows = [], keys = [];
   for (const [cat, title, groups] of W_CATS) {
     const mine = ws.filter((w) => wCat(w) === cat);
-    const planned = ses.items.filter((i) => groups.includes(i.group));
+    const planned = ses.items.filter((i) => groups.includes(i.group) && !(i.group === "warm" && !(Number(i.minutes) > 0)));
     if (!mine.length) continue;
     const wMin = mine.reduce((t, w) => t + (Number(w.minutes) || 0), 0), wKcal = mine.reduce((t, w) => t + (Number(w.kcal) || 0), 0);
     const pMin = Math.round(planned.reduce((t, i) => t + (i.est || 0), 0) / 60);
@@ -288,7 +290,7 @@ function openTrainWorkout(date) {
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const head = `<h2 class="wk-name">${esc(it.name)}</h2><p class="wk-sub">${esc(it.vlabel || "")}${eb && (it.vk === "band" || it.vk === "bandf") ? ` · ${esc(bandName(eb))}` : ""}</p>`;
     let mid = "", foot = "";
-    const sw = it.group === "cardio" || it.group === "warm";
+    const sw = isMinIt(it);
     if (review) {
       const sv = it.reps ? doneSets(it) : [];
       mid = `<div class="wk-rest wk-ok"><span>Выполнено</span><div class="wk-time">${it.reps ? (sv.length ? esc(sv.join(" / ")) : "✓") : factMin(it) ? `${factMin(it)} мин` : "✓"}</div><p class="foot-note">${it.reps ? "повторы по подходам" : factMin(it) ? "по факту" : "отмечено в плане"}</p></div>`;
@@ -412,7 +414,7 @@ function openTrainExercise(date, key) {
     ? `<p class="ex-note">Подберите сопротивление так, чтобы последние 2–3 повторения давались тяжело, но техника не ломалась. Когда верхняя граница диапазона даётся легко, возьмите резинку потяжелее или добавьте паузу внизу.</p>`
     : it.vk === "db" ? `<p class="ex-note">Вес гантелей подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая.${cfg.dumbbellKg ? ` Ваши гантели: ${fmt(cfg.dumbbellKg)} кг. Если легко, замедлите движение: 3 секунды вниз.` : ""}</p>` : "";
   const exExtraHtml = () => {
-    if (it.group === "warm" || it.group === "cardio") { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Сколько прошли, мин · время выбираете сами</span><input class="input" id="ex-mins" inputmode="numeric" placeholder="${it.minutes}" value="${fm || ""}"></div>`; }
+    if (isMinIt(it)) { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Сколько прошли, мин · время выбираете сами</span><input class="input" id="ex-mins" inputmode="numeric" placeholder="${it.minutes}" value="${fm || ""}"></div>`; }
     if (!it.reps && it.group !== "main") return "";
     const lg = trainLogOn(date) || {};
     const cur = setsOn(date, it.id);
