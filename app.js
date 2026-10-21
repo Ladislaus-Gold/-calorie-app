@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=9";
+import { createTrainUI } from "./trainui.js?v=10";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,7 +76,7 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 184;
+const APP_VERSION = 185;
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4280,6 +4280,10 @@ const actions = {
     const ws = workoutsOn(ds.date), done = {};
     for (const [cat, , groups] of W_CATS) if (ws.some((w) => wCat(w) === cat)) s.items.filter((i) => groups.includes(i.group)).forEach((i) => { done[i.key] = true; });
     if (Object.keys(done).length) saveTrainLog(ds.date, { done });
+  },
+  trainWipe(ds) {
+    if (!confirm("Удалить итоги этого дня? Самочувствие, резинки, отметки и повторы по подходам будут сброшены.")) return;
+    updateDoc(docRef("trainlog", ds.date), { finished: false, feel: 0, used: [], bands: {}, ebands: {}, dumbbellKg: 0, done: {}, sets: {}, mins: {}, updatedAt: serverTimestamp() }).catch(writeFail);
   },
   trainReset(ds) { updateDoc(docRef("trainlog", ds.date), { done: {}, updatedAt: serverTimestamp() }).catch(writeFail); },
   pickDay(ds) { if (ds.date >= FLOOR_DATE) { state.date = ds.date; render(); } },

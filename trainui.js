@@ -29,28 +29,41 @@ if (typeof document !== "undefined" && !window.__exPh) {
 }
 
 // Звуки тренировки (Web Audio): мягкий сигнал начала отдыха, тройной сигнал «отдых закончен», победная фанфара в конце
-let sndCtx = null;
+let sndCtx = null, sndKeep = null;
 function sndUnlock() {
   try {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
-    if (!sndCtx) sndCtx = new C();
-    if (sndCtx.state === "suspended") sndCtx.resume();
+    // iPhone: играть как «медиа», тогда беззвучный режим не глушит сигналы
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch { /* ignore */ }
+    if (!sndCtx || sndCtx.state === "closed") { sndCtx = new C(); sndKeep = null; }
+    if (sndCtx.state !== "running") sndCtx.resume().catch(() => {});
+    // «тихий» непрерывный тон: без него iOS усыпляет звук за время отдыха, и сигнал в конце отдыха не слышен
+    if (!sndKeep) {
+      const o = sndCtx.createOscillator(), g = sndCtx.createGain();
+      g.gain.value = 0.00002; o.frequency.value = 40;
+      o.connect(g); g.connect(sndCtx.destination); o.start();
+      sndKeep = o;
+    }
     return sndCtx;
   } catch { return null; }
 }
+function sndIdle() { try { if (sndKeep) sndKeep.stop(); } catch { /* ignore */ } sndKeep = null; }
 function tone(freq, at, dur, vol, type) {
   const c = sndCtx;
   if (!c) return;
-  try {
-    const o = c.createOscillator(), gn = c.createGain(), t = c.currentTime + at;
-    o.type = type || "sine"; o.frequency.value = freq;
-    o.connect(gn); gn.connect(c.destination);
-    gn.gain.setValueAtTime(0.0001, t);
-    gn.gain.exponentialRampToValueAtTime(vol, t + 0.02);
-    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.start(t); o.stop(t + dur + 0.05);
-  } catch { /* ignore */ }
+  const go = () => {
+    try {
+      const o = c.createOscillator(), gn = c.createGain(), t = c.currentTime + at;
+      o.type = type || "sine"; o.frequency.value = freq;
+      o.connect(gn); gn.connect(c.destination);
+      gn.gain.setValueAtTime(0.0001, t);
+      gn.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+      gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t); o.stop(t + dur + 0.05);
+    } catch { /* ignore */ }
+  };
+  if (c.state === "running") go(); else c.resume().then(go, () => {});
 }
 const SND = {
   // отдых начался: два мягких звука вверх
@@ -223,7 +236,7 @@ function trainCardHtml(day) {
       ${watchCmpHtml(day, ses, k, n)}
       <div class="tr-list">${rows}</div>
       <div class="tr-actions"><button type="button" class="btn ghost full" data-act="trainAdd" data-date="${day}">+ Добавить упражнение</button>
-      ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button></div>` : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
+      ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button> <button type="button" class="btn ghost sm tr-wipe" data-act="trainWipe" data-date="${day}">Удалить итоги</button></div>` : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
       ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить отметки за день</button>` : ""}</div>`;
     sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · около ${ses.est} мин · выполнено ${k} из ${n}</span></p>`;
   } else {
@@ -309,7 +322,7 @@ function openTrainWorkout(date) {
   const doneSets = (i) => setsOn(date, i.id).filter((v) => v > 0);
   const factMin = (i) => Number((((trainLogOn(date) || {}).mins) || {})[i.key]) || 0;
   let idx = Math.max(0, items.findIndex((i) => !isDone(i)));
-  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, swStart = 0, mins = 0, retMode = false, winOn = false;
+  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, mins = 0, secv = 0, runStart = 0, retMode = false, winOn = false;
   const skipped = new Set();
   const ov = openSheet(`<div id="wk-root"></div>`);
   ov.querySelector(".sheet").classList.add("wk");
@@ -324,9 +337,8 @@ function openTrainWorkout(date) {
   const fmtT = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const startTimer = (sec) => { total = sec; endAt = Date.now() + sec * 1000; tmDone = false; };
   const iv = setInterval(() => {
-    if (!ov.isConnected) { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); try { if (lock) lock.release(); } catch { /* ignore */ } return; }
+    if (!ov.isConnected) { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); sndIdle(); try { if (lock) lock.release(); } catch { /* ignore */ } return; }
     const t = $("#wk-t", ov), bar = $("#wk-bar", ov);
-    if (swStart) { if (t) t.textContent = fmtT(Math.floor((Date.now() - swStart) / 1000)); return; }
     if (!endAt) return;
     const l = left();
     if (t) t.textContent = fmtT(l);
@@ -335,13 +347,14 @@ function openTrainWorkout(date) {
       tmDone = true; endAt = 0; SND.end();
       if (phase === "rest") { phase = "work"; setNo++; draw(); }
       else if (phase === "restx") next();
+      else if (phase === "run") finishRun(false);
       else draw();
     }
   }, 250);
   const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true } }); };
   // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
   const enterItem = () => {
-    phase = "work"; endAt = 0; swStart = 0; tmDone = false; review = false; setNo = 0; reps = [];
+    phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = [];
     const it = items[idx];
     if (!it) return;
     if (it.reps) {
@@ -352,6 +365,7 @@ function openTrainWorkout(date) {
       if (sv.length >= it.sets) { markDone(it); review = true; } else if (dn && sv.length === 0) review = true;
     } else {
       mins = factMin(it) || it.minutes || 0;
+      secv = it.secs ? it.secs[1] : 0;
       review = isDone(it);
     }
   };
@@ -364,12 +378,14 @@ function openTrainWorkout(date) {
     return `<div class="wk-band">${ringSvg(52, dn, sk, n, label || `${Math.min(idx + 1, n)}/${n}`)}<div class="wk-bt"><h2 class="wk-name">${esc(title)}</h2>${sub ? `<div class="wk-var">${esc(sub)}</div>` : ""}</div><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>`;
   };
   const ARROW_L = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>';
+  const REDO = '<button type="button" class="wk-redo" data-w="redo">↻ Ещё раз</button>';
+  const HINT = '<div class="wk-hint" data-g="hint"><i></i><span>Свайпните вверх — подробнее</span></div>';
   const ARROW_R = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   // Силовое упражнение: плашки подходов, отдых, «Следом»
   const strengthHtml = (it) => {
     const n = it.sets, lo = it.reps[0], hi = it.reps[1];
-    const dc = phase === "work" ? setNo : phase === "rest" ? setNo + 1 : n;
-    const cur = phase === "work" ? setNo : phase === "rest" ? setNo + 1 : -1;
+    const dc = review ? n : phase === "work" ? setNo : phase === "rest" ? setNo + 1 : n;
+    const cur = review ? -1 : phase === "work" ? setNo : phase === "rest" ? setNo + 1 : -1;
     const prev = exHist(it.id, addDays(date, -1)).slice(-1)[0];
     const plates = reps.slice(0, n).map((v, i) => {
       const dn = i < dc;
@@ -379,7 +395,7 @@ function openTrainWorkout(date) {
     const nx = items[idx + 1];
     const resting = phase === "rest" || phase === "restx";
     const rc = resting ? `<div class="wk-rc" data-g="rest"><div class="l">${phase === "restx" ? "Отдых перед следующим" : "Отдых"}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +15 с · свайп влево — ${phase === "restx" ? "открыть сейчас" : "пропустить"}</div></div>` : "";
-    const midTxt = phase === "work" ? "нажмите — выполнено<br>зажмите — число" : phase === "rest" ? `подход ${setNo + 2} из ${n}<br>начнётся сам` : "следующее<br>откроется само";
+    const midTxt = review ? REDO : phase === "work" ? "нажмите — выполнено<br>зажмите — число" : phase === "rest" ? `подход ${setNo + 2} из ${n}<br>начнётся сам` : "следующее<br>откроется само";
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${midTxt}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     let nxHtml = "";
     if (nx && phase === "restx") {
@@ -388,7 +404,31 @@ function openTrainWorkout(date) {
     } else if (nx) {
       nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
     }
-    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}<div class="wk-hint" data-g="hint"><i></i><span>Свайпните вверх — подробнее</span></div>`;
+    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
+  };
+  // Кардио, разминка, растяжка: одна плашка со значением (минуты или секунды), таймер в той же «карточке», что и отдых
+  const simpleHtml = (it) => {
+    const kind = isMinIt(it) ? "min" : it.secs ? "sec" : "plain";
+    const plan = kind === "min" ? it.minutes : kind === "sec" ? it.secs[1] : 0;
+    const val = kind === "min" ? mins : kind === "sec" ? secv : "✓";
+    const unit = kind === "min" ? "Минуты" : kind === "sec" ? "Секунды" : "Упражнение";
+    const run = phase === "run";
+    const chip = review ? "выполнено" : kind === "plain" ? "нажмите" : val === plan ? "цель" : val < plan ? `−${plan - val}` : `+${val - plan}`;
+    const pl = `<div class="wk-pl one${review ? " dn" : " cur"}" data-g="pl" data-i="0"><small>${unit}</small><b>${val}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${review ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
+    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}`;
+    const len = kind === "min" ? mins * 60 : secv;
+    const step = kind === "min" ? "1 мин" : "15 с";
+    let rc = "";
+    if (!review && kind !== "plain") {
+      rc = run
+        ? `<div class="wk-rc" data-g="rest"><div class="l">${kind === "min" ? "Идёт" : "Держите"}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +${step} · свайп влево — закончить</div></div>`
+        : `<div class="wk-rc" data-g="rest"><div class="l">Таймер</div><div class="t">${fmtT(len)}</div><div class="bar"><i style="width:0"></i></div><div class="h">нажмите — запустить</div></div>`;
+    }
+    const mid = review ? REDO : run ? "идёт таймер<br>закончится сам" : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
+    const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${mid}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
+    const nx = items[idx + 1];
+    const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>` : "";
+    return `<div class="wk-info">${info}</div><div class="wk-pls">${pl}</div>${rc}${ctl}${nxHtml}${HINT}`;
   };
   const endHtml = () => {
     const n = items.length, dn = items.filter(isDone).length, sk = n - dn;
@@ -412,35 +452,24 @@ function openTrainWorkout(date) {
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
     const head = bandHtml(it.name, sub);
-    const sw = isMinIt(it);
-    root.classList.toggle("wk-str", !!(it.reps && !review));
-    if (it.reps && !review) { root.innerHTML = `${head}${fig}${strengthHtml(it)}`; return; }
-    let mid = "", foot = "";
-    if (review) {
-      const sv = it.reps ? doneSets(it) : [];
-      mid = `<div class="wk-rest wk-ok"><span>Выполнено</span><div class="wk-time">${it.reps ? (sv.length ? esc(sv.join(" / ")) : "✓") : factMin(it) ? `${factMin(it)} мин` : "✓"}</div><p class="foot-note">${it.reps ? "повторы по подходам" : factMin(it) ? "по факту" : "отмечено в плане"}</p></div>`;
-      foot = `<button type="button" class="btn primary full" data-w="skip">Дальше</button><button type="button" class="btn ghost full" data-w="redo" style="margin-top:8px">Выполнить ещё раз</button>`;
-    } else if (sw) {
-      // ходьба/бег: время выбираете сами, можно по таймеру, по секундомеру или просто указать факт
-      if (swStart) {
-        mid = `<div class="wk-rest"><span>Секундомер</span><div class="wk-time" id="wk-t">${fmtT(Math.floor((Date.now() - swStart) / 1000))}</div><p class="foot-note">Идите столько, сколько хочется</p></div>`;
-        foot = `<button type="button" class="btn primary full" data-w="swstop">Стоп и записать</button><button type="button" class="btn ghost full" data-w="swcancel" style="margin-top:8px">Отмена</button>`;
-      } else if (endAt) {
-        mid = `<div class="wk-rest"><span>Идёт</span><div class="wk-time" id="wk-t">${fmtT(left())}</div><div class="track"><i id="wk-bar" style="width:0"></i></div></div>`;
-        foot = `<button type="button" class="btn primary full" data-w="swdone">Готово, записать ${mins} мин</button><button type="button" class="btn ghost full" data-w="tmstop" style="margin-top:8px">Остановить таймер</button>`;
-      } else {
-        mid = `<div class="wk-set"><span>Сколько идёте, мин</span><div class="wk-step"><button type="button" class="wk-pm" data-w="mminus" aria-label="Меньше">−</button><b id="wk-m">${mins}</b><button type="button" class="wk-pm" data-w="mplus" aria-label="Больше">+</button></div><small>план ${it.minutes} мин, можно больше или меньше</small></div>`;
-        foot = `<button type="button" class="btn primary full" data-w="swdone">Готово, записать ${mins} мин</button><div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="tm">Таймер на ${mins} мин</button><button type="button" class="btn ghost grow" data-w="swstart">Секундомер</button></div>`;
-      }
-    } else {
-      const sec = it.secs ? it.secs[1] : 0;
-      if (endAt && sec) mid = `<div class="wk-rest"><span>Держите</span><div class="wk-time" id="wk-t">${fmtT(left())}</div><div class="track"><i id="wk-bar" style="width:0"></i></div></div>`;
-      else mid = `<p class="wk-txt">${esc(trainDetail(it))}</p>`;
-      foot = `${sec && !endAt ? `<button type="button" class="btn ghost full" data-w="timer" style="margin-bottom:8px">Запустить таймер ${fmtT(sec)}</button>` : ""}<button type="button" class="btn primary full" data-w="itemdone">Готово</button>`;
-    }
-    root.innerHTML = `${head}${fig}${mid}<div class="wk-foot">${foot}<div class="row" style="margin-top:8px"><button type="button" class="btn ghost grow" data-w="prev"${idx === 0 ? " disabled" : ""}>Назад</button><button type="button" class="btn ghost grow" data-w="info">Подробнее</button><button type="button" class="btn ghost grow" data-w="skip">Пропустить</button></div></div>`;
+    root.classList.add("wk-str");
+    root.innerHTML = `${head}${fig}${it.reps ? strengthHtml(it) : simpleHtml(it)}`;
   };
   const recMin = (it, m) => { saveTrainLog(date, { mins: { [it.key]: m }, done: { [it.key]: true } }); next(); };
+  // Таймер кардио/растяжки: запуск, конец (сам или свайпом) — значение записывается и открывается следующее
+  const startRun = () => {
+    const it = items[idx];
+    const len = isMinIt(it) ? mins * 60 : secv;
+    if (!it || it.reps || review || len <= 0) return;
+    phase = "run"; startTimer(len); runStart = Date.now(); SND.start(); draw();
+  };
+  const finishRun = (early) => {
+    const it = items[idx];
+    endAt = 0; phase = "work";
+    if (!it) return;
+    if (isMinIt(it)) recMin(it, early ? Math.max(1, Math.round((Date.now() - runStart) / 60000)) : Math.max(1, Math.round(total / 60)));
+    else { markDone(it); next(); }
+  };
   const toast = (txt, undo) => {
     ov.querySelectorAll(".wk-toast").forEach((e) => e.remove());
     const t = document.createElement("div");
@@ -461,17 +490,18 @@ function openTrainWorkout(date) {
     } else { phase = "rest"; startTimer(rest); SND.start(); draw(); }
   };
   const restSkip = () => { if (phase === "rest") { endAt = 0; phase = "work"; setNo++; draw(); } else if (phase === "restx") { endAt = 0; next(); } };
-  const rest15 = () => {
+  const rest15 = (sec = 15) => {
     if (!endAt) return;
-    endAt += 15000; total += 15;
+    endAt += sec * 1000; total += sec;
     const rc = $(".wk-rc", ov);
-    if (rc) { const b = document.createElement("span"); b.className = "plus"; b.textContent = "+15 с"; rc.appendChild(b); setTimeout(() => b.remove(), 900); }
+    if (rc) { const b = document.createElement("span"); b.className = "plus"; b.textContent = sec >= 60 ? "+1 мин" : "+15 с"; rc.appendChild(b); setTimeout(() => b.remove(), 900); }
   };
   const doneCount = (it) => (phase === "work" ? setNo : phase === "rest" ? setNo + 1 : it.sets);
   // Выбранное колесом число: для текущей плашки подход сразу засчитывается, для выполненной значение правится
   const pick = (i, v) => {
     const it = items[idx];
-    if (!it || !it.reps) return;
+    if (!it) return;
+    if (!it.reps) { if (isMinIt(it)) mins = v; else secv = v; draw(); return; }
     reps[i] = v;
     if (phase === "work" && i === setNo) { setDone(); return; }
     if (i < doneCount(it)) saveTrainLog(date, { sets: { [it.id]: reps.slice(0, doneCount(it)) } });
@@ -480,16 +510,19 @@ function openTrainWorkout(date) {
   ov.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-g]")) e.preventDefault(); });
   let g = null;
   const wheel = (G) => {
-    const P = G.picker, rows = [2, 1, 0, -1, -2].map((d) => { const v = P.sel + d; return `<div class="${d === 0 ? "sel" : Math.abs(d) === 1 ? "m" : ""}">${v >= 0 && v <= 99 ? v : "&nbsp;"}</div>`; }).join("");
+    const P = G.picker, rows = [2, 1, 0, -1, -2].map((d) => { const v = P.sel + d * P.step; return `<div class="${d === 0 ? "sel" : Math.abs(d) === 1 ? "m" : ""}">${v >= P.min && v <= P.max ? v : "&nbsp;"}</div>`; }).join("");
     P.box.innerHTML = rows;
   };
   const openPicker = (G) => {
     const i = Number(G.el.dataset.i), it = items[idx];
-    if (!it || !it.reps) return;
+    if (!it || review || phase === "run") return;
+    // диапазон колеса: повторы, минуты или секунды
+    const cf = it.reps ? { v: reps[i], min: 0, max: 99, step: 1, px: 30 } : isMinIt(it) ? { v: mins, min: 1, max: 180, step: 1, px: 16 } : it.secs ? { v: secv, min: 5, max: 600, step: 5, px: 22 } : null;
+    if (!cf) return;
     const r = G.el.getBoundingClientRect(), box = document.createElement("div");
     box.className = "wk-wheel";
     box.style.cssText = `left:${Math.round(r.left + r.width / 2 - 52)}px;bottom:${Math.round(window.innerHeight - r.top + 10)}px`;
-    G.picker = { i, base: reps[i], sel: reps[i], box };
+    G.picker = { i, base: cf.v, sel: cf.v, box, min: cf.min, max: cf.max, step: cf.step, px: cf.px };
     wheel(G);
     ov.appendChild(box);
     try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* ignore */ }
@@ -505,7 +538,7 @@ function openTrainWorkout(date) {
     if (!g || e.pointerId !== g.pid) return;
     const dx = e.clientX - g.x, dy = e.clientY - g.y;
     if (g.picker) {
-      const P = g.picker, v = Math.max(0, Math.min(99, P.base + Math.round(-dy / 30)));
+      const P = g.picker, v = Math.max(P.min, Math.min(P.max, P.base + Math.round(-dy / P.px) * P.step));
       if (v !== P.sel) { P.sel = v; wheel(g); }
       return;
     }
@@ -519,8 +552,14 @@ function openTrainWorkout(date) {
     if (cancel) return;
     const it = items[idx];
     if (!it) return;
-    if (G.k === "pl" && tap) { if (phase === "work" && Number(G.el.dataset.i) === setNo) setDone(); }
-    else if (G.k === "rest") { if (dx < -50 && Math.abs(dy) < 60) restSkip(); else if (tap) rest15(); }
+    if (G.k === "pl" && tap) {
+      if (it.reps) { if (phase === "work" && !review && Number(G.el.dataset.i) === setNo) setDone(); }
+      else if (phase === "work" && !review) { if (isMinIt(it)) recMin(it, mins); else { markDone(it); next(); } }
+    } else if (G.k === "rest") {
+      if (phase === "run") { if (dx < -50 && Math.abs(dy) < 60) finishRun(true); else if (tap) rest15(isMinIt(it) ? 60 : 15); }
+      else if (phase === "work") { if (tap) startRun(); }
+      else if (dx < -50 && Math.abs(dy) < 60) restSkip(); else if (tap) rest15();
+    }
     else if (G.k === "hint") { if (tap || dy < -25) openTrainExercise(date, it.key); }
   };
   ov.addEventListener("pointerup", (e) => endG(e, false));
@@ -530,18 +569,9 @@ function openTrainWorkout(date) {
     if (!b) return;
     const w = b.dataset.w, it = items[idx];
     if (w === "finish") { ov.close(); openTrainFinish(date); return; }
-    if (w === "mminus" || w === "mplus") { mins = Math.max(1, Math.min(300, mins + (w === "mplus" ? 1 : -1))); draw(); return; }
     if (w === "ret") { const k = Number(b.dataset.k); skipped.delete(items[k].key); idx = k; retMode = true; enterItem(); draw(); return; }
     if (!it) return;
     if (w === "redo") { review = false; setNo = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
-    if (w === "timer") { startTimer(it.secs[1]); draw(); return; }
-    if (w === "tm") { startTimer(mins * 60); draw(); return; }
-    if (w === "tmstop") { endAt = 0; draw(); return; }
-    if (w === "swstart") { swStart = Date.now(); draw(); return; }
-    if (w === "swcancel") { swStart = 0; draw(); return; }
-    if (w === "swstop") { const m = Math.max(1, Math.round((Date.now() - swStart) / 60000)); swStart = 0; recMin(it, m); return; }
-    if (w === "swdone") { endAt = 0; recMin(it, mins); return; }
-    if (w === "itemdone") { markDone(it); next(); return; }
     if (w === "skip") {
       const was = idx, wasDone = isDone(it);
       if (!wasDone) skipped.add(it.key);

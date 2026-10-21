@@ -1612,3 +1612,11 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .wk-str .wk-fig:not(.wk-ph) { flex: 1 1 0; min-height: 120px; display: flex; flex-direction: column; justify-content: center; }
 .wk-nxc .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .wk-sum ~ .wk-foot { position: sticky; bottom: 0; background: var(--card); padding: 10px 0 14px; box-shadow: 0 -10px 12px -10px rgba(0, 0, 0, .18); }
+
+/* v185: кардио, разминка и растяжка в том же стиле, что силовые */
+.wk-pl.one { flex: none; width: 210px; margin: 0 auto; padding: 12px 0 10px; }
+.wk-pl.one b { font-size: 56px; }
+.wk-info { padding: 0 6px; line-height: 1.35; }
+.wk-redo { font: inherit; font-weight: 800; font-size: 13px; color: #157A3A; background: #fff; border: 1.5px solid #D3E4D9; border-radius: 12px; padding: 8px 14px; box-shadow: 0 4px 12px rgba(27, 157, 75, .16); cursor: pointer; }
+:root[data-theme="dark"] .wk-redo { background: #25332B; border-color: var(--line); color: #8FD3A8; }
+.tr-fin .tr-wipe { color: var(--red); border-color: #F0CFCB; }
