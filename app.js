@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=32";
+import { createTrainUI } from "./trainui.js?v=33";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 256;
-const APP_VERSION_LABEL = "2.53"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 257;
+const APP_VERSION_LABEL = "2.54"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется

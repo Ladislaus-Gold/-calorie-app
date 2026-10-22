@@ -1078,7 +1078,7 @@ function exProgressHtml() {
     const bestSet = Math.max(...h.map((x) => x.best));
     return `<div class="xe"><div class="xe-h"><b>${esc(TR.EXERCISES[id].name)}</b>${h.length > 1 ? trend(dl, null) : ""}</div>
       <p class="xe-last"><small>${dd(last.date)}</small>${last.sets.join(" · ")}${last.band ? ` <em>${esc(last.band)}</em>` : ""}${last.kg ? ` <em>≈${fmt(last.kg)} кг</em>` : ""}</p>
-      <div class="xe-chips"><span class="rc">🏆 рекорд <b>${pr.total}</b> <small>(${dd(pr.date)})</small></span><span class="rc2">лучший <b>${bestSet}</b></span><span class="rc2"><b>${h.length}</b> трен.</span></div>${h.length > 1 ? `<div class="xe-sp">${sparkLine(h.slice(-8).map((x) => x.total))}</div>` : ""}</div></div>`;
+      <div class="xe-chips"><span class="rc">🏆 рекорд <b>${pr.total}</b> <small>(${dd(pr.date)})</small></span><span class="rc2">лучший <b>${bestSet}</b></span><span class="rc2"><b>${h.length}</b> трен.</span></div>${h.length > 1 ? `<div class="xe-sp">${sparkLine(h.slice(-8).map((x) => x.total))}</div>` : ""}</div>`;
   };
   // Группы мышц: свёрнутая карточка с главными цифрами, внутри упражнения
   const groups = {};
