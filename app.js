@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 250;
-const APP_VERSION_LABEL = "2.47"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 251;
+const APP_VERSION_LABEL = "2.48"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -716,13 +716,11 @@ function fillAnim(root, base = 0) {
     // растём через transform (ускорение на GPU), а не через width: ширина каждый кадр пересчитывала раскладку и давала микрофризы на iPhone
     if (w && w !== "0%") { el.style.transformOrigin = "0 50%"; el.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], opt(at())); }
   });
-  root.querySelectorAll(".mr-svg circle[stroke-dasharray], .m-ring circle[stroke-dasharray]").forEach((el) => {
-    const [a, b] = el.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
-    if (a > 0) el.animate([{ strokeDasharray: `0.01 ${a + b}` }, { strokeDasharray: `${a} ${b}` }], opt(at()));
-  });
-  root.querySelectorAll(".cp-rg circle.fg, .th-ring circle.fg").forEach((el) => {
-    const off = el.getAttribute("stroke-dashoffset"), full = el.getAttribute("stroke-dasharray");
-    if (off != null && full) el.animate([{ strokeDashoffset: full }, { strokeDashoffset: off }], opt(at()));
+  // Кольца появляются с поворотом и прозрачностью: это работает на GPU. Раньше рисовалась длина дуги (stroke-dasharray), а это перерисовка на каждом кадре, главная причина фризов колец на iPhone
+  root.querySelectorAll(".mr-svg, .m-ring svg, .cp-rg, .th-ring").forEach((el) => {
+    el.style.willChange = "transform, opacity";
+    const an = el.animate([{ opacity: 0, transform: "rotate(-80deg) scale(.88)" }, { opacity: 1, transform: "rotate(0deg) scale(1)" }], { duration: 700, delay: at(), easing: FILL_EASE, fill: "backwards" });
+    an.onfinish = () => { el.style.willChange = ""; };
   });
   // Большое кольцо калорий: плавно появляется целиком (opacity и transform на отдельном слое, без перерисовки)
   root.querySelectorAll(".gz-wrap").forEach((el) => el.animate([{ opacity: 0, transform: "scale(.92)" }, { opacity: 1, transform: "scale(1)" }], { duration: 650, delay: base, easing: FILL_EASE, fill: "backwards" }));
