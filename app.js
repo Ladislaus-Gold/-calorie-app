@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 260;
-const APP_VERSION_LABEL = "2.57"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 261;
+const APP_VERSION_LABEL = "2.58"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4464,7 +4464,7 @@ function openProfile(first) {
     <div class="field"><span>Цель</span>${seg("goal", GOALS, st.goal)}</div>
     <label class="field"><span>Образ жизни</span><select id="pr-level" class="input">${LEVELS.map((l) => `<option value="${l.v}" ${l.v === (pr.activity || "light") ? "selected" : ""}>${l.t}</option>`).join("")}</select></label>
     <div class="preview" id="pr-prev"></div>
-    <div class="row">${first ? `<button type="button" class="btn ghost" id="pr-skip">Позже</button>` : ""}<button type="button" class="btn primary grow" id="pr-save">Рассчитать и сохранить</button></div>`);
+    <div class="row">${first ? `<button type="button" class="btn ghost" id="pr-skip">Позже</button>` : ""}<button type="button" class="btn primary grow" id="pr-save">Рассчитать и сохранить</button></div>`, { bw: true });
 
   const read = () => ({ sex: st.sex, goal: st.goal, age: num($("#pr-age", ov).value), heightCm: num($("#pr-h", ov).value), weightKg: num($("#pr-w", ov).value), activity: $("#pr-level", ov).value });
   const upd = () => {

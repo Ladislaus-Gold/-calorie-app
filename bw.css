@@ -1898,3 +1898,12 @@ html body .dv.hvw.hme .me-out { width: 100%; padding: 14px; margin: 4px 0 14px; 
 html:root:not([data-theme="dark"]) body .dv .fab { box-shadow: 0 0 22px 8px rgba(255,255,255,.9), 0 0 46px 14px rgba(255,255,255,.45), 0 6px 14px rgba(0,0,0,.25) !important; }
 html body .dv.hvw.hme .me-sys .cv { background: none !important; box-shadow: none !important; border: 0 !important; width: auto; height: auto; }
 html body .dv.hvw.hme .me-ml b { white-space: nowrap; flex: none; } html body .dv.hvw.hme .me-ml span { min-width: 0; }
+
+/* ---------- v2.58: окно «Мои данные» — переключатели как в iPhone, без зелёного ---------- */
+html body .bw-ov .seg.full { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: 2px; border: 0 !important; border-radius: 10px; background: var(--fill) !important; box-shadow: none !important; }
+html body .bw-ov .seg.full button { min-height: 32px; padding: 0 6px; border: 0; border-radius: 8px; background: transparent !important; color: var(--ink) !important; font-size: 13px; font-weight: 500; box-shadow: none !important; transition: background .2s, box-shadow .2s; }
+html body .bw-ov .seg.full button.on { background: var(--surf) !important; font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04) !important; }
+html:root[data-theme="dark"] body .bw-ov .seg.full button.on { background: #636366 !important; box-shadow: none !important; }
+html body .bw-ov .preview .pv-kcal { color: var(--ink); }
+html body .bw-ov .preview .pv-kcal small { color: var(--sec); }
+html body .bw-ov .preview .pv-macros > div { color: var(--sec); }
