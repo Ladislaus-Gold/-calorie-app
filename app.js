@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 231;
-const APP_VERSION_LABEL = "2.28"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 232;
+const APP_VERSION_LABEL = "2.29"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2622,14 +2622,53 @@ function chooseCardKind(code) {
       <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Что создать?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
       <div class="lm">
         <div class="note lk-note">${code ? `Код ${esc(code)} не найден ни среди продуктов, ни среди напитков. ` : ""}Напиток считается как жидкость (и кофеин), а если есть калории, то и как еда. Продукт считается только как еда.</div>
-        <div class="ck-choice"><button type="button" class="ck-opt water" id="ck-drink"><span class="ck-ic w">${GLYPH_DROP}</span><b>Напиток</b><small>Жидкость и кофеин</small></button><button type="button" class="ck-opt food" id="ck-prod"><span class="ck-ic f"><svg viewBox="0 0 24 24" aria-hidden="true">${MEAL_GLYPH.lunch}</svg></span><b>Продукт</b><small>Только еда</small></button></div>
+        <div class="ck-stage" id="ck-st" data-noswipe><svg class="ck-ln" viewBox="0 0 361 190" preserveAspectRatio="none" aria-hidden="true"><path id="ck-p" d="M180.5 10 Q180.5 78 180.5 146"/></svg><button type="button" class="ck-opt water" id="ck-drink"><span class="ck-ic w">${GLYPH_DROP}</span><b>Напиток</b><small>Жидкость и кофеин</small></button><button type="button" class="ck-opt food" id="ck-prod"><span class="ck-ic f"><svg viewBox="0 0 24 24" aria-hidden="true">${MEAL_GLYPH.lunch}</svg></span><b>Продукт</b><small>Только еда</small></button><div class="ck-hint"><span>‹</span> Свайп влево или вправо <span>›</span></div></div>
         ${mine.length ? `<p class="foot-note" style="margin:6px 2px 8px">Или это новая упаковка уже имеющегося напитка:</p>
         <input id="ck-q" class="input search" type="search" placeholder="Найти напиток для привязки" autocomplete="off">
         <div id="ck-list" class="plist"></div>` : ""}
       </div>`);
     ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-close]")) finish(null); });
-    $("#ck-drink", ov).addEventListener("click", () => finish({ kind: "drink" }));
-    $("#ck-prod", ov).addEventListener("click", () => finish({ kind: "product" }));
+    {
+      // Свайп: влево — напиток, вправо — продукт; линия между ними прогибается в сторону жеста
+      const st = $("#ck-st", ov), pth = $("#ck-p", ov), bl = $("#ck-drink", ov), br = $("#ck-prod", ov);
+      const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const CX = 180.5, TOP = 10, BOT = 146, MID = 78;
+      let off = 0, vel = 0, raf = 0, drag = false, x0 = 0, moved = false;
+      const rub = (d) => Math.sign(d) * (1 - 1 / (Math.abs(d) / 190 + 1)) * 95;
+      const draw = (o) => {
+        const k = Math.min(1, Math.abs(o) / 80), l = o < 0 ? k : 0, r = o > 0 ? k : 0;
+        pth.setAttribute("d", `M${CX} ${TOP} Q${CX + o * 1.9} ${MID} ${CX} ${BOT}`);
+        pth.style.opacity = .18 + .62 * k; pth.style.strokeWidth = 2 + k * 1.2;
+        bl.style.transform = `translateX(${o * .22}px) scale(${1 + l * .1 - r * .04})`; bl.style.opacity = 1 - r * .55;
+        br.style.transform = `translateX(${o * .22}px) scale(${1 + r * .1 - l * .04})`; br.style.opacity = 1 - l * .55;
+      };
+      const spring = (target, k = 190, c = 13, cb) => {
+        cancelAnimationFrame(raf);
+        if (calm) { off = target; vel = 0; draw(off); cb && cb(); return; }
+        let last = performance.now();
+        const step = (t) => {
+          const dt = Math.min(.032, (t - last) / 1000); last = t;
+          vel += (-k * (off - target) - c * vel) * dt; off += vel * dt; draw(off);
+          if (Math.abs(off - target) < .2 && Math.abs(vel) < 2) { off = target; draw(off); cb && cb(); return; }
+          raf = requestAnimationFrame(step);
+        };
+        raf = requestAnimationFrame(step);
+      };
+      const choose = (dir) => {
+        if (done) return;
+        const el = dir < 0 ? bl : br;
+        vel = dir * 900; spring(0, 170, 11);
+        if (!calm && el.animate) el.animate([{ transform: el.style.transform }, { transform: "scale(1.16)" }, { transform: "scale(1)" }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
+        setTimeout(() => finish({ kind: dir < 0 ? "drink" : "product" }), calm ? 0 : 260);
+      };
+      st.addEventListener("pointerdown", (e) => { drag = true; moved = false; cancelAnimationFrame(raf); vel = 0; x0 = e.clientX; try { st.setPointerCapture(e.pointerId); } catch (_) {} });
+      st.addEventListener("pointermove", (e) => { if (!drag) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) moved = true; off = rub(dx); draw(off); });
+      const end = (e) => { if (!drag) return; drag = false; const dx = e.clientX - x0; if (Math.abs(dx) > 60) choose(Math.sign(dx)); else spring(0); };
+      st.addEventListener("pointerup", end); st.addEventListener("pointercancel", end);
+      bl.addEventListener("click", () => { if (!moved) choose(-1); });
+      br.addEventListener("click", () => { if (!moved) choose(1); });
+      draw(0);
+    }
     if (mine.length) {
       const draw = () => {
         const w = fold(q).split(/\s+/).filter(Boolean);
