@@ -1632,3 +1632,14 @@ html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth
 .overlay.dragging::before { transition: none; }
 .overlay > .sheet { position: relative; z-index: 1; }
 .bw-ov .ck-stage .ck-opt { will-change: transform, opacity; backface-visibility: hidden; }
+
+/* v2.46: плитки «Жидкость» и «Нагрузка» в дневнике — вариант Б: значок и заголовок чёрно-белые, цвет только у полоски (жидкость синяя, нагрузка чёрная) */
+html body .dv .mini.water .mini-ic.sq, html body .dv .mini.act .mini-ic.sq { background: #000 !important; box-shadow: 0 2px 4px rgba(0,0,0,.18); }
+html body .dv .mini.water .mini-ic.sq, html body .dv .mini.act .mini-ic.sq { color: #fff; }
+html body .dv .mini.water .mini-label, html body .dv .mini.act .mini-label { color: var(--ink) !important; }
+html body .dv .mini.water .mini-bar > i { background: linear-gradient(90deg, #0A84FF, #5AC8FA) !important; }
+html body .dv .mini.act .mini-bar > i { background: #000 !important; }
+:root[data-theme="dark"] html body .dv .mini.water .mini-ic.sq, html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq { background: #fff !important; box-shadow: none; }
+html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq { color: #000; }
+html:root[data-theme="dark"] body .dv .mini.act .mini-bar > i { background: #fff !important; }
+html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg { filter: invert(1); }
