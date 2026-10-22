@@ -324,7 +324,7 @@ function trainBalanceInner(day) {
   const today = todayStr();
   const lag = wk.some((d) => d.date < today) ? ids.filter((g) => (got[g] || 0) === 0 && wk.some((d) => d.date < today && d.type)) : [];
   return `<h3 class="ex-h">Баланс мышц за неделю</h3>
-    <div class="mb">${ids.map((g) => `<div class="mb-r"><span>${esc(TR.MG[g] || g)}</span><div class="track"><i style="width:${Math.min(100, Math.round(((got[g] || 0) / plan[g]) * 100))}%"></i></div><b>${got[g] || 0}/${plan[g]}</b></div>`).join("")}</div>
+    <div class="mb">${ids.map((g) => `<div class="mb-r${lag.includes(g) ? " lag" : ""}"><span>${esc(TR.MG[g] || g)}</span><div class="track"><i style="width:${Math.min(100, Math.round(((got[g] || 0) / plan[g]) * 100))}%"></i></div><b>${got[g] || 0}/${plan[g]}</b></div>`).join("")}</div>
     <p class="foot-note" style="margin:10px 2px 0">Подходы основной части: сделано из запланированных на неделю.${lag.length ? ` Пока не тренировали: ${esc(lag.map((g) => (TR.MG[g] || g).toLowerCase()).join(", "))}.` : ""}</p>`;
 }
 
@@ -1044,6 +1044,19 @@ function trainDynCardHtml(day) {
   </section>`;
 }
 
+// Мини-графики для карточек прогресса: столбики по неделям и линия по тренировкам
+function sparkBars(vals) {
+  const m = Math.max(...vals, 1), w = 72, h = 30, n = vals.length, bw = w / n - 3;
+  return `<svg class="xsp" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${vals.map((v, i) => { const bh = v > 0 ? Math.max(4, (v / m) * h) : 3; return `<rect x="${(i * w / n).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" class="${i === n - 1 ? "cur" : v > 0 ? "" : "zero"}"/>`; }).join("")}</svg>`;
+}
+function sparkLine(vals) {
+  if (vals.length < 2) return "";
+  const m = Math.max(...vals, 1), lo = Math.min(...vals), w = 72, h = 26, rg = Math.max(1, m - lo);
+  const pts = vals.map((v, i) => [4 + (i * (w - 8)) / (vals.length - 1), h - 4 - ((v - lo) / rg) * (h - 8)]);
+  const last = pts[pts.length - 1];
+  return `<svg class="xsl" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts.map((q) => q.map((x) => x.toFixed(1)).join(",")).join(" ")}"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.4"/></svg>`;
+}
+
 // Прогресс упражнений: динамика повторов, резинка и рекорды
 function exProgressHtml() {
   const ids = new Set();
@@ -1058,7 +1071,7 @@ function exProgressHtml() {
     const last = h[h.length - 1], pr = h.reduce((b, x) => (x.total > b.total ? x : b), h[0]);
     const dl = h.length > 1 ? last.total - h[0].total : 0;
     const bestSet = Math.max(...h.map((x) => x.best));
-    return `<div class="xe"><div class="xe-h"><b>${esc(TR.EXERCISES[id].name)}</b>${h.length > 1 ? trend(dl, null) : ""}</div>
+    return `<div class="xe"><div class="xe-h"><b>${esc(TR.EXERCISES[id].name)}</b>${h.length > 1 ? sparkLine(h.slice(-8).map((x) => x.total)) : ""}${h.length > 1 ? trend(dl, null) : ""}</div>
       <p class="xe-last"><small>${dd(last.date)}</small>${last.sets.join(" · ")}${last.band ? ` <em>${esc(last.band)}</em>` : ""}${last.kg ? ` <em>≈${fmt(last.kg)} кг</em>` : ""}</p>
       <div class="xs"><div><b>${pr.total}</b><span>рекорд, ${dd(pr.date)}</span></div><div><b>${bestSet}</b><span>лучший подход</span></div><div><b>${h.length}</b><span>${h.length === 1 ? "тренировка" : "тренировок"}</span></div></div></div>`;
   };
@@ -1077,7 +1090,7 @@ function exProgressHtml() {
     const best = Math.max(...tot), bestK = tot.indexOf(best);
     const open = !!openG[g];
     const nSes = state.trainLog.filter((l) => l.sets && Object.keys(l.sets).some((id) => gi.has(id))).length;
-    return `<div class="xg${open ? " open" : ""}" data-mg="${g}"><div class="xg-h" data-act="toggleTrainGrp" data-g="${g}" role="button" aria-expanded="${open}"><div class="xg-t"><b>${esc(TR.MG[g] || "Другое")}</b><small>${groups[g].length} упр.</small></div>${nz.length > 1 ? trend(dl, dp) : ""}${chev(open)}</div>
+    return `<div class="xg${open ? " open" : ""}" data-mg="${g}"><div class="xg-h" data-act="toggleTrainGrp" data-g="${g}" role="button" aria-expanded="${open}"><div class="xg-t"><b>${esc(TR.MG[g] || "Другое")}</b><small>${groups[g].length} упр.</small></div>${nz.length > 1 ? sparkBars(tot) : ""}${nz.length > 1 ? trend(dl, dp) : ""}${chev(open)}</div>
       <div class="xs"><div><b>${lastV}</b><span>${rep(lastV)} за неделю</span></div><div><b>${best}</b><span>лучшая неделя, с ${dd(weeks[bestK])}</span></div><div><b>${nSes}</b><span>${nSes === 1 ? "тренировка" : "тренировок"}</span></div></div>
       ${open ? `<div class="xg-in">${groups[g].map(exBlock).join("")}</div>` : ""}</div>`;
   }).join("") + `</div>`;
@@ -1096,7 +1109,7 @@ function trainProgressCardHtml(day) {
   const tip = [adv.tip, adv.band, adv.bell].filter(Boolean).join(" ");
   const open = state.trainOpen;
   const hist = fin.slice(0, 5).map((l) => `<div class="tr-h"><b>${esc(trainDayName(l.date))}</b><span>${esc(feelLabel(Number(l.feel)))}${bandsText(l) ? ` · ${esc(bandsText(l))}` : ""}${ebandsText(l) ? `<small class="tr-he">${esc(ebandsText(l))}</small>` : ""}</span></div>`).join("");
-  return `<section class="card">
+  return `<section class="card pg-card">
     <div class="card-top"><h2 class="h2">Прогресс тренировок</h2></div>
     ${empty ? `<p class="foot-note" style="margin:0 4px">Пока нет данных. Отмечайте упражнения, вносите повторы и завершайте тренировки, и здесь появятся графики и рекорды.</p>` : `
     <div class="stat-grid">
@@ -1105,13 +1118,13 @@ function trainProgressCardHtml(day) {
       <div class="stat"><b>${st.streak}</b><span>подряд без пропусков</span></div>
       <div class="stat"><b>${avg ? esc(feelLabel(Math.round(avg))) : "—"}</b><span>самочувствие в среднем</span></div>
     </div>
-    <p class="tr-tip">${esc(tip)}</p>
+    <p class="tr-tip"><span class="tip-ic" aria-hidden="true">💡</span><span>${esc(tip)}</span></p>
     ${trainBalanceInner(day)}
     <div class="card-top tog" data-act="toggleTrain" role="button" aria-expanded="${open}" style="margin-top:14px"><h3 class="ex-h" style="margin:0">Графики упражнений${chev(open)}</h3></div>
     ${open ? `${exProgressHtml()}
     ${wkBars ? `<p class="tr-lab" style="margin-top:14px">Выполнено по неделям</p>${wkBars}` : ""}
     ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}` : `<p class="foot-note tr-more">Нажмите, чтобы открыть графики по каждому упражнению</p>`}`}
-    <button type="button" class="more-btn red" data-act="trainResetAll">Сбросить весь прогресс</button>
+    <div class="pg-reset"><button type="button" class="more-btn red" data-act="trainResetAll">Сбросить весь прогресс</button><p class="foot-note">Удалит отметки, повторы, цвета резинок и итоги. Потребуется подтверждение.</p></div>
   </section>`;
 }
 

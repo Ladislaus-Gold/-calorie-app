@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 214;
-const APP_VERSION_LABEL = "2.11"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 215;
+const APP_VERSION_LABEL = "2.12"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3584,20 +3584,32 @@ function viewHealth() {
         ${state.cafInfo ? `<p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}
       </div>
     </section>`;
+  const stepPct = Math.max(0, Math.min(100, (steps / STEPS_GOAL) * 100));
+  const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span><span>В покое ${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</span></div>` : "";
+  const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
+  const wkLeft = Math.max(0, wt.minutes - wkMin);
   const pTrain = `
-    <section class="card">
-      <div class="card-top"><h2 class="h2">Активность</h2><span class="pill">${hd ? "Apple Health" : "нет данных с часов"}</span></div>
-      ${hd ? `<div class="big-line">${fmtInt(steps)}<small>шагов</small></div>
-      <div class="track"><i style="width:${Math.min(100, (steps / STEPS_GOAL) * 100)}%"></i></div>
-      <p class="foot-note" style="margin:10px 0 12px">Ориентир ${fmtInt(STEPS_GOAL)} шагов в день.${hd.updatedAt ? ` Обновлено в ${timeOf(hd.updatedAt)}.` : ""}</p>
-      <div class="stat-grid">
-        <div class="stat"><b>${hd.activeKcal ? fmtInt(hd.activeKcal) : "—"}</b><span>активных ккал</span></div>
-        <div class="stat"><b>${hd.restKcal ? fmtInt(hd.restKcal) : "—"}</b><span>энергия покоя, ккал${hd.restKcal ? "" : "<br>данных пока нет"}</span></div>
-        <div class="stat"><b>${hd.restKcal || hd.activeKcal ? fmtInt((Number(hd.restKcal) || 0) + (Number(hd.activeKcal) || 0)) : "—"}</b><span>всего потрачено, ккал${hd.restKcal ? "" : "<br>без энергии покоя"}</span></div>
-        <div class="stat"><b>${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}</b><span>средний пульс${hd.hrMin && hd.hrMax ? `<br>от ${fmtInt(hd.hrMin)} до ${fmtInt(hd.hrMax)}` : ""}</span></div>
-        <div class="stat"><b>${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</b><span>пульс в покое</span></div>
-        <div class="stat"><b>${fmtInt(wkStepsAvg)}</b><span>шагов в день за неделю</span></div>
-      </div>` : `<p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>`}
+    ${hd ? `<section class="th-hero">
+      <div class="th-top">
+        <div class="th-ring"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - stepPct / 100)).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b>${Math.round(stepPct)}%</b></div>
+        <div class="th-main"><div class="th-t1">ШАГИ СЕГОДНЯ</div><div class="th-t2">${fmtInt(steps)}</div><div class="th-t3">из ${fmtInt(STEPS_GOAL)}${hd.updatedAt ? ` · обновлено ${timeOf(hd.updatedAt)}` : ""}</div></div>
+      </div>
+      <div class="th-strip">
+        <div><b>${hd.activeKcal ? fmtInt(hd.activeKcal) : "—"}</b><span>активные<br>ккал</span></div>
+        <div><b>${hd.restKcal ? fmtInt(hd.restKcal) : "—"}</b><span>покой<br>ккал</span></div>
+        <div><b>${hd.restKcal || hd.activeKcal ? fmtInt((Number(hd.restKcal) || 0) + (Number(hd.activeKcal) || 0)) : "—"}</b><span>всего<br>потрачено</span></div>
+      </div>
+      ${hrLine}
+      ${wkStepsAvg ? `<p class="th-note">В среднем за неделю ${fmtInt(wkStepsAvg)} шагов в день</p>` : ""}
+    </section>` : `<section class="card">
+      <div class="card-top"><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
+      <p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>
+    </section>`}
+    <section class="card wkc">
+      <div class="wkc-r1"><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
+      <div class="wkc-bar"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
+      <div class="wkc-r2">${wkDots}<span>Силовых: ${wkStr} из ${wt.strength}${wkLeft > 0 ? ` · осталось ${fmtInt(wkLeft)} мин` : ""}</span></div>
+      ${wt.text ? `<p class="wkc-note">${esc(wt.text)}</p>` : ""}
     </section>
     <section class="card">
       <div class="card-top"><h2 class="h2">Тренировки</h2></div>
@@ -3608,12 +3620,7 @@ function viewHealth() {
       ${actRows || wktRows ? `<div class="entries flat">${wktRows}${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
     ${trainCardHtml(day)}
-    ${trainProgressCardHtml(day)}
-    <section class="card">
-      <div class="card-top"><h2 class="h2">Неделя</h2><span class="pill">${fmtInt(wkMin)} из ${wt.minutes} мин</span></div>
-      <div class="track"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
-      <p class="foot-note" style="margin:12px 0 0">Силовых тренировок: <b>${wkStr}</b> из ${wt.strength}. ${esc(wt.text)}</p>
-    </section>`;
+    ${trainProgressCardHtml(day)}`;
   // ----- Сон -----
   const sl = sleepOn(day);
   const nights = wk.filter((d) => sleepHours(d) > 0);

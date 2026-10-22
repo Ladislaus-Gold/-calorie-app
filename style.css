@@ -2253,3 +2253,139 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 :root[data-theme="dark"] .fl-fold .cv{background:#1E3550;color:#9CC4F2}
 .caf-card .cv{background:#FBEBC6;color:#9A5F05;box-shadow:0 1px 3px rgba(150,90,0,.25)}
 :root[data-theme="dark"] .caf-card .cv{background:rgba(240,221,176,.18);color:#F0DDB0;box-shadow:0 1px 3px rgba(0,0,0,.45)}
+
+/* ===== v2.12: вкладка «Тренировки» ===== */
+.th-hero{position:relative;overflow:hidden;margin-bottom:16px;padding:16px 18px 14px;border-radius:28px;color:#fff;background:linear-gradient(160deg,#6FCD9A,#37A873);box-shadow:0 12px 26px rgba(55,168,115,.38)}
+.th-hero::after{content:"";position:absolute;width:230px;height:230px;border-radius:50%;background:rgba(255,255,255,.08);right:-105px;top:-125px;pointer-events:none}
+.th-hero>*{position:relative;z-index:1}
+.th-top{display:flex;align-items:center;gap:16px}
+.th-ring{position:relative;flex:none;width:84px;height:84px}
+.th-ring svg{width:84px;height:84px;display:block}
+.th-ring circle{fill:none;stroke-width:11}
+.th-ring .bg{stroke:rgba(255,255,255,.28)}
+.th-ring .fg{stroke:#fff;stroke-linecap:round}
+.th-ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:18px;font-weight:800}
+.th-t1{font-size:13px;font-weight:700;letter-spacing:.06em;opacity:.92}
+.th-t2{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}
+.th-t3{margin-top:4px;font-size:13px;opacity:.92}
+.th-strip{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.28)}
+.th-strip>div{text-align:center;padding:0 4px}
+.th-strip>div+div{border-left:1px solid rgba(255,255,255,.28)}
+.th-strip b{display:block;font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.th-strip span{display:block;margin-top:2px;font-size:12px;font-weight:600;line-height:1.2;opacity:.92}
+.th-line{display:flex;justify-content:space-between;gap:10px;margin-top:12px;font-size:13px;font-weight:600;opacity:.96}
+.th-note{margin:8px 0 0;font-size:12px;opacity:.85}
+
+/* полоска недели */
+.wkc{padding:14px 16px}
+.wkc-r1{display:flex;align-items:center;gap:10px}
+.wkc-r1 .h2{margin:0;font-size:16px}
+.wkc-v{margin-left:auto;font-size:14px;font-weight:800;color:var(--accent-d);white-space:nowrap}
+.wkc-bar{height:10px;margin:10px 0;border-radius:10px;background:#EAF1ED;overflow:hidden}
+.wkc-bar i{display:block;height:100%;border-radius:10px;background:linear-gradient(90deg,#6FCD9A,#37A873)}
+.wkc-r2{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted)}
+.wkc-dot{flex:none;width:12px;height:12px;border-radius:50%;background:linear-gradient(#6FCD9A,#37A873)}
+.wkc-dot.e{background:#fff;border:2px solid #CFE0D5;box-sizing:border-box}
+.wkc-r2 span:last-child{margin-left:2px}
+.wkc-note{margin:8px 0 0;font-size:12.5px;line-height:1.35;color:var(--muted)}
+:root[data-theme="dark"] .wkc-bar{background:rgba(255,255,255,.10)}
+:root[data-theme="dark"] .wkc-dot.e{background:transparent;border-color:rgba(255,255,255,.25)}
+
+/* план тренировок: календарь недели */
+.tr-week{gap:6px}
+.tr-d{border:1.5px solid transparent;background:#F3F8F5;border-radius:16px;padding:9px 0 8px;min-height:62px;justify-content:flex-start;gap:7px;font-weight:700;color:#4D6055}
+.tr-d span{font-size:13.5px;font-weight:700}
+.tr-d.plan{background:#fff;border-color:#E1EDE6;color:var(--text)}
+.tr-d.today span{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.tr-d.sel{border-color:#37A873;background:#EAF6EF;box-shadow:0 0 0 3px rgba(55,168,115,.15)}
+.tr-d em i{width:8px;height:8px;background:#37A873}
+.tr-d em .tr-ok{width:22px;height:22px;background:linear-gradient(#6FCD9A,#37A873);box-shadow:0 3px 8px rgba(55,168,115,.35)}
+.tr-d em .tr-miss{width:22px;height:22px;background:#fff;border:1.5px solid #F0A79D;box-shadow:none}
+.tr-d em .tr-miss svg{color:#D85C4E}
+.tr-d em{height:22px;width:22px}
+.tr-d:has(.tr-miss){background:#FFF3F1;border-color:#F4C9C2;color:#9B3B2E}
+:root[data-theme="dark"] .tr-d{background:rgba(255,255,255,.05);color:#9FB3A6}
+:root[data-theme="dark"] .tr-d.plan{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.10);color:var(--text)}
+:root[data-theme="dark"] .tr-d.sel{background:rgba(55,168,115,.20);border-color:#37A873}
+:root[data-theme="dark"] .tr-d:has(.tr-miss){background:rgba(229,72,77,.14);border-color:rgba(229,72,77,.35)}
+:root[data-theme="dark"] .tr-d em .tr-miss{background:transparent}
+
+/* план: заголовок дня, победа, группы, строки */
+.tr-title{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.tr-meta{font-size:13.5px}
+.tr-win{background:linear-gradient(150deg,#6FCD9A,#37A873);box-shadow:0 12px 26px rgba(55,168,115,.38);border-radius:24px}
+.tr-blk{border:1.5px solid #E1EDE6;border-radius:22px;box-shadow:none}
+.tr-blk>.tr-g{background:#F3F8F5;color:#1F7A4A;letter-spacing:.08em;font-weight:800}
+.tr-blk>.tr-g span{background:#fff;color:#1F7A4A;font-weight:800}
+.tr-mgb{border:0;box-shadow:none;border-radius:0;background:none}
+.tr-mgb .tr-mg{border-bottom:0;padding:10px 0 0;font-size:12.5px;font-weight:800;color:#6B7B72;letter-spacing:.02em}
+.tr-mgb .tr-mg span{color:#1F7A4A}
+.tr-row{gap:12px;padding:11px 0}
+.tr-check{width:28px;height:28px;border:2px solid #D3E3D9}
+.tr-check svg{width:15px;height:15px}
+.tr-row.on .tr-check{background:linear-gradient(#6FCD9A,#37A873);border-color:transparent;box-shadow:0 3px 8px rgba(55,168,115,.32)}
+.tr-name{font-size:15px;font-weight:700}
+.tr-row.on .tr-name{color:#8A9A91;text-decoration-color:#C3D2C9}
+.tr-go{width:20px;color:#B5C7BC}
+.tr-w{background:#F3F8F5;border-radius:20px;padding:12px 14px}
+.tr-actions>.tr-addrow{background:none;border:1.5px dashed #BFE3CF;border-radius:16px;box-shadow:none;color:#1F7A4A}
+.tr-addrow .plus{border:0;color:#fff;background:linear-gradient(#6FCD9A,#37A873);width:26px;height:26px;font-size:18px}
+.tr-addrow b{font-size:15px}
+.tr-fin{background:#F3F8F5;border-radius:20px;color:#1F7A4A}
+:root[data-theme="dark"] .tr-blk{border-color:rgba(255,255,255,.10)}
+:root[data-theme="dark"] .tr-blk>.tr-g{background:rgba(255,255,255,.05);color:#7FD6A0}
+:root[data-theme="dark"] .tr-w,:root[data-theme="dark"] .tr-fin{background:rgba(255,255,255,.05);color:#8FD3A8}
+
+/* прогресс тренировок */
+.pg-card .stat-grid .stat,.pg-card .stat-grid .stat:nth-child(n){background:#F3F8F5;border:0;box-shadow:none;--tc:#14261b;--tm:#6B7B72}
+.pg-card .stat b{color:#14261b;font-size:22px}
+.pg-card .stat span{color:#6B7B72;font-weight:600}
+:root[data-theme="dark"] .pg-card .stat-grid .stat,:root[data-theme="dark"] .pg-card .stat-grid .stat:nth-child(n){background:rgba(255,255,255,.06)}
+:root[data-theme="dark"] .pg-card .stat b{color:var(--text)}
+.pg-card .tr-tip{display:flex;gap:10px;margin:12px 0;padding:12px 14px;border-radius:16px;background:#EEF6F1;color:#2F4A3A;font-size:13.5px;line-height:1.4}
+.pg-card .tip-ic{font-size:18px;line-height:1.2}
+:root[data-theme="dark"] .pg-card .tr-tip{background:rgba(55,168,115,.14);color:var(--text)}
+.pg-card .ex-h{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6B7B72;margin:16px 0 6px}
+.pg-card .card-top.tog .ex-h{font-size:17px;font-weight:800;letter-spacing:-.01em;text-transform:none;color:var(--text);display:flex;align-items:center;gap:10px}
+.pg-card .tr-lab{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6B7B72}
+.mb-r{grid-template-columns:84px 1fr 38px}
+.mb-r .track{height:8px}
+.mb-r b{color:#1F7A4A;font-size:13px}
+.mb-r.lag{margin:0 -8px;padding:6px 8px;border-radius:12px;background:#FFF3F1}
+.mb-r.lag span{color:#9B3B2E;font-weight:700}
+.mb-r.lag b{color:#C4513F}
+.mb-r.lag .track{background:#F6DAD5}
+:root[data-theme="dark"] .mb-r.lag{background:rgba(229,72,77,.14)}
+
+/* графики упражнений: единый зелёный вид */
+.xg,.xg.open{border:1.5px solid #E1EDE6;border-left:1.5px solid #E1EDE6;border-radius:20px;background:#fff;box-shadow:none}
+.xg-h{gap:10px}
+.xg-t b{font-size:16px}
+.xsp{flex:none;display:block}
+.xsp rect{fill:#BFE3CF}
+.xsp rect.cur{fill:#37A873}
+.xsp rect.zero{fill:#DCE9E1}
+.xsl{flex:none;display:block}
+.xsl polyline{fill:none;stroke:#37A873;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.xsl circle{fill:#37A873}
+.xg .xs>div,.xg .xe .xs>div,.xg .xs>div:nth-child(n),.xg .xe .xs>div:nth-child(n){background:#F3F8F5;color:#14261b;border-color:transparent;height:auto;min-height:0}
+.xg .xs b,.xg .xe .xs b{color:#14261b}
+.xg .xs span{color:#6B7B72;opacity:1}
+.xt.up{background:#E6F4EC;color:#1F7A4A}
+.xg .xe{background:#FBFDFC;border-color:#EEF3F0;box-shadow:none}
+.xe-h{gap:8px}
+.xe-h b{flex:1;min-width:0}
+.xg .cv{background:linear-gradient(180deg,#6FCD9A,#37A873);color:#fff;box-shadow:0 3px 8px rgba(55,168,115,.30)}
+:root[data-theme="dark"] .xg,:root[data-theme="dark"] .xg.open{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.10)}
+:root[data-theme="dark"] .xg .xs>div,:root[data-theme="dark"] .xg .xe .xs>div,:root[data-theme="dark"] .xg .xs>div:nth-child(n),:root[data-theme="dark"] .xg .xe .xs>div:nth-child(n){background:rgba(255,255,255,.06);color:var(--text)}
+:root[data-theme="dark"] .xg .xs b,:root[data-theme="dark"] .xg .xe .xs b{color:var(--text)}
+:root[data-theme="dark"] .xg .xe{background:rgba(0,0,0,.2)}
+:root[data-theme="dark"] .xsp rect{fill:rgba(111,205,154,.35)}
+:root[data-theme="dark"] .xsp rect.cur{fill:#6FCD9A}
+
+/* сброс прогресса */
+.pg-reset{margin-top:22px;text-align:center}
+.pg-reset .more-btn.red{display:inline-block;width:auto;padding:10px 20px;margin:0;border-radius:999px;background:#fff;border:1.5px solid #F0C7C0;color:#B5483A;font-weight:700}
+.pg-reset .foot-note{margin:8px 0 0;font-size:12.5px}
+:root[data-theme="dark"] .pg-reset .more-btn.red{background:transparent;border-color:rgba(255,138,138,.4);color:#FF8A8A}
+.mb-r .track i{background:linear-gradient(90deg,#6FCD9A,#37A873)}
