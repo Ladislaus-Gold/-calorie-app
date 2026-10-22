@@ -1038,7 +1038,7 @@ function trainDynCardHtml(day) {
   const wDone = wk.filter(({ x }) => x.plan);
   const cmp = wDone.length >= 2 ? Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan - wDone[0].x.done / wDone[0].x.plan) * 100) : null;
   return `<section class="card">
-    <div class="card-top fl-top"><span class="fl-ic ic-plan">🏋️</span><h2 class="h2">Тренировки по плану</h2><span class="pill pc-ind">не из Apple Health</span></div>
+    <div class="card-top fl-top"><span class="fl-ic sl-sq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><h2 class="h2">Тренировки по плану</h2><span class="pill pc-ind">не из Apple Health</span></div>
     ${wDone.length ? `<div class="dn-tiles"><div class="dn-t t-g"><b>${Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan) * 100)}%</b><span>последняя неделя</span></div>${cmp !== null ? `<div class="dn-t t-y"><b>${cmp > 0 ? "+" : ""}${cmp}</b><span>п. п. с первой недели</span></div>` : ""}<div class="dn-t t-p"><b>${wDone.length}</b><span>${wDone.length === 1 ? "неделя" : wDone.length < 5 ? "недели" : "недель"} с планом</span></div></div>` : ""}
     <p class="tr-lab" style="margin-top:0">Выполнение плана по неделям, %</p>
     <div class="chart tr-feel-chart">${bars}</div>${labels}

@@ -1682,10 +1682,10 @@ html body .dv.hvw.hsl .sl-strip > div + div { border-left: .5px solid rgba(255,2
 html body .dv.hvw.hsl .sl-strip b { color: #fff !important; font-size: 17px; letter-spacing: -.02em; }
 html body .dv.hvw.hsl .sl-strip span { color: rgba(255,255,255,.85) !important; }
 /* значки заголовков: чёрные квадраты с белым значком (в тёмной теме наоборот) */
-html body .dv.hvw.hsl .fl-ic.sl-sq { background: #000 !important; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.25), 0 2px 5px rgba(0,0,0,.22) !important; }
-html body .dv.hvw.hsl .fl-ic.sl-sq svg { width: 18px; height: 18px; fill: #fff; stroke: none; }
-:root[data-theme="dark"] html body .dv.hvw.hsl .fl-ic.sl-sq, html:root[data-theme="dark"] body .dv.hvw.hsl .fl-ic.sl-sq { background: #fff !important; box-shadow: none !important; }
-html:root[data-theme="dark"] body .dv.hvw.hsl .fl-ic.sl-sq svg { fill: #000; }
+html body .dv.hvw:is(.hsl,.hdy) .fl-ic.sl-sq { background: #000 !important; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.25), 0 2px 5px rgba(0,0,0,.22) !important; }
+html body .dv.hvw:is(.hsl,.hdy) .fl-ic.sl-sq svg { width: 18px; height: 18px; fill: #fff; stroke: none; }
+:root[data-theme="dark"] html body .dv.hvw:is(.hsl,.hdy) .fl-ic.sl-sq, html:root[data-theme="dark"] body .dv.hvw:is(.hsl,.hdy) .fl-ic.sl-sq { background: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .dv.hvw:is(.hsl,.hdy) .fl-ic.sl-sq svg { fill: #000; }
 /* фазы: полоса и точки цветные */
 html body .dv.hvw.hsl .sl-stages { height: 12px; border-radius: 6px; gap: 2px; margin-bottom: 6px; }
 html body .dv.hvw.hsl .sl-stages i.deep, html body .dv.hvw.hsl .sl-lg i.deep { background: #5E5CE6 !important; }
@@ -1715,3 +1715,38 @@ html body .dv.hvw.hsl .caf-msgs li::before { content: ""; flex: none; width: 8px
 /* столбики недели: сиреневые */
 html body .dv.hvw.hsl .chart .b.sleep { background: linear-gradient(180deg, #9A98FF, #5E5CE6) !important; box-shadow: 0 6px 12px rgba(94,92,230,.28); border-radius: 9px; }
 html:root[data-theme="dark"] body .dv.hvw.hsl .chart .b.sleep { background: linear-gradient(180deg, #9A98FF, #5E5CE6) !important; }
+
+/* ===== v2.52: вкладка «Динамика» в стиле iPhone. Оформление чёрно-белое, цвет только у графиков и линии веса ===== */
+html body .dv.hvw.hdy .card-top.fl-top .h2 { flex: none; white-space: nowrap; }
+html body .dv.hvw.hdy .card-top.fl-top .pill { flex: 1 1 auto; min-width: 0; margin-left: auto; white-space: normal; text-align: right; line-height: 1.2; background: var(--fill) !important; color: var(--sec) !important; border: 0; font-weight: 600; }
+/* плитки: первая чёрная, остальные серые */
+html body .dv.hvw.hdy .dn-tiles { gap: 10px; }
+html body .dv.hvw.hdy .dn-t { border-radius: 18px; padding: 12px 14px; box-shadow: none !important; }
+html body .dv.hvw.hdy .dn-t.t-y, html body .dv.hvw.hdy .dn-t.t-p { background: var(--fill) !important; }
+html body .dv.hvw.hdy .dn-t.t-y b, html body .dv.hvw.hdy .dn-t.t-p b { color: var(--ink) !important; }
+html body .dv.hvw.hdy .dn-t.t-g { background: #000 !important; box-shadow: 0 2px 4px rgba(0,0,0,.18), 0 8px 18px rgba(0,0,0,.16) !important; }
+html body .dv.hvw.hdy .dn-t.t-g b { color: #fff !important; }
+html body .dv.hvw.hdy .dn-t.t-g span { color: #AEAEB2 !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .dn-t.t-g { background: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .dn-t.t-g b { color: #000 !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .dn-t.t-g span { color: #6E6E73 !important; }
+html body .dv.hvw.hdy .dn-t b { font-size: 22px; font-weight: 700; letter-spacing: -.035em; }
+/* переключатель периода и кнопки */
+html body .dv.hvw.hdy .wt-seg button.on { background: var(--ink) !important; color: var(--surf) !important; box-shadow: 0 2px 6px rgba(0,0,0,.25) !important; }
+html body .dv.hvw.hdy .chips .chip.sel { background: var(--ink) !important; color: var(--surf) !important; box-shadow: 0 2px 4px rgba(0,0,0,.2), 0 4px 10px rgba(0,0,0,.2); }
+html body .dv.hvw.hdy .btn.ghost.full { height: 50px; border: 0 !important; border-radius: 14px; background: var(--ink) !important; color: var(--surf) !important; font-size: 17px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,.18), 0 8px 20px rgba(0,0,0,.16) !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .btn.ghost.full { box-shadow: none !important; }
+/* линия веса и легенда: зелёные */
+html body .dv.hvw.hdy section.card svg[role="img"], html body .dv.hvw.hdy .wt-legend { --accent: #30B94D; }
+html body .dv.hvw.hdy .wt-legend .l { background: #30B94D !important; }
+/* столбики: норма зелёная, выше нормы красная, сон сиреневый */
+html body .dv.hvw.hdy .chart .b { background: linear-gradient(180deg, #5DE07F, #30B94D) !important; box-shadow: 0 6px 12px rgba(48,185,77,.26); border-radius: 9px; color: #fff !important; }
+html body .dv.hvw.hdy .chart .b.over { background: linear-gradient(180deg, #FF8A80, #FF453A) !important; box-shadow: 0 6px 12px rgba(255,69,58,.26); }
+html body .dv.hvw.hdy .chart .b.sleep { background: linear-gradient(180deg, #9A98FF, #5E5CE6) !important; box-shadow: 0 6px 12px rgba(94,92,230,.28); }
+html body .dv.hvw.hdy .chart .b.zero { background: var(--fill) !important; box-shadow: none; border-radius: 3px; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .chart .b { color: #fff !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .chart .b.zero { background: #2C2C2E !important; }
+html body .dv.hvw.hdy .tr-feel-chart .b.over { background: linear-gradient(180deg, #FF8A80, #FF453A) !important; }
+/* пояснение под графиком */
+html body .dv.hvw.hdy .chart-note { color: var(--sec) !important; font-size: 13px; line-height: 1.4; }
+html body .dv.hvw.hdy .tr-lab { font-size: 13px; font-weight: 500; color: var(--sec); }
