@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=22";
+import { createTrainUI } from "./trainui.js?v=25";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 216;
-const APP_VERSION_LABEL = "2.13"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 219;
+const APP_VERSION_LABEL = "2.16"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -777,7 +777,7 @@ function viewDiary() {
       <div class="gz-sum">
         <div class="gz-side"><b>${fmtInt(t.kcal)}</b><span>Съедено</span></div>
         <div class="gz-wrap">${gaugeSvg(ratio)}<div class="gz-c z-${zone}"><b>${fmtInt(Math.abs(left))}</b><span>${over ? "Перебор" : "Осталось"}</span></div></div>
-        <div class="gz-side"><b>${fmtInt(burned)}</b><span>Сожжено</span></div>
+        <div class="gz-side"><b>${fmtInt(burned)}</b><span>Активных</span></div>
       </div>
       ${plate}
       ${macroCols}
@@ -3597,17 +3597,17 @@ function viewHealth() {
       ${hrLine}
       ${wkStepsAvg ? `<p class="th-note">В среднем за неделю ${fmtInt(wkStepsAvg)} шагов в день</p>` : ""}
     </section>` : `<section class="card">
-      <div class="card-top"><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
+      <div class="card-top fl-top"><span class="fl-ic">👟</span><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
       <p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>
     </section>`}
     <section class="card wkc">
-      <div class="wkc-r1"><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
+      <div class="wkc-r1"><span class="fl-ic">🗓️</span><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
       <div class="wkc-bar"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
       <div class="wkc-r2">${wkDots}<span>Силовых: ${wkStr} из ${wt.strength}${wkLeft > 0 ? ` · осталось ${fmtInt(wkLeft)} мин` : ""}</span></div>
       ${wt.text ? `<p class="wkc-note">${esc(wt.text)}</p>` : ""}
     </section>
-    <section class="card">
-      <div class="card-top"><h2 class="h2">Тренировки</h2></div>
+    <section class="card trc">
+      <div class="card-top fl-top"><span class="fl-ic">🏃</span><h2 class="h2">Тренировки</h2></div>
       <div class="stat-grid">
         <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
         <div class="stat"><b>${fmtInt(trainKcal)}</b><span>ккал на тренировках</span></div>

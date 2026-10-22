@@ -2412,3 +2412,90 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .fl-top .h2{min-width:0;white-space:nowrap}
 .fl-pills .pill{white-space:nowrap}
 .cp-tx{white-space:nowrap}
+
+/* ===== v2.14: доводка вкладки «Тренировки» по референсу ===== */
+.trc .h2::before,.pg-card .h2::before,.wkc .h2::before{display:none}
+.trc .h2{font-weight:800;letter-spacing:-.02em}
+.trc .stat-grid .stat,.trc .stat-grid .stat:nth-child(n){background:#F3F8F5;border:0;box-shadow:none}
+.trc .stat b{color:#14261b}
+.trc .stat span{color:#6B7B72;font-weight:600}
+:root[data-theme="dark"] .trc .stat-grid .stat,:root[data-theme="dark"] .trc .stat-grid .stat:nth-child(n){background:rgba(255,255,255,.06)}
+:root[data-theme="dark"] .trc .stat b{color:var(--text)}
+.trc .card-top>.btn.ghost{background:#fff;border:1.5px solid #BFE3CF;color:#1F7A4A;box-shadow:none;border-radius:999px}
+.trc .tr-top .btn.ghost{background:#FFF7F5;border:1.5px solid #F0C7C0;color:#B5483A;box-shadow:none;border-radius:999px}
+:root[data-theme="dark"] .trc .card-top>.btn.ghost{background:transparent;border-color:rgba(111,205,154,.4);color:#8FD3A8}
+:root[data-theme="dark"] .trc .tr-top .btn.ghost{background:transparent;border-color:rgba(255,138,138,.4);color:#FF8A8A}
+.tr-go svg{fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;width:20px;height:20px}
+.tr-title{font-weight:800}
+/* графики: свёрнутая группа без плиток, упражнение компактной строкой */
+.xg:not(.open)>.xs{display:none}
+.xg:not(.open) .xg-h{margin:0}
+.xe-ln{display:flex;align-items:center;gap:10px;margin-top:8px}
+.xe-ln .xe-nm{flex:1;min-width:0;font-size:12.5px;color:#6B7B72;line-height:1.35}
+.xe-ln .xe-nm b{font-size:14px;color:#14261b}
+.xe-ln .xe-nm small{font-size:11.5px}
+/* выполнено по неделям */
+.tr-bar .track{background:#EAF1ED}
+.tr-bar .track i{background:linear-gradient(90deg,#6FCD9A,#37A873)}
+/* последние тренировки */
+.tr-h{padding:12px 0;border-bottom:0;border-top:1px solid #EEF3F0;gap:0}
+.tr-h:first-of-type{border-top:0}
+.tr-ha{display:flex;align-items:center;gap:8px}
+.tr-ha b{font-size:15px;color:#14261b}
+.tr-hf{margin-left:auto;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;background:#E6F4EC;color:#1F7A4A}
+.tr-hf.hv{background:#FFF1D6;color:#8A5A00}
+.tr-hb{display:block;margin-top:4px;font-size:12px;color:#6B7B72}
+.tr-hc{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tr-hc i{font-style:normal;font-size:12px;color:#4D6055;background:#F3F8F5;border-radius:999px;padding:3px 10px;display:inline-flex;align-items:center;gap:6px}
+.tr-hc i::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,#222)}
+:root[data-theme="dark"] .tr-hc i{background:rgba(255,255,255,.07);color:var(--text)}
+:root[data-theme="dark"] .tr-hf{background:rgba(55,168,115,.2);color:#8FD3A8}
+:root[data-theme="dark"] .tr-hf.hv{background:rgba(240,180,60,.2);color:#F0CB75}
+.tr-bar{grid-template-columns:70px 1fr 46px}
+
+/* v2.15: эмодзи у заголовков вкладки «Тренировки» */
+.trc .fl-ic,.pg-card .fl-ic,.wkc .fl-ic{background:#E6F4EC}
+.wkc-r1{gap:10px}
+.wkc-r1 .h2::before{display:none}
+:root[data-theme="dark"] .trc .fl-ic,:root[data-theme="dark"] .pg-card .fl-ic,:root[data-theme="dark"] .wkc .fl-ic{background:rgba(55,168,115,.2)}
+.fl-top>.btn{margin-left:auto}
+
+/* v2.15: «Тренировка выполнена» в фиолетовом градиенте */
+.tr-win{background:linear-gradient(135deg,#B39DF0 0%,#7B52E6 60%,#6A3FDB 100%);box-shadow:0 12px 26px rgba(106,63,219,.38)}
+.tr-win .em{width:54px;height:54px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:30px;box-shadow:0 4px 12px rgba(60,20,140,.25)}
+.tr-win h3{text-shadow:0 1px 2px rgba(50,20,120,.25)}
+.tr-win .bar{background:rgba(255,255,255,.35)}
+.card.tr-banner.done{background:linear-gradient(135deg,#B39DF0 0%,#7B52E6 60%,#6A3FDB 100%);box-shadow:0 12px 26px rgba(106,63,219,.38)}
+.tr-banner.done .tr-ban-ic{background:#fff;color:#1F2723}
+.tr-banner.done .track{background:rgba(255,255,255,.35)}
+
+/* v2.16: плашки прогресса по результату (палитра приложения), тени между блоками */
+.pg-card .stat-grid .stat{position:relative;box-shadow:0 4px 12px rgba(23,60,40,.08)}
+.pg-card .stat-grid .stat.lv-0:nth-child(n){background:#FFF4D6}.pg-card .stat.lv-0 b{color:#8A5A00}
+.pg-card .stat-grid .stat.lv-1:nth-child(n){background:#F1F6DA}.pg-card .stat.lv-1 b{color:#4C6A12}
+.pg-card .stat-grid .stat.lv-2:nth-child(n){background:#E3F4E7}.pg-card .stat.lv-2 b{color:#0E7A37}
+.pg-card .stat.lv-f0{background:#E3F4E7}.pg-card .stat.lv-f0 b{color:#0E7A37}
+.pg-card .stat-grid .stat.lv-f1:nth-child(n){background:#FFF4D6}.pg-card .stat.lv-f1 b{color:#8A5A00}
+.pg-card .stat-grid .stat.lv-f2:nth-child(n){background:#FDECEC}.pg-card .stat.lv-f2 b{color:#A12B2B}
+.pg-card .stat .sb{display:block;height:5px;border-radius:4px;background:rgba(24,38,29,.08);margin-top:8px;overflow:hidden}
+.pg-card .stat .sb u{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#F5BD45,#E9A92B)}
+.pg-card .stat.lv-1 .sb u{background:linear-gradient(90deg,#C9D95A,#7DBB5C)}
+.pg-card .stat.lv-2 .sb u{background:linear-gradient(90deg,#6FCD9A,#37A873)}
+.pg-card .stat .ok{position:absolute;right:10px;top:10px;width:22px;height:22px;border-radius:50%;background:linear-gradient(#6FCD9A,#37A873);color:#fff;text-decoration:none;display:grid;place-items:center;font-size:12px;font-weight:800;box-shadow:0 3px 8px rgba(55,168,115,.35)}
+.mb-r.m0 .track i{background:linear-gradient(90deg,#F5BD45,#E9A92B)}
+.mb-r.m1 .track i{background:linear-gradient(90deg,#C9D95A,#7DBB5C)}
+.mb-r.m0 b{color:#8A5A00}.mb-r.m1 b{color:#4C6A12}
+.mb-r.lag .track{background:#F6DAD5}
+.pg-card .tr-tip{box-shadow:0 4px 12px rgba(23,60,40,.07)}
+.xg,.tr-blk{box-shadow:0 4px 14px rgba(23,60,40,.08)}
+.tr-win,.wkc,.trc,.pg-card{box-shadow:0 8px 24px rgba(23,60,40,.10)}
+:root[data-theme="dark"] .pg-card .stat-grid .stat.lv-0,:root[data-theme="dark"] .pg-card .stat-grid .stat.f1{background:rgba(245,189,69,.16)}
+:root[data-theme="dark"] .pg-card .stat-grid .stat.lv-1{background:rgba(125,187,92,.16)}
+:root[data-theme="dark"] .pg-card .stat-grid .stat.lv-2,:root[data-theme="dark"] .pg-card .stat-grid .stat.f0{background:rgba(55,168,115,.18)}
+:root[data-theme="dark"] .pg-card .stat-grid .stat.f2{background:rgba(214,69,69,.18)}
+:root[data-theme="dark"] .pg-card .stat b{color:var(--text)}
+
+.pg-card .stat.lv-f2{background:#FDECEC!important}.pg-card .stat.lv-f1{background:#FFF4D6!important}.pg-card .stat.lv-f0{background:#E3F4E7!important}
+.pg-card .stat.lv-f0 b{color:#0E7A37}.pg-card .stat.lv-f1 b{color:#8A5A00}.pg-card .stat.lv-f2 b{color:#A12B2B}
+.mb-r.lag b{color:#C4513F}.mb-r.lag .track i{background:linear-gradient(90deg,#F4B8B0,#E58B80)}
+:root[data-theme="dark"] .pg-card .stat.lv-f2{background:rgba(214,69,69,.18)!important}:root[data-theme="dark"] .pg-card .stat.lv-f1{background:rgba(245,189,69,.16)!important}:root[data-theme="dark"] .pg-card .stat.lv-f0{background:rgba(55,168,115,.18)!important}
