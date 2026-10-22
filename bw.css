@@ -544,3 +544,22 @@ html:has(.pvw), body:has(.pvw) { background: #fff; background-image: none; }
 :root[data-theme="dark"] .dv .tr-banner.done .tr-ban-main > span:not(.track) { color: #636366 !important; }
 :root[data-theme="dark"] .dv .tr-banner.done .track { background: rgba(0, 0, 0, .12) !important; }
 :root[data-theme="dark"] .dv .tr-banner.done .track i { background: #000 !important; }
+
+/* v2.33: «Тренировка завтра/сегодня» тоже чёрная (как «выполнена»); в тёмной теме белая */
+.dv .card.tr-banner { background: #0B0B0C !important; color: #fff !important; border-color: transparent !important; }
+.dv .tr-banner .tr-ban-ic { background: #fff !important; box-shadow: none !important; }
+.dv .tr-banner .tr-ban-main b { color: #fff !important; }
+.dv .tr-banner .tr-ban-main > span:not(.track) { color: rgba(255, 255, 255, .72) !important; }
+.dv .tr-banner .tr-ban-sub { color: #fff !important; }
+.dv .tr-banner .tr-ban-chips .chip { background: rgba(255, 255, 255, .16) !important; color: rgba(255, 255, 255, .85) !important; }
+.dv .tr-banner .track { background: rgba(255, 255, 255, .2) !important; }
+.dv .tr-banner .track i { background: #fff !important; }
+.dv .tr-banner .tr-ban-btn { background: #fff !important; color: #000 !important; box-shadow: none !important; }
+:root[data-theme="dark"] .dv .card.tr-banner { background: #fff !important; color: #000 !important; }
+:root[data-theme="dark"] .dv .tr-banner .tr-ban-ic { background: #F2F2F7 !important; }
+:root[data-theme="dark"] .dv .tr-banner .tr-ban-main b, :root[data-theme="dark"] .dv .tr-banner .tr-ban-sub { color: #000 !important; }
+:root[data-theme="dark"] .dv .tr-banner .tr-ban-main > span:not(.track) { color: #636366 !important; }
+:root[data-theme="dark"] .dv .tr-banner .tr-ban-chips .chip { background: rgba(0, 0, 0, .08) !important; color: #3A3A3C !important; }
+:root[data-theme="dark"] .dv .tr-banner .track { background: rgba(0, 0, 0, .12) !important; }
+:root[data-theme="dark"] .dv .tr-banner .track i { background: #000 !important; }
+:root[data-theme="dark"] .dv .tr-banner .tr-ban-btn { background: #000 !important; color: #fff !important; }
