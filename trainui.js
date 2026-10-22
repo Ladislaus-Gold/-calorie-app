@@ -1035,7 +1035,7 @@ function trainDynCardHtml(day) {
   const wDone = wk.filter(({ x }) => x.plan);
   const cmp = wDone.length >= 2 ? Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan - wDone[0].x.done / wDone[0].x.plan) * 100) : null;
   return `<section class="card">
-    <div class="card-top"><h2 class="h2">Тренировки по плану</h2><span class="pill">не из Apple Health</span></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-plan">🏋️</span><h2 class="h2">Тренировки по плану</h2><span class="pill pc-ind">не из Apple Health</span></div>
     <p class="tr-lab" style="margin-top:0">Выполнение плана по неделям, %</p>
     <div class="chart tr-feel-chart">${bars}</div>${labels}
     <p class="chart-note">${cmp === null ? "Динамика появится, когда будет хотя бы две недели с тренировками." : `С первой недели выполнение ${cmp > 0 ? "выросло" : cmp < 0 ? "снизилось" : "не изменилось"}${cmp ? ` на ${Math.abs(cmp)} п.п.` : ""}.`}</p>

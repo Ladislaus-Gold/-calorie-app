@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=28";
+import { createTrainUI } from "./trainui.js?v=29";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 223;
-const APP_VERSION_LABEL = "2.20"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 225;
+const APP_VERSION_LABEL = "2.22"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3620,7 +3620,7 @@ function viewHealth() {
       ${wt.text ? `<p class="wkc-note">${esc(wt.text)}</p>` : ""}
     </section>
     <section class="card trc">
-      <div class="card-top fl-top"><span class="fl-ic ic-run">🏃</span><h2 class="h2">Тренировки</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-run">⚡</span><h2 class="h2">Тренировки</h2></div>
       <div class="stat-grid">
         <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
         <div class="stat"><b>${fmtInt(trainKcal)}</b><span>ккал на тренировках</span></div>
@@ -3667,7 +3667,7 @@ function viewHealth() {
       ${stageTot > 0 ? `<div class="sl-strip"><div><b>${fmtDur(deep)}</b><span>глубокий</span></div><div><b>${fmtDur(rem)}</b><span>быстрый</span></div><div><b>${fmtDur(core)}</b><span>лёгкий</span></div></div>` : ""}
     </section>
     <section class="card sl-ph">
-      <div class="card-top fl-top"><span class="fl-ic">🌙</span><h2 class="h2">Фазы сна</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-sl">🌙</span><h2 class="h2">Фазы сна</h2></div>
       ${stageTot > 0 ? `<div class="sl-stages">${seg(deep, "deep")}${seg(rem, "rem")}${seg(core, "core")}${seg(awake, "awake")}</div>
       <div class="sl-legend">${lg("Глубокий", deep, "deep")}${lg("Быстрый сон", rem, "rem")}${lg("Лёгкий", core, "core")}${lg("Бодрствование", awake, "awake")}</div>` : `<p class="foot-note" style="margin:0">Данных о фазах сна нет.</p>`}
       <div class="stat-grid" style="margin-top:12px">
@@ -3685,9 +3685,9 @@ function viewHealth() {
     ${weightCard(day)}
     ${measuresCard(day)}
     ${trainDynCardHtml(day)}
-    ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true)}
-    ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v))}
-    ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "") : ""}`;
+    ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true, undefined, { ic: ["🔥", "ic-kc", "pc-red", " в день"] })}
+    ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v), { ic: ["😴", "ic-sl", "pc-ind", " в среднем"] })}
+    ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "", false, undefined, { ic: ["👟", "ic-st", "", " в среднем"] }) : ""}`;
   return `
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
     ${plan ? "" : fillProfilePrompt}
@@ -3797,7 +3797,7 @@ function measuresCard(day) {
     else { const d = Math.round((pts[pts.length - 1].v - pts[0].v) * 10) / 10; note = `<b>${d > 0 ? "+" : d < 0 ? "−" : ""}${fmt(Math.abs(d))} см</b> ${range ? `за ${range} дн.` : "за всё время"}.`; }
   }
   return `<section class="card">
-    <div class="card-top"><h2 class="h2">Замеры</h2><span class="pill">${lastAny ? `${esc(keyName)}: ${fmt(msOf(lastAny, key))} см` : "нет записей"}</span></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-ms">📏</span><h2 class="h2">Замеры</h2><span class="pill">${lastAny ? `${esc(keyName)}: ${fmt(msOf(lastAny, key))} см` : "нет записей"}</span></div>
     ${chips}
     ${svg}
     <p class="chart-note" style="margin:8px 0 12px">${note}</p>
@@ -3848,7 +3848,7 @@ function weightCard(day) {
   const b = weightBlock(from, day, range ? `за ${range} дн.` : "за всё время");
   const segs = `<div class="seg full wt-seg">${WT_RANGES.map(([v, t]) => `<button type="button" data-act="wtRange" data-v="${v}" class="${range === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
   return `<section class="card">
-    <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${b.last ? `${fmt(b.last.kg)} кг` : "нет записей"}</span></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-wt">⚖️</span><h2 class="h2">Вес</h2><span class="pill">${b.last ? `${fmt(b.last.kg)} кг` : "нет записей"}</span></div>
     ${segs}
     ${b.svg}
     <p class="chart-note" style="margin:8px 0 12px">${b.note}</p>
@@ -3902,7 +3902,7 @@ function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
   }).join("");
   const withData = vals.filter((v) => v > 0);
   const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
-  return `<section class="card">${cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic">📊</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
+  return `<section class="card">${o.ic ? `<div class="card-top fl-top"><span class="fl-ic ${o.ic[1]}">${o.ic[0]}</span><h2 class="h2">${title}</h2>${withData.length ? `<span class="pill ${o.ic[2] || ""}">${F(avg)} ${unit}${o.ic[3] || ""}</span>` : ""}</div>` : cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic">📊</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
     <div ${chartAttrs(days.length)}>${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
     ${chartLabelsBox(days)}
     <p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${F(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${F(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p></section>`;

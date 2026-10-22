@@ -2672,13 +2672,6 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 :root[data-theme="dark"] .xe-chips .rc2{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#C9D3CD}
 :root[data-theme="dark"] .xe-chips b{color:#fff}
 :root[data-theme="dark"] .xe-chips .rc{background:rgba(245,189,69,.16);border-color:rgba(245,189,69,.3);color:#F5D27A}
-/* Иконки вкладки «Тренировки»: цветная плитка, эмодзи на белом круге */
-.ic-cal,.trc .ic-cal,.wkc .ic-cal,.ic-run,.trc .ic-run,.ic-plan,.trc .ic-plan,.ic-prog,.pg-card .ic-prog,.ic-shoe{font-size:15px;background-repeat:no-repeat!important}
-.ic-cal,.trc .ic-cal,.wkc .ic-cal{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#6FCD9A,#37A873)!important}
-.ic-run,.trc .ic-run{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#8FBBF7,#4F8FE8)!important}
-.ic-plan,.trc .ic-plan{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#BCA6F3,#7B52E6)!important}
-.ic-prog,.pg-card .ic-prog{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#6FD6C8,#2EB8A6)!important}
-.ic-shoe{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#F5A99C,#E0645A)!important}
 /* Кофеин: кольцо с чашкой */
 .caf-pill{width:42px;height:42px;padding:0;gap:0;justify-content:center;border-radius:50%;box-shadow:0 3px 10px rgba(229,169,43,.25)}
 .cp-rg,.cp-rg svg{width:42px;height:42px}
@@ -2687,3 +2680,17 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 .caf-now{margin:8px 0 0;padding:8px 12px;border-radius:12px;background:#FFF4D6;color:#6A4A00;font-size:13.5px}
 .caf-now b{margin-right:6px}
 :root[data-theme="dark"] .caf-now{background:rgba(240,221,176,.16);color:#F0DDB0}
+
+/* ===== v2.21 ===== */
+/* плитки-эмодзи вкладки «Тренировки» возвращены как в v2.19: эмодзи прямо на цветном градиенте */
+/* ===== v2.22 ===== */
+/* Динамика: плитки-эмодзи с контрастным фоном */
+.ic-wt{background:linear-gradient(135deg,#FBD98A,#E9A92B)!important;box-shadow:0 4px 10px rgba(233,169,43,.4)}
+.ic-ms{background:linear-gradient(135deg,#6FD6C8,#2EB8A6)!important;box-shadow:0 4px 10px rgba(46,184,166,.38)}
+.ic-kc{background:linear-gradient(135deg,#8FBBF7,#4F8FE8)!important;box-shadow:0 4px 10px rgba(79,143,232,.38)}
+.ic-st{background:linear-gradient(135deg,#F5A99C,#E0645A)!important;box-shadow:0 4px 10px rgba(224,100,90,.38)}
+.ic-sl{background:linear-gradient(135deg,#A9B1F5,#7581E6)!important;box-shadow:0 4px 10px rgba(117,129,230,.4)}
+.dv .pill.pc-red,.pill.pc-red{background:#FDECEC;color:#B23B34}
+.dv .pill.pc-ind,.pill.pc-ind{background:#ECE9FB;color:#4B55C9}
+:root[data-theme="dark"] .pill.pc-red,:root[data-theme="dark"] .dv .pill.pc-red{background:rgba(229,72,77,.22);color:#FFB4B0}
+:root[data-theme="dark"] .pill.pc-ind,:root[data-theme="dark"] .dv .pill.pc-ind{background:rgba(123,82,230,.22);color:#C5B5FA}
