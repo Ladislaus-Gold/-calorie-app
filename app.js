@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 232;
-const APP_VERSION_LABEL = "2.29"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 233;
+const APP_VERSION_LABEL = "2.30"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2783,10 +2783,50 @@ function pickSheetMotion(ov, close) {
   sh.addEventListener("touchcancel", end);
 }
 
+// Закрытие окна свайпом вниз за верхнюю часть (ручка и заголовок), как в «Куда добавить?»
+function bwSheetSwipe(ov, close) {
+  const sh = ov.querySelector(".sheet");
+  let y0 = 0, dy = 0, t0 = 0, drag = false, up = false;
+  sh.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    up = ov.classList.contains("top"); // окно, прижатое к верху экрана, закрывается свайпом вверх
+    const r = sh.getBoundingClientRect(), y = e.touches[0].clientY;
+    if (up ? (y - r.top > 76 && r.bottom - y > 44) : y - r.top > 76) return;
+    if (e.target.closest("input,textarea,select")) return;
+    y0 = y; t0 = Date.now(); dy = 0; drag = true;
+    sh.style.transition = "none";
+  }, { passive: true });
+  sh.addEventListener("touchmove", (e) => {
+    if (!drag) return;
+    const d = e.touches[0].clientY - y0;
+    dy = Math.max(0, up ? -d : d);
+    sh.style.transform = `translateY(${up ? -dy : dy}px)`;
+    ov.style.background = `rgba(0,0,0,${(0.35 * Math.max(0, 1 - dy / 420)).toFixed(3)})`;
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+  const end = () => {
+    if (!drag) return;
+    drag = false;
+    const v = dy / Math.max(1, Date.now() - t0);
+    if (dy > 90 || (dy > 24 && v > 0.6)) {
+      sh.style.transition = "transform .26s ease-in";
+      sh.style.transform = `translateY(${up ? "-105%" : "105%"})`;
+      ov.style.transition = "background .26s ease-in"; ov.style.background = "rgba(0,0,0,0)";
+      setTimeout(close, 240);
+    } else {
+      sh.style.transition = "transform .3s cubic-bezier(.2,.9,.25,1.06)";
+      sh.style.transform = "";
+      ov.style.background = "";
+    }
+  };
+  sh.addEventListener("touchend", end);
+  sh.addEventListener("touchcancel", end);
+}
+
 function openSheet(html, opts = {}) {
   const ov = document.createElement("div");
   ov.className = opts.pick ? "overlay pick-ov" : opts.bw ? "overlay bw-ov" : "overlay";
-  ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${opts.bw ? '<div class="pick-grab" aria-hidden="true"></div>' : ""}${html}</div>`;
   const close = () => {
     ov.classList.remove("open");
     setTimeout(() => { ov.remove(); if (!document.querySelector(".overlay")) document.body.classList.remove("noscroll"); }, opts.pick ? 380 : 200);
@@ -2796,6 +2836,7 @@ function openSheet(html, opts = {}) {
   document.body.appendChild(ov);
   document.body.classList.add("noscroll");
   if (opts.pick) { pickSheetMotion(ov, close); fillAnim(ov, 450); }
+  else if (opts.bw) bwSheetSwipe(ov, close);
   requestAnimationFrame(() => ov.classList.add("open"));
   return ov;
 }
@@ -3959,11 +4000,11 @@ function viewHealth() {
     ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true, undefined, { ic: ["🔥", "ic-kc", "pc-red", " в день", "🎯", "dk"] })}
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v), { ic: ["😴", "ic-sl", "pc-ind", " в среднем", "🌙", "ds"] })}
     ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "", false, undefined, { ic: ["👟", "ic-st", "", " в среднем", "🚶", "dst"] }) : ""}`;
-  return `
+  return `<div class="${false ? "dv hvw" : ""}">
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
     ${plan ? "" : fillProfilePrompt}
     ${tabs}
-    ${tab === "train" ? pTrain : tab === "sleep" ? pSleep : tab === "dyn" ? pDyn : pToday}`;
+    ${tab === "train" ? pTrain : tab === "sleep" ? pSleep : tab === "dyn" ? pDyn : pToday}</div>`;
 }
 
 /* ----- Вес ----- */

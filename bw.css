@@ -396,3 +396,89 @@ html:has(.pvw), body:has(.pvw) { background: #fff; background-image: none; }
 .bw-ov .ck-stage .ck-opt small { font-size: 13px; margin-top: -6px; }
 .bw-ov .ck-hint { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-size: 13px; color: var(--sec); display: flex; justify-content: center; gap: 8px; }
 :root[data-theme="dark"] .bw-ov .icon-btn[data-close] { background-color: #3A3A3C !important; color: #fff !important; }
+
+/* ============================================================
+   v2.30 — «Здоровье → Жидкость» (.hvw поверх .dv: шапка, карточки, строки)
+   ============================================================ */
+.hvw .htabs.seg.full { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: 2px; margin: 0 0 14px; border: 0 !important; border-radius: 12px; background: var(--fill) !important; box-shadow: none !important; }
+.hvw .htabs button { height: 36px; border-radius: 10px; font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: var(--ink) !important; background: transparent !important; box-shadow: none !important; }
+.hvw .htabs button.on { background: #000 !important; color: #fff !important; box-shadow: 0 2px 4px rgba(0, 0, 0, .2), 0 4px 10px rgba(0, 0, 0, .18) !important; }
+:root[data-theme="dark"] .hvw .htabs button.on { background: #fff !important; color: #000 !important; box-shadow: none !important; }
+.hvw .card-top.fl-top { gap: 10px; margin-bottom: 12px; }
+.hvw .h2 { font-size: 17px; font-weight: 600; letter-spacing: -.025em; color: var(--ink); }
+.hvw .fl-ic, .hvw .fl-star { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; font-size: 16px; box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .25), 0 2px 5px rgba(0, 0, 0, .16); }
+.hvw .fl-ic svg, .hvw .fl-star svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.hvw .fl-ic.g-liq { background: linear-gradient(180deg, #5AC8FA, #0A84FF); }
+.hvw .fl-ic.g-liq svg { fill: #fff; stroke: none; }
+.hvw .fl-ic.g-drk { background: linear-gradient(180deg, #A1A1A6, #636366); }
+.hvw .fl-star.g-fav { background: linear-gradient(180deg, #FFD60A, #FF9F0A); }
+.hvw .fl-fav .h2 { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.hvw .big-line { font-size: 34px; font-weight: 600; letter-spacing: -.04em; color: var(--ink); }
+.hvw .big-line small { font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: var(--sec); }
+.hvw .track.water { height: 8px; border-radius: 4px; background: var(--fill); margin-top: 12px; }
+.hvw .track.water > i { border-radius: 4px; background: linear-gradient(90deg, #5AC8FA, #0A84FF); }
+.hvw .foot-note { color: var(--sec); font-size: 13px; }
+.hvw .caf-pill { background: var(--fill); color: var(--ink); }
+.hvw .caf-pill.over { background: rgba(255, 59, 48, .12); color: var(--ink); }
+:root[data-theme="dark"] .hvw .caf-pill, :root[data-theme="dark"] .hvw .caf-pill.over { color: #fff; }
+.hvw .caf-msgs li { color: var(--sec); font-size: 13px; }
+.hvw .caf-msgs li::before { background: #FF9F0A; }
+.hvw .caf-msgs li.over::before { background: #FF3B30; }
+.hvw .fl-tiles { gap: 12px; margin-bottom: 14px; }
+.hvw .fl-tile { padding: 14px 16px; border-radius: 18px; gap: 4px; }
+.hvw .fl-tile b { font-size: 28px; font-weight: 600; letter-spacing: -.035em; }
+.hvw .fl-tile span { font-size: 12px; font-weight: 500; letter-spacing: -.005em; }
+.hvw .fl-tile.w { background: #EAF3FF; color: #0A63C9; }
+.hvw .fl-tile.d { background: #E8F7EC; color: #1C8C45; }
+:root[data-theme="dark"] .hvw .fl-tile.w { background: rgba(10, 132, 255, .20); color: #64B5FF; }
+:root[data-theme="dark"] .hvw .fl-tile.d { background: rgba(48, 209, 88, .18); color: #5DDB84; }
+.hvw .chips .chip, .hvw .chips .chip.water, .hvw .chips .chip.muted { min-height: 36px; padding: 0 14px; border-radius: 18px; border: 0; background: var(--fill); color: var(--ink); font-size: 15px; font-weight: 600; box-shadow: none; }
+.hvw .chips .chip.water.other { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink); color: var(--ink); }
+.hvw .chips .chip.muted { color: var(--sec); }
+.hvw .btn.primary.full { height: 50px; border-radius: 14px; background: #000; color: #fff; border: 0; font-size: 17px; font-weight: 600; letter-spacing: -.02em; box-shadow: 0 3px 6px rgba(0, 0, 0, .2), 0 10px 24px rgba(0, 0, 0, .24); }
+:root[data-theme="dark"] .hvw .btn.primary.full { background: #fff; color: #000; box-shadow: none; }
+.hvw .fav-chips .chip { font-size: 15px; }
+.hvw .entries.flat { margin-top: 0; }
+.hvw .entry.fl-e { grid-template-columns: auto 1fr auto; gap: 12px; padding: 12px 0; border-bottom: .5px solid var(--hair); background: transparent; }
+.hvw .entry.fl-e:last-child { border-bottom: 0; }
+.hvw .fl-ico { width: 44px; height: 44px; border-radius: 12px; background: var(--fill) !important; box-shadow: inset 0 0 0 .5px var(--hair); font-size: 22px; }
+.hvw .fl-e .e-name { font-size: 15px; font-weight: 600; letter-spacing: -.015em; color: var(--ink); }
+.hvw .fl-e .e-sub { font-size: 12px; color: var(--sec); line-height: 1.35; }
+.hvw .fl-e .e-kcal { font-size: 17px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
+.hvw .fl-e .e-kcal small { font-size: 11px; font-weight: 500; color: var(--sec); }
+.hvw .fl-fold::before, .hvw .fl-fold::after { background: var(--hair); }
+.hvw .fl-fold .cv { width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--fill) !important; color: var(--ink) !important; box-shadow: none; }
+.hvw .fl-fold .cv svg { width: 16px; height: 16px; }
+/* окно выбора напитка и шаг «Объём» */
+.bw-ov .btn.primary.dk-new { background: #000; color: #fff; border: 0; box-shadow: var(--btnsh); height: 50px; border-radius: 14px; font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+:root[data-theme="dark"] .bw-ov .btn.primary.dk-new { background: #fff; color: #000; box-shadow: none; }
+.bw-ov .chips .chip, .bw-ov .fav-chips .chip { min-height: 36px; padding: 0 14px; border-radius: 18px; border: 0; background: var(--fill) !important; color: var(--ink) !important; font-size: 15px; font-weight: 600; box-shadow: none; }
+.bw-ov .chips.cats .chip.sel, .bw-ov .chips .chip.sel { background: #000 !important; color: #fff !important; box-shadow: 0 2px 4px rgba(0, 0, 0, .2), 0 4px 10px rgba(0, 0, 0, .2); }
+:root[data-theme="dark"] .bw-ov .chips.cats .chip.sel, :root[data-theme="dark"] .bw-ov .chips .chip.sel { background: #fff !important; color: #000 !important; box-shadow: none; }
+.bw-ov .drow { border-bottom: .5px solid var(--hair); gap: 2px; }
+.bw-ov .d-main.dk-main { padding: 10px 0; gap: 12px; }
+.bw-ov .d-ava, .bw-ov .pk-ava { width: 44px; height: 44px; border-radius: 12px; background: var(--fill) !important; box-shadow: inset 0 0 0 .5px var(--hair); font-size: 22px; }
+.bw-ov .d-tx .p-name { font-size: 17px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
+.bw-ov .d-tx .p-sub { font-size: 12px; color: var(--sec2); margin-top: 2px; }
+.bw-ov .d-pct { font-size: 13px; font-weight: 600; color: var(--sec); }
+.bw-ov .d-pct.neg { color: #FF3B30; }
+.bw-ov .d-edit { color: var(--sec); }
+.bw-ov .star { color: #C7C7CC; width: 40px; height: 40px; border-radius: 50%; }
+.bw-ov .star.on { color: #FF9F0A; }
+:root[data-theme="dark"] .bw-ov .star { color: #636366; }
+:root[data-theme="dark"] .bw-ov .star.on { color: #FF9F0A; }
+.bw-ov .preview { background: var(--fill) !important; border: 0 !important; color: var(--ink) !important; border-radius: 16px; box-shadow: none !important; }
+.bw-ov .preview .big, .bw-ov .preview b { color: var(--ink) !important; }
+.bw-ov .picked { color: var(--ink); }
+.bw-ov .check span { color: var(--ink); }
+.bw-ov .pk-edit { width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--fill) !important; color: var(--ink) !important; }
+.bw-ov .pk-tx small, .bw-ov .pk-tx .p-sub { color: var(--sec2); }
+
+/* v2.30: без «×» — окна закрываются свайпом вниз за верх; поле ввода не шире содержимого */
+.bw-ov .icon-btn[data-close] { display: none !important; }
+.bw-ov .sheet .pick-grab { margin: 0 auto 8px; flex: none; }
+.bw-ov .field:focus-within { background: none !important; box-shadow: none !important; }
+.bw-ov .input:focus, .bw-ov select.input:focus { border: 0 !important; outline: 0; background-color: var(--fill) !important; box-shadow: inset 0 0 0 2px var(--ink) !important; }
+.bw-ov .input.big { height: 48px; font-size: 20px; font-weight: 600; padding: 0 14px; }
+.bw-ov .sheet-head { min-height: 36px; margin-bottom: 8px; }
+.bw-ov.top .sheet .pick-grab { order: 99; margin: 10px auto 0; }
