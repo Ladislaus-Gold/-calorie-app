@@ -178,8 +178,8 @@ html:has(.dv), body:has(.dv) { background: #fff; background-image: none; }
 .pick-ov .m-ring { width: 48px; height: 48px; }
 .pick-ov .m-ring svg { width: 48px; height: 48px; }
 .pick-ov .m-ring-bg { stroke: #E9E9EE; }
-.pick-ov .m-ring-e .m-sq { width: 30px; height: 30px; border-radius: 8px; box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .25), 0 2px 4px var(--sh, rgba(0, 0, 0, .2)); }
-.pick-ov .m-ring-e .m-sq svg { width: 17px; height: 17px; }
+.pick-ov .m-ring-e .m-sq { width: 35px; height: 35px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .25), 0 2px 4px var(--sh, rgba(0, 0, 0, .2)); }
+.pick-ov .m-ring-e .m-sq svg { width: 19px; height: 19px; }
 .pick-ov .mp-t b { font-size: 17px; font-weight: 600; letter-spacing: -.025em; color: #000; }
 .pick-ov .mp-t small { font-size: 12px; font-weight: 500; letter-spacing: -.01em; color: #6E6E73; }
 .pick-ov .sheet-head, .pick-ov .meal-pick-btn { opacity: 0; transform: translateY(12px); transition: opacity .2s ease-in, transform .2s ease-in; }

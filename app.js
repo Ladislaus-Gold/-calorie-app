@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 229;
-const APP_VERSION_LABEL = "2.26"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 230;
+const APP_VERSION_LABEL = "2.27"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -703,6 +703,40 @@ function openEmoEdit(key) {
   });
 }
 
+/* Анимация заполнения: полоски, кольца, дуга «Баланса дня» и числа заполняются заново (Дневник и «Куда добавить?») */
+const FILL_EASE = "cubic-bezier(.22,1,.36,1)";
+function fillAnim(root, base = 0) {
+  if (!root || !root.animate || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  const D = 950; let i = 0;
+  const at = () => base + Math.min(i++ * 45, 450);
+  const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
+  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i").forEach((el) => {
+    const w = el.style.width;
+    if (w && w !== "0%") el.animate([{ width: "0%" }, { width: w }], opt(at()));
+  });
+  root.querySelectorAll(".mr-svg circle[stroke-dasharray], .m-ring circle[stroke-dasharray]").forEach((el) => {
+    const [a, b] = el.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
+    if (a > 0) el.animate([{ strokeDasharray: `0.01 ${a + b}` }, { strokeDasharray: `${a} ${b}` }], opt(at()));
+  });
+  const mp = root.querySelector("#gzm-p");
+  if (mp) {
+    const f = Number(mp.dataset.f) || 0;
+    if (f > 0) mp.animate([{ strokeDasharray: "0 100" }, { strokeDasharray: `${Math.min(100, f * 100 + 3)} 100` }], opt(base));
+  }
+  root.querySelectorAll("[data-cnt]").forEach((el) => {
+    const v = Number(el.dataset.cnt), dec = el.dataset.dec, final = el.textContent, t0 = performance.now() + base;
+    if (!(v > 0)) return;
+    const step = (now) => {
+      const t = Math.max(0, Math.min(1, (now - t0) / D)), k = 1 - Math.pow(1 - t, 3);
+      el.textContent = t >= 1 ? final : dec ? fmt(v * k) : fmtInt(v * k);
+      if (t < 1) requestAnimationFrame(step);
+    };
+    el.textContent = dec ? "0" : "0";
+    requestAnimationFrame(step);
+  });
+}
+let fillSig = "", fillTab = "";
+
 function render() {
   if (!state.user) return;
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
@@ -710,6 +744,12 @@ function render() {
   const banner = state.error ? `<div class="banner" role="alert">${esc(state.error)}</div>` : "";
   $("#view").innerHTML = banner + views[state.tab]();
   applyEmo($("#view"));
+  if (state.tab === "diary") {
+    const dl = entriesOn(state.date), sig = `${state.date}|${dl.length}|${Math.round(sumEntries(dl).kcal)}`;
+    if (fillTab !== "diary" || sig !== fillSig) fillAnim($("#view"));
+    fillSig = sig;
+  }
+  fillTab = state.tab;
 }
 
 /* ================= Дневник ================= */
@@ -818,13 +858,14 @@ function gaugeSvg(frac) {
     const [ex, ey] = P(A0 + SW * f);
     caps = `<circle cx="${tx0.toFixed(2)}" cy="${ty0.toFixed(2)}" r="7" fill="${gzColor(0)}"/><circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="7" fill="${gzColor(f)}"/><circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="3" fill="#fff"/>`;
   }
-  return `<svg viewBox="0 6 200 176" class="gz-svg" role="img" aria-label="Калории за день"><g fill="none" stroke-width="14"><path class="gz-track" d="${arc(A0, A0 + SW, true)}" stroke="currentColor" stroke-linecap="round"/>${segs}</g>${caps}</svg>`;
+  const mask = `<defs><mask id="gzm" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="190"><path id="gzm-p" d="${arc(A0, A0 + SW, true)}" fill="none" stroke="#fff" stroke-width="30" pathLength="100" stroke-dasharray="100 100" data-f="${f}"/></mask></defs>`;
+  return `<svg viewBox="0 6 200 176" class="gz-svg" role="img" aria-label="Калории за день">${mask}<g fill="none" stroke-width="14"><path class="gz-track" d="${arc(A0, A0 + SW, true)}" stroke="currentColor" stroke-linecap="round"/><g class="gz-fg" mask="url(#gzm)">${segs}</g></g><g class="gz-fg" mask="url(#gzm)">${caps}</g></svg>`;
 }
 // кольцо приёма пищи: прогресс калорий, внутри эмодзи (используется в «Куда добавить?»)
 function mealRingSvg(ratio, emoji) {
-  const R = 19, C = 2 * Math.PI * R, r = Math.max(0, ratio), len = Math.min(1, r) * C;
+  const R = 21, C = 2 * Math.PI * R, r = Math.max(0, ratio), len = Math.min(1, r) * C;
   const col = r > 1 ? "#E5605A" : r >= 0.85 ? "#F3B04A" : "#34A86B";
-  return `<span class="m-ring"><svg viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="${R}" fill="none" class="m-ring-bg" stroke-width="5"/>${len > 0.5 ? `<circle cx="23" cy="23" r="${R}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${len} ${C - len}" transform="rotate(-90 23 23)"/>` : ""}</svg><span class="m-ring-e">${emoji}</span></span>`;
+  return `<span class="m-ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="${R}" fill="none" class="m-ring-bg" stroke-width="4"/>${len > 0.5 ? `<circle cx="24" cy="24" r="${R}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" transform="rotate(-90 24 24)"/>` : ""}</svg><span class="m-ring-e">${emoji}</span></span>`;
 }
 // мини-кольцо БЖУ внутри карточки приёма пищи
 function miniRingSvg(val, goal, color) {
@@ -840,7 +881,7 @@ function macroColsHtml(items, cls = "") {
   return `<div class="mcols ${cls}">${items.map(([name, col, v, g, key]) => {
     const over = g > 0 && v > g;
     const w = g > 0 ? Math.min(100, (v / g) * 100) : 0;
-    const val = g > 0 ? `<b class="${over ? "over" : ""}">${fmt(v)}</b><small> из ${fmtInt(g)} г</small>` : `<b>${fmt(v)}</b><small> г</small>`;
+    const val = g > 0 ? `<b class="${over ? "over" : ""}" data-cnt="${v}" data-dec="1">${fmt(v)}</b><small> из ${fmtInt(g)} г</small>` : `<b>${fmt(v)}</b><small> г</small>`;
     const tag = key ? "button" : "div";
     return `<${tag} ${key ? `type="button" data-act="macroTop" data-key="${key}"` : ""} class="mcol"><span class="mcol-n">${name}</span><span class="mcol-bar"><i style="width:${w}%;background:${over ? "#F29C94" : col}"></i></span><span class="mcol-v">${val}</span></${tag}>`;
   }).join("")}</div>`;
@@ -903,7 +944,7 @@ function viewDiary() {
     return `<section class="card meal m-${m.id}">
       <div class="meal-top" role="button" tabindex="0" data-act="toggleMeal" data-key="${mKey}">
         <div class="meal-flat">${mealSq(m.id)}
-          <div class="m-info"><b class="m-name">${m.name}</b><span class="m-sub${over ? " over" : ""}"><b>${fmtInt(mt.kcal)}</b> из ${fmtInt(target)} ккал</span><span class="m-bar"><i style="width:${pct}%;background:${barCol}"></i></span></div>
+          <div class="m-info"><b class="m-name">${m.name}</b><span class="m-sub${over ? " over" : ""}"><b data-cnt="${mt.kcal}">${fmtInt(mt.kcal)}</b> из ${fmtInt(target)} ккал</span><span class="m-bar"><i style="width:${pct}%;background:${barCol}"></i></span></div>
           <span class="meal-tog">${chev(mOpen)}</span></div>
         ${macroRingsHtml([["Белки", mt.protein, mplan ? mplan.p : 0, "#8B66EA"], ["Углеводы", mt.carbs, mplan ? mplan.c : 0, "#4A93E0"], ["Жиры", mt.fat, mplan ? mplan.f : 0, "#F08A3C"]])}
       </div>
@@ -922,9 +963,9 @@ function viewDiary() {
     <section class="card balance gz-card">
       <div class="card-top"><h2 class="h2">Баланс дня</h2><span class="gz-goal">Цель ${fmtInt(state.goal)} ккал</span></div>
       <div class="gz-sum">
-        <div class="gz-side"><b>${fmtInt(t.kcal)}</b><span>Съедено</span></div>
-        <div class="gz-wrap">${gaugeSvg(ratio)}<div class="gz-c z-${zone}"><b>${fmtInt(Math.abs(left))}</b><span>${over ? "Перебор" : "Осталось"}</span></div></div>
-        <div class="gz-side"><b>${fmtInt(burned)}</b><span>Активных</span></div>
+        <div class="gz-side"><b data-cnt="${t.kcal}">${fmtInt(t.kcal)}</b><span>Съедено</span></div>
+        <div class="gz-wrap">${gaugeSvg(ratio)}<div class="gz-c z-${zone}"><b data-cnt="${Math.abs(left)}">${fmtInt(Math.abs(left))}</b><span>${over ? "Перебор" : "Осталось"}</span></div></div>
+        <div class="gz-side"><b data-cnt="${burned}">${fmtInt(burned)}</b><span>Активных</span></div>
       </div>
       ${plate}
       ${macroCols}
@@ -2707,7 +2748,7 @@ function openSheet(html, opts = {}) {
   ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-close]")) close(); });
   document.body.appendChild(ov);
   document.body.classList.add("noscroll");
-  if (opts.pick) pickSheetMotion(ov, close);
+  if (opts.pick) { pickSheetMotion(ov, close); fillAnim(ov, 450); }
   requestAnimationFrame(() => ov.classList.add("open"));
   return ov;
 }
@@ -3677,14 +3718,14 @@ function miniTiles(day) {
   return `<div class="mini-row">
     <button type="button" class="mini water" data-act="goTab" data-tab="health" data-h="today">
       <span class="mini-top"><span class="mini-ic sq">${GLYPH_DROP}</span><span class="mini-label">Жидкость</span>${MINI_CV}</span>
-      <span class="mini-val">${fmtInt(ml)}<small>мл</small></span>
+      <span class="mini-val"><span data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></span>
       <span class="mini-sub">норма ${fmtInt(tg)} мл</span>
       ${caf.mg > 0 ? `<span class="mini-sub caf ${caf.level}">кофеин ${caf.mg} из ${caf.limit} мг</span>` : ""}
       <span class="mini-bar"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></span>
     </button>
     <button type="button" class="mini act" data-act="goTab" data-tab="health" data-h="train">
       <span class="mini-top"><span class="mini-ic sq">${GLYPH_FLAME}</span><span class="mini-label">Нагрузка</span>${MINI_CV}</span>
-      <span class="mini-val">${fmtInt(mins)}<small>мин</small></span>
+      <span class="mini-val"><span data-cnt="${mins}">${fmtInt(mins)}</span><small>мин</small></span>
       <span class="mini-sub">сожжено ${fmtInt(burned)} ккал</span>
       ${stepsOn(day) ? `<span class="mini-sub">${fmtInt(stepsOn(day))} шагов</span>` : ""}
       <span class="mini-bar"><i style="width:${Math.min(100, (mins / dayGoal) * 100)}%"></i></span>
