@@ -2389,3 +2389,26 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .pg-reset .foot-note{margin:8px 0 0;font-size:12.5px}
 :root[data-theme="dark"] .pg-reset .more-btn.red{background:transparent;border-color:rgba(255,138,138,.4);color:#FF8A8A}
 .mb-r .track i{background:linear-gradient(90deg,#6FCD9A,#37A873)}
+
+/* v2.12: кофеин внутри карточки «Жидкость» */
+.fl-pills{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0}
+.fl-top .fl-pills .pill{margin-left:0}
+.caf-pill{--c:#7FB23A;flex:none;display:flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border:0;border-radius:999px;background:#FBEFD0;font:inherit;color:#5E4308;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.caf-pill.warn{--c:#E0A21A}
+.caf-pill.over{--c:#E5484D;background:#FBE0DE;color:#7A2A24}
+.cp-rg{position:relative;width:34px;height:34px;flex:none}
+.cp-rg svg{width:34px;height:34px;display:block}
+.cp-rg circle{fill:none;stroke-width:12}
+.cp-rg .bg{stroke:#EEE6D2}
+.caf-pill.over .cp-rg .bg{stroke:#F3C9C6}
+.cp-rg .fg{stroke:var(--c);stroke-linecap:round}
+.cp-rg b{position:absolute;inset:0;display:grid;place-items:center;font-size:10.5px;font-weight:800;letter-spacing:-.02em}
+.cp-tx{font-size:11.5px;font-weight:700;line-height:1.1;text-align:left}
+.cp-tx small{display:block;font-size:10.5px;font-weight:600;opacity:.8}
+.fl-caf-msgs{margin:0 0 12px}
+:root[data-theme="dark"] .caf-pill{background:rgba(240,221,176,.16);color:#F0DDB0}
+:root[data-theme="dark"] .caf-pill.over{background:rgba(229,72,77,.22);color:#FFB4B0}
+:root[data-theme="dark"] .cp-rg .bg{stroke:rgba(255,255,255,.14)}
+.fl-top .h2{min-width:0;white-space:nowrap}
+.fl-pills .pill{white-space:nowrap}
+.cp-tx{white-space:nowrap}

@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=21";
+import { createTrainUI } from "./trainui.js?v=22";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 215;
-const APP_VERSION_LABEL = "2.12"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 216;
+const APP_VERSION_LABEL = "2.13"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3559,12 +3559,16 @@ function viewHealth() {
     </button>`).join("");
   const tab = state.hTab || "today";
   const tabs = `<div class="seg full htabs" data-seg="htab">${[["today", "Жидкость"], ["train", "Тренировки"], ["sleep", "Сон"], ["dyn", "Динамика"]].map(([v, t]) => `<button type="button" data-act="healthTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
+  const cafStop = caf.level === "over" ? "over" : caf.level === "warn" ? "warn" : "ok";
+  const cafPill = `<button type="button" class="caf-pill ${cafStop}" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}" aria-label="Кофеин ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг"><span class="cp-rg"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - Math.min(1, Math.max(0, caf.ratio)))).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b>${fmtInt(caf.mg)}</b></span><span class="cp-tx">кофеин<small>из ${fmtInt(caf.limit)} мг</small></span></button>`;
+  const cafNotes = caf.mg > 0 ? `${caf.msgs.length ? `<ul class="caf-msgs fl-caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}${state.cafInfo ? `<p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}` : "";
   const pToday = `
     <section class="card">
-      <div class="card-top fl-top"><span class="fl-ic">💧</span><h2 class="h2">Жидкость</h2><span class="pill">норма ${fmtInt(tg)} мл</span></div>
+      <div class="card-top fl-top"><span class="fl-ic">💧</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
       <div class="big-line">${fmtInt(ml)}<small>мл засчитано</small></div>
       <div class="track water"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></div>
       <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось <b>${fmtInt(left)} мл</b>.` : "Норма на сегодня выполнена."}${` Норма сегодня ${fmtInt(tg)} мл = база ${fmtInt(waterBase())} мл${extra ? ` + нагрузка около ${fmtInt(extra)} мл` : ""}.`}</p>
+      ${cafNotes}
       <div class="fl-tiles"><div class="fl-tile w"><b>${fmtInt(wMl)}</b><span>вода, мл</span></div><div class="fl-tile d"><b>${signed(Math.round(dHyd + fHyd))}</b><span>напитки и дневник, мл</span></div></div>
       <div class="chips">
         ${[150, 250, 330, 500].map((n) => `<button type="button" class="chip water" data-act="addWater" data-ml="${n}">+${n}</button>`).join("")}
@@ -3574,16 +3578,7 @@ function viewHealth() {
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
     </section>
     ${favs.length ? `<section class="card fl-fav"><h2 class="h2"><span class="fl-star" aria-hidden="true">⭐</span>Избранное</h2><div class="chips fav-chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div></section>` : ""}
-    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray">🥤</span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}
-    <section class="card">
-      <div class="caf-card lv-${caf.level}" style="--ch:${Math.round(130 * (1 - Math.min(1, Math.max(0, caf.ratio))))}">
-        <div class="caf-top"><span class="caf-t">Кофеин</span><span class="caf-val"><b>${fmtInt(caf.mg)}</b> из ${fmtInt(caf.limit)} мг</span></div>
-        <div class="caf-bar"><i style="width:${Math.min(100, caf.ratio * 100)}%"></i></div>
-        ${caf.msgs.length ? `<ul class="caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}
-        <button type="button" class="caf-more fold-row" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}">О норме кофеина${chev(state.cafInfo)}</button>
-        ${state.cafInfo ? `<p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}
-      </div>
-    </section>`;
+    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray">🥤</span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}`;
   const stepPct = Math.max(0, Math.min(100, (steps / STEPS_GOAL) * 100));
   const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span><span>В покое ${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</span></div>` : "";
   const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
