@@ -1621,3 +1621,14 @@ html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth
 .hvw .fl-cap > i.tick { display: none !important; }
 .hvw .fl-tap { justify-content: flex-end; min-height: 28px; margin-top: 2px; }
 .hvw .fl-tap:has(> span:empty) { margin-top: 0; }
+
+/* v2.45: анимации без перерисовок на iPhone.
+   Затемнение окон — отдельный слой, который меняет только opacity (раньше анимировался background на весь экран) */
+.overlay, .overlay.open, .pick-ov, .pick-ov.open, :root[data-theme="dark"] .overlay.open { background: none !important; transition: none !important; }
+.overlay::before { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, .35); opacity: 0; transition: opacity .22s ease; pointer-events: none; will-change: opacity; }
+.pick-ov::before { background: rgba(0, 0, 0, .38); transition-duration: .35s; }
+:root[data-theme="dark"] .overlay::before { background: rgba(0, 0, 0, .6); }
+.overlay.open::before { opacity: var(--dim, 1); }
+.overlay.dragging::before { transition: none; }
+.overlay > .sheet { position: relative; z-index: 1; }
+.bw-ov .ck-stage .ck-opt { will-change: transform, opacity; backface-visibility: hidden; }

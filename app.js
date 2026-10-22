@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 247;
-const APP_VERSION_LABEL = "2.44"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 248;
+const APP_VERSION_LABEL = "2.45"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2657,37 +2657,52 @@ function chooseCardKind(code) {
       const st = $("#ck-st", ov), pth = $("#ck-p", ov), bl = $("#ck-drink", ov), br = $("#ck-prod", ov);
       const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const CX = 180.5, TOP = 10, BOT = 146, MID = 78;
-      let off = 0, vel = 0, raf = 0, drag = false, x0 = 0, moved = false;
+      let off = 0, vel = 0, raf = 0, drag = false, x0 = 0, moved = false, pend = 0, aA = null, aB = null;
       const rub = (d) => Math.sign(d) * (1 - 1 / (Math.abs(d) / 190 + 1)) * 95;
-      const draw = (o) => {
+      // Кнопки двигаются только transform и opacity (без scale и без смены толщины линии): так iPhone не перерисовывает слои каждый кадр
+      const pose = (o) => {
         const k = Math.min(1, Math.abs(o) / 80), l = o < 0 ? k : 0, r = o > 0 ? k : 0;
-        pth.setAttribute("d", `M${CX} ${TOP} Q${CX + o * 1.9} ${MID} ${CX} ${BOT}`);
-        pth.style.opacity = .18 + .62 * k; pth.style.strokeWidth = 2 + k * 1.2;
-        bl.style.transform = `translateX(${o * .22}px) scale(${1 + l * .1 - r * .04})`; bl.style.opacity = 1 - r * .55;
-        br.style.transform = `translateX(${o * .22}px) scale(${1 + r * .1 - l * .04})`; br.style.opacity = 1 - l * .55;
+        return [`translate3d(${(o * .22).toFixed(2)}px,0,0)`, 1 - r * .55, `translate3d(${(o * .22).toFixed(2)}px,0,0)`, 1 - l * .55, k];
       };
+      const drawLine = (o) => {
+        const k = Math.min(1, Math.abs(o) / 80);
+        pth.setAttribute("d", `M${CX} ${TOP} Q${(CX + o * 1.9).toFixed(1)} ${MID} ${CX} ${BOT}`);
+        pth.style.opacity = (.18 + .62 * k).toFixed(2);
+      };
+      const draw = (o) => {
+        const [ta, oa, tb, ob] = pose(o);
+        bl.style.transform = ta; bl.style.opacity = oa; br.style.transform = tb; br.style.opacity = ob;
+        drawLine(o);
+      };
+      const stopAnim = () => { [aA, aB].forEach((a) => { if (a) { try { a.cancel(); } catch (_) {} } }); aA = aB = null; };
+      // Возврат: кнопки едут на GPU через WAAPI (не зависят от главного потока), линия считается пружиной в rAF (маленький SVG)
       const spring = (target, k = 190, c = 13, cb) => {
-        cancelAnimationFrame(raf);
-        if (calm) { off = target; vel = 0; draw(off); cb && cb(); return; }
+        cancelAnimationFrame(raf); stopAnim();
+        if (calm || !bl.animate) { off = target; vel = 0; draw(off); cb && cb(); return; }
+        const [ta, oa, tb, ob] = pose(off), [tz, oz, tz2, oz2] = pose(target);
+        const o = { duration: 460, easing: "cubic-bezier(.22,1.25,.36,1)", fill: "both" };
+        aA = bl.animate([{ transform: ta, opacity: oa }, { transform: tz, opacity: oz }], o);
+        aB = br.animate([{ transform: tb, opacity: ob }, { transform: tz2, opacity: oz2 }], o);
+        const fin = () => { bl.style.transform = tz; bl.style.opacity = oz; br.style.transform = tz2; br.style.opacity = oz2; stopAnim(); };
+        aA.onfinish = fin;
         let last = performance.now();
         const step = (t) => {
           const dt = Math.min(.032, (t - last) / 1000); last = t;
-          vel += (-k * (off - target) - c * vel) * dt; off += vel * dt; draw(off);
-          if (Math.abs(off - target) < .2 && Math.abs(vel) < 2) { off = target; draw(off); cb && cb(); return; }
+          vel += (-k * (off - target) - c * vel) * dt; off += vel * dt; drawLine(off);
+          if (Math.abs(off - target) < .2 && Math.abs(vel) < 2) { off = target; drawLine(off); cb && cb(); return; }
           raf = requestAnimationFrame(step);
         };
         raf = requestAnimationFrame(step);
       };
       const choose = (dir) => {
         if (done) return;
-        const el = dir < 0 ? bl : br;
         vel = dir * 900; spring(0, 170, 11);
-        if (!calm && el.animate) el.animate([{ transform: el.style.transform }, { transform: "scale(1.16)" }, { transform: "scale(1)" }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
         setTimeout(() => finish({ kind: dir < 0 ? "drink" : "product" }), calm ? 0 : 260);
       };
-      st.addEventListener("pointerdown", (e) => { drag = true; moved = false; cancelAnimationFrame(raf); vel = 0; x0 = e.clientX; try { st.setPointerCapture(e.pointerId); } catch (_) {} });
-      st.addEventListener("pointermove", (e) => { if (!drag) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) moved = true; off = rub(dx); draw(off); });
-      const end = (e) => { if (!drag) return; drag = false; const dx = e.clientX - x0; if (Math.abs(dx) > 60) choose(Math.sign(dx)); else spring(0); };
+      const frame = () => { pend = 0; draw(off); };
+      st.addEventListener("pointerdown", (e) => { drag = true; moved = false; cancelAnimationFrame(raf); stopAnim(); vel = 0; x0 = e.clientX; try { st.setPointerCapture(e.pointerId); } catch (_) {} });
+      st.addEventListener("pointermove", (e) => { if (!drag) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) moved = true; off = rub(dx); if (!pend) pend = requestAnimationFrame(frame); });
+      const end = (e) => { if (!drag) return; drag = false; cancelAnimationFrame(pend); pend = 0; const dx = e.clientX - x0; if (Math.abs(dx) > 60) choose(Math.sign(dx)); else spring(0); };
       st.addEventListener("pointerup", end); st.addEventListener("pointercancel", end);
       bl.addEventListener("click", () => { if (!moved) choose(-1); });
       br.addEventListener("click", () => { if (!moved) choose(1); });
@@ -2779,28 +2794,28 @@ function pickSheetMotion(ov, close) {
   sh.addEventListener("touchstart", (e) => {
     if (e.touches.length !== 1 || sh.scrollTop > 0) return;
     y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; drag = true;
-    sh.style.transition = "none";
+    sh.style.transition = "none"; sh.style.willChange = "transform"; ov.classList.add("dragging");
   }, { passive: true });
   sh.addEventListener("touchmove", (e) => {
     if (!drag) return;
     dy = Math.max(0, e.touches[0].clientY - y0);
-    sh.style.transform = `translateY(${dy}px)`;
-    ov.style.background = `rgba(0,0,0,${(0.38 * Math.max(0, 1 - dy / 420)).toFixed(3)})`;
+    sh.style.transform = `translate3d(0,${dy}px,0)`;
+    ov.style.setProperty("--dim", Math.max(0, 1 - dy / 420).toFixed(3));
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
   const end = () => {
     if (!drag) return;
     drag = false;
     const v = dy / Math.max(1, Date.now() - t0);
-    sh.style.transition = "";
+    sh.style.transition = ""; sh.style.willChange = ""; ov.classList.remove("dragging");
     if (dy > 90 || (dy > 24 && v > 0.6)) {
       ov.classList.add("swiped");
       sh.style.transform = "";
-      ov.style.background = "";
+      ov.style.removeProperty("--dim");
       close();
     } else {
       sh.style.transform = "";
-      ov.style.background = "";
+      ov.style.removeProperty("--dim");
     }
   };
   sh.addEventListener("touchend", end);
@@ -2818,14 +2833,14 @@ function bwSheetSwipe(ov, close) {
     if (up ? (y - r.top > 76 && r.bottom - y > 44) : y - r.top > 76) return;
     if (e.target.closest("input,textarea,select")) return;
     y0 = y; t0 = Date.now(); dy = 0; drag = true;
-    sh.style.transition = "none";
+    sh.style.transition = "none"; sh.style.willChange = "transform"; ov.classList.add("dragging");
   }, { passive: true });
   sh.addEventListener("touchmove", (e) => {
     if (!drag) return;
     const d = e.touches[0].clientY - y0;
     dy = Math.max(0, up ? -d : d);
-    sh.style.transform = `translateY(${up ? -dy : dy}px)`;
-    ov.style.background = `rgba(0,0,0,${(0.35 * Math.max(0, 1 - dy / 420)).toFixed(3)})`;
+    sh.style.transform = `translate3d(0,${up ? -dy : dy}px,0)`;
+    ov.style.setProperty("--dim", Math.max(0, 1 - dy / 420).toFixed(3));
     if (e.cancelable) e.preventDefault();
   }, { passive: false });
   const end = () => {
@@ -2833,14 +2848,17 @@ function bwSheetSwipe(ov, close) {
     drag = false;
     const v = dy / Math.max(1, Date.now() - t0);
     if (dy > 90 || (dy > 24 && v > 0.6)) {
+      ov.classList.remove("dragging");
       sh.style.transition = "transform .26s ease-in";
-      sh.style.transform = `translateY(${up ? "-105%" : "105%"})`;
-      ov.style.transition = "background .26s ease-in"; ov.style.background = "rgba(0,0,0,0)";
+      sh.style.transform = `translate3d(0,${up ? "-105%" : "105%"},0)`;
+      ov.style.setProperty("--dim", "0");
       setTimeout(close, 240);
     } else {
+      ov.classList.remove("dragging");
       sh.style.transition = "transform .3s cubic-bezier(.2,.9,.25,1.06)";
       sh.style.transform = "";
-      ov.style.background = "";
+      ov.style.removeProperty("--dim");
+      setTimeout(() => { sh.style.willChange = ""; }, 320);
     }
   };
   sh.addEventListener("touchend", end);
@@ -2859,7 +2877,7 @@ function openSheet(html, opts = {}) {
   ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-close]")) close(); });
   document.body.appendChild(ov);
   document.body.classList.add("noscroll");
-  if (opts.pick) { pickSheetMotion(ov, close); fillAnim(ov, 450); }
+  if (opts.pick) { pickSheetMotion(ov, close); fillAnim(ov, 520); }
   else if (opts.bw) bwSheetSwipe(ov, close);
   requestAnimationFrame(() => ov.classList.add("open"));
   return ov;
@@ -5404,7 +5422,7 @@ $("#nav").addEventListener("click", (e) => {
     render();
     view.scrollTop = 0;
     if (!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) && view.animate) {
-      view.animate([{ transform: `translateX(${dx < 0 ? 28 : -28}px)`, opacity: 0.35 }, { transform: "none", opacity: 1 }], { duration: 240, easing: "cubic-bezier(.22,1,.36,1)" });
+      view.animate([{ transform: `translate3d(${dx < 0 ? 24 : -24}px,0,0)`, opacity: 0.5 }, { transform: "translate3d(0,0,0)", opacity: 1 }], { duration: 220, easing: "cubic-bezier(.22,1,.36,1)" });
     }
     if (state.tab === "me") checkStatus(true);
   }, { passive: true });
