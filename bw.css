@@ -1613,3 +1613,4 @@ html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth
 :root[data-theme="dark"] .hvw .th-hero .th-ring circle.fg { stroke: #E67E00 !important; }
 :root[data-theme="dark"] .hvw .th-hero::after { background: #F2F2F7 !important; }
 :root[data-theme="dark"] .hvw .th-hero .th-ring circle.bg { stroke: #E5E5EA !important; }
+[data-cnt] { display: inline-block; }

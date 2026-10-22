@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 241;
-const APP_VERSION_LABEL = "2.38"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 242;
+const APP_VERSION_LABEL = "2.39"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -728,17 +728,12 @@ function fillAnim(root, base = 0) {
     const f = Number(mp.dataset.f) || 0;
     if (f > 0) mp.animate([{ strokeDasharray: "0 100" }, { strokeDasharray: `${Math.min(100, f * 100 + 3)} 100` }], opt(base));
   }
+  // Числа не «накручиваются»: появляются сразу готовыми, мягко (fade и подъём на пару пикселей), синхронно с полосками
   root.querySelectorAll("[data-cnt]").forEach((el) => {
-    const v = Number(el.dataset.cnt), dec = el.dataset.dec, final = el.textContent, t0 = performance.now() + base;
-    if (!(v > 0)) return;
-    const step = (now) => {
-      const t = Math.max(0, Math.min(1, (now - t0) / D)), k = 1 - Math.pow(1 - t, 3);
-      el.textContent = t >= 1 ? final : dec ? fmt(v * k) : fmtInt(v * k);
-      if (t < 1) requestAnimationFrame(step);
-    };
-    el.textContent = dec ? "0" : "0";
-    requestAnimationFrame(step);
+    if (!(Number(el.dataset.cnt) > 0)) return;
+    el.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: base + 60, easing: FILL_EASE, fill: "backwards" });
   });
+
 }
 let fillSig = "", fillTab = "";
 const trainProgSig = (d) => { try { const s = trainSession(d); if (!s) return ""; const p = trainProgress(d, s); return `${p.k}/${p.n}`; } catch (_) { return ""; } };
