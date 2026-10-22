@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 253;
-const APP_VERSION_LABEL = "2.50"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 254;
+const APP_VERSION_LABEL = "2.51"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4088,7 +4088,7 @@ function viewHealth() {
     if (lateAlc) tips.push(["info", "Накануне вечером был алкоголь: он делает сон поверхностным."]);
     if (!tips.length) tips.push(["good", "Ночь выглядит хорошо: длительность в норме, замечаний нет."]);
     pSleep = `
-    <section class="card sl-hero">
+    <section class="card sl-hero">${SL_SKY}
       <div class="card-top fl-top"><span class="fl-ic" data-ek="slh">😴</span><h2 class="h2">Сон</h2><span class="pill">${lvTxt}</span></div>
       <div class="big-line">${fmtDur(tot)}<small>за ночь</small></div>
       <div class="track sl-track ${lv}"><i style="width:${Math.min(100, (tot / 8) * 100)}%"></i></div>
@@ -4096,7 +4096,7 @@ function viewHealth() {
       ${stageTot > 0 ? `<div class="sl-strip"><div><b>${fmtDur(deep)}</b><span>глубокий</span></div><div><b>${fmtDur(rem)}</b><span>быстрый</span></div><div><b>${fmtDur(core)}</b><span>лёгкий</span></div></div>` : ""}
     </section>
     <section class="card sl-ph">
-      <div class="card-top fl-top"><span class="fl-ic ic-sl" data-ek="slp">🌙</span><h2 class="h2">Фазы сна</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.moon}</span><h2 class="h2">Фазы сна</h2></div>
       ${stageTot > 0 ? `<div class="sl-stages">${seg(deep, "deep")}${seg(rem, "rem")}${seg(core, "core")}${seg(awake, "awake")}</div>
       <div class="sl-legend">${lg("Глубокий", deep, "deep")}${lg("Быстрый сон", rem, "rem")}${lg("Лёгкий", core, "core")}${lg("Бодрствование", awake, "awake")}</div>` : `<p class="foot-note" style="margin:0">Данных о фазах сна нет.</p>`}
       <div class="stat-grid" style="margin-top:12px">
@@ -4105,7 +4105,7 @@ function viewHealth() {
       </div>
     </section>
     <section class="card">
-      <div class="card-top fl-top"><span class="fl-ic amb" data-ek="sln">💡</span><h2 class="h2">Что заметно</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.bulb}</span><h2 class="h2">Что заметно</h2></div>
       <ul class="caf-msgs">${tips.map(([k, t]) => `<li class="${k === "bad" ? "over" : k === "good" ? "ok" : ""}">${esc(t)}</li>`).join("")}</ul>
     </section>
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v))}`;
@@ -4117,7 +4117,7 @@ function viewHealth() {
     ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true, undefined, { ic: ["🔥", "ic-kc", "pc-red", " в день", "🎯", "dk"] })}
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v), { ic: ["😴", "ic-sl", "pc-ind", " в среднем", "🌙", "ds"] })}
     ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "", false, undefined, { ic: ["👟", "ic-st", "", " в среднем", "🚶", "dst"] }) : ""}`;
-  return `<div class="${tab === "sleep" || tab === "dyn" ? "" : "dv hvw"}">
+  return `<div class="${tab === "dyn" ? "" : tab === "sleep" ? "dv hvw hsl" : "dv hvw"}">
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
     ${plan ? "" : fillProfilePrompt}
     ${tabs}
@@ -4315,6 +4315,13 @@ function chartLabelsBox(days) {
   return `<div class="chart-labels dense-l">${spans}</div>`;
 }
 
+// Вкладка «Сон»: звёзды и значки заголовков
+const SL_SKY = `<div class="sl-sky" aria-hidden="true"><i class="sp" style="left:45.5%;top:57px;animation-delay:1.4s"></i><i style="left:60.7%;top:20px;width:3px;height:3px;animation-delay:1.0s"></i><i style="left:11.5%;top:81px;width:2px;height:2px;animation-delay:1.9s"></i><i style="left:40.2%;top:46px;width:3.5px;height:3.5px;animation-delay:2.1s"></i><i class="sp" style="left:61.6%;top:84px;animation-delay:0.2s"></i><i style="left:44.4%;top:85px;width:3.5px;height:3.5px;animation-delay:0.7s"></i><i style="left:30.7%;top:2px;width:2px;height:2px;animation-delay:1.5s"></i><i style="left:29.1%;top:100px;width:2px;height:2px;animation-delay:2.3s"></i><i class="sp" style="left:32.6%;top:25px;animation-delay:0.1s"></i><i style="left:55.9%;top:13px;width:2px;height:2px;animation-delay:2.7s"></i><i style="left:39.3%;top:96px;width:2px;height:2px;animation-delay:0.7s"></i><i style="left:38.3%;top:71px;width:3px;height:3px;animation-delay:0.2s"></i><i style="left:62.2%;top:78px;width:2.5px;height:2.5px;animation-delay:1.1s"></i><i class="sp" style="left:32.3%;top:3px;animation-delay:2.4s"></i><i style="left:12.5%;top:8px;width:3px;height:3px;animation-delay:0.6s"></i><i style="left:55.6%;top:46px;width:2.5px;height:2.5px;animation-delay:3.2s"></i><i style="left:75.3%;top:43px;width:3px;height:3px;animation-delay:0.4s"></i><i style="left:42.6%;top:23px;width:2.5px;height:2.5px;animation-delay:2.8s"></i><i style="left:20.6%;top:100px;width:3.5px;height:3.5px;animation-delay:2.1s"></i><i style="left:12.4%;top:99px;width:2.5px;height:2.5px;animation-delay:1.4s"></i><i style="left:62.8%;top:4px;width:2.5px;height:2.5px;animation-delay:1.2s"></i><i style="left:45.6%;top:96px;width:3px;height:3px;animation-delay:2.7s"></i><i style="left:62.0%;top:32px;width:2.5px;height:2.5px;animation-delay:2.6s"></i><i style="left:26.5%;top:21px;width:3.5px;height:3.5px;animation-delay:0.6s"></i><i class="sp" style="left:92.3%;top:88px;animation-delay:0.3s"></i><i style="left:7.5%;top:13px;width:3.5px;height:3.5px;animation-delay:3.1s"></i><i style="left:25.4%;top:71px;width:2.5px;height:2.5px;animation-delay:1.3s"></i><i style="left:51.9%;top:93px;width:2px;height:2px;animation-delay:0.4s"></i><i style="left:48.1%;top:66px;width:3.5px;height:3.5px;animation-delay:2.0s"></i><i class="sp" style="left:29.3%;top:92px;animation-delay:2.4s"></i><i style="left:26.4%;top:7px;width:2.5px;height:2.5px;animation-delay:1.2s"></i><i style="left:56.8%;top:15px;width:2.5px;height:2.5px;animation-delay:0.4s"></i><i style="left:45.3%;top:34px;width:3.5px;height:3.5px;animation-delay:1.9s"></i><i style="left:16.2%;top:5px;width:2px;height:2px;animation-delay:1.5s"></i><i class="sp" style="left:36.6%;top:33px;animation-delay:0.1s"></i><i style="left:62.8%;top:49px;width:2.5px;height:2.5px;animation-delay:1.0s"></i><i style="left:54.3%;top:74px;width:2.5px;height:2.5px;animation-delay:2.5s"></i><i style="left:67.4%;top:90px;width:3px;height:3px;animation-delay:3.0s"></i><i style="left:4.4%;top:67px;width:3px;height:3px;animation-delay:1.9s"></i><i style="left:60.2%;top:10px;width:2px;height:2px;animation-delay:3.2s"></i><i style="left:85.7%;top:73px;width:3px;height:3px;animation-delay:3.0s"></i><i style="left:68.3%;top:47px;width:3px;height:3px;animation-delay:2.7s"></i><i style="left:10.9%;top:76px;width:2px;height:2px;animation-delay:1.0s"></i></div><span class="sl-moon" aria-hidden="true"></span>`;
+const SL_GLYPH = {
+  moon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>`,
+  bulb: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>`,
+  bars: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h3v9H5zm5.5-6h3v15h-3zM16 14h3v6h-3z"/></svg>`,
+};
 function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
   o = o || {};
   const F = fv || fmtInt;
@@ -4336,7 +4343,7 @@ function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
   const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
   const nOver = vals.filter((v, i) => v > 0 && goalFn && v > goalFn(days[i])).length, nOk = withData.length - nOver;
   const bestI = vals.indexOf(Math.max(...vals)), best = vals[bestI] > 0 ? { d: days[bestI], v: vals[bestI] } : null;
-  return `<section class="card">${o.ic ? `<div class="card-top fl-top"><span class="fl-ic ${o.ic[1]}" data-ek="${o.ic[5]}">${o.ic[0]}</span><h2 class="h2">${title}</h2>${withData.length ? `<span class="pill ${o.ic[2] || ""}">${F(avg)} ${unit}${o.ic[3] || ""}</span>` : ""}</div>` : cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic" data-ek="slw">📊</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
+  return `<section class="card">${o.ic ? `<div class="card-top fl-top"><span class="fl-ic ${o.ic[1]}" data-ek="${o.ic[5]}">${o.ic[0]}</span><h2 class="h2">${title}</h2>${withData.length ? `<span class="pill ${o.ic[2] || ""}">${F(avg)} ${unit}${o.ic[3] || ""}</span>` : ""}</div>` : cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.bars}</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
     <div ${chartAttrs(days.length)}>${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
     ${chartLabelsBox(days)}
     ${o.ic && goal > 0 && withData.length ? `<div class="dn-pl"><span>${o.ic[4] || "🎯"}</span><div>Норма <b>${F(goal)} ${unit}</b>. ${overLimit ? `Выше нормы <b>${nOver} ${nOver === 1 ? "день" : nOver >= 2 && nOver <= 4 ? "дня" : "дней"}</b> из ${withData.length} (красные).` : `В норме <b>${nOk} из ${withData.length}</b> записанных дней.${best ? ` Лучший день: <b>${esc(dayLabel(best.d))}, ${F(best.v)}</b>.` : ""}`}</div></div>` : `<p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${F(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${F(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p>`}</section>`;
