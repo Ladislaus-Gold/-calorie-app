@@ -1,0 +1,205 @@
+/* ============================================================
+   bw.css — чёрно-белая тема «Дневника» (iPhone), v2.26
+   Подключается после style.css. Всё про «Дневник» привязано к .dv,
+   общее (нижнее меню, окно «Куда добавить?») — к .nav и .pick-ov.
+   Правило проекта: шрифты, отступы и размеры как на iPhone
+   (боковые поля 16, касание от 44, шкала шрифтов iOS 34/28/22/17/15/13/12/11).
+   ============================================================ */
+
+:root { --nav-h: 49px; }
+
+/* ---------- Фон: белый (светлая) / чёрный (тёмная) ---------- */
+html:has(.dv), body:has(.dv) { background: #fff; background-image: none; }
+:root[data-theme="dark"]:has(.dv), :root[data-theme="dark"] body:has(.dv) { background: #000; background-image: none; }
+
+.dv {
+  --ink: #000; --sec: #6E6E73; --hair: rgba(60, 60, 67, .12); --fill: #F2F2F7;
+  --cardsh: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px rgba(0, 0, 0, .07);
+}
+:root[data-theme="dark"] .dv {
+  --ink: #fff; --sec: #8E8E93; --hair: rgba(255, 255, 255, .10); --fill: #2C2C2E;
+  --cardsh: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px rgba(0, 0, 0, .5);
+}
+
+/* ---------- Карточки ---------- */
+.dv .card, .dv .mini { border: .5px solid var(--hair); border-radius: 24px; box-shadow: var(--cardsh); }
+:root[data-theme="dark"] .dv .card, :root[data-theme="dark"] .dv .mini { background: #1C1C1E; }
+
+/* ---------- Шапка ---------- */
+.dv .head .overline { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--ink); }
+.dv .head .title { font-size: 28px; line-height: 1.02; font-weight: 600; letter-spacing: -.04em; color: var(--ink); }
+.dv .iconbtn { width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--fill); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 12px rgba(0, 0, 0, .06); }
+.dv .chip-btn { min-height: 44px; padding: 0 16px; border-radius: 14px; border: 0; background: #000; color: #fff; font-size: 15px; font-weight: 600; letter-spacing: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, .18), 0 6px 16px rgba(0, 0, 0, .22); }
+:root[data-theme="dark"] .dv .iconbtn { background: #2C2C2E; box-shadow: none; }
+:root[data-theme="dark"] .dv .chip-btn { background: #fff; color: #000; box-shadow: 0 2px 4px rgba(0, 0, 0, .4); }
+
+/* ---------- Неделя ---------- */
+.dv .wd { font-size: 11px; font-weight: 600; color: #8E8E93; }
+.dv .wd-dot { width: 34px; height: 34px; border: 0; background: var(--fill); color: #fff; box-shadow: inset 0 0 0 .5px rgba(60, 60, 67, .10); }
+.dv .wd.done { color: var(--sec); }
+.dv .wd.done .wd-dot { background: #C7C7CC; color: #3A3A3C; }
+.dv .wd.sel { color: var(--ink); font-weight: 700; }
+.dv .wd.sel .wd-dot { background: #fff; box-shadow: inset 0 0 0 2px #000; }
+.dv .wd.sel.done .wd-dot { background: #000; color: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .2), 0 4px 10px rgba(0, 0, 0, .22); }
+.dv .wd.today .wd-name { color: var(--ink); }
+.dv .streak { margin-top: 12px; font-size: 13px; color: var(--sec); }
+.dv .streak b { color: var(--ink); font-weight: 600; }
+:root[data-theme="dark"] .dv .wd-dot { background: #2C2C2E; box-shadow: none; }
+:root[data-theme="dark"] .dv .wd.done .wd-dot { background: #48484A; color: #fff; }
+:root[data-theme="dark"] .dv .wd.sel .wd-dot { background: #1C1C1E; box-shadow: inset 0 0 0 2px #fff; }
+:root[data-theme="dark"] .dv .wd.sel.done .wd-dot { background: #fff; color: #000; }
+
+/* ---------- Плитки «Жидкость» и «Нагрузка» (iOS) ---------- */
+.dv .mini-row { gap: 12px; }
+.dv .mini { gap: 0; padding: 16px; }
+.dv .mini-top { gap: 8px; }
+.dv .mini-ic.sq { width: 28px; height: 28px; border-radius: 7px; }
+.dv .mini.water .mini-ic.sq { background: linear-gradient(180deg, #5AC8FA, #0A84FF); }
+.dv .mini.act .mini-ic.sq { background: linear-gradient(180deg, #FFB340, #FF7A1A); }
+.dv .mini-label { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+.dv .mini.water .mini-label { color: #0A84FF; }
+.dv .mini.act .mini-label { color: #FF7A1A; }
+.dv .mini-cv { flex: none; width: 7px; height: 13px; fill: none; stroke: #C7C7CC; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.dv .mini-val { margin-top: 16px; font-size: 28px; font-weight: 700; letter-spacing: -.04em; color: var(--ink); }
+.dv .mini-val small { margin-left: 4px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: var(--sec); }
+.dv .mini-sub { margin-top: 6px; font-size: 12px; line-height: 1.4; color: var(--sec); }
+.dv .mini-sub + .mini-sub { margin-top: 0; }
+.dv .mini-sub.caf { font-weight: 600; color: var(--ink); }
+.dv .mini-sub.caf.warn { color: #B26A00; }
+.dv .mini-sub.caf.over { color: #D64545; }
+.dv .mini-bar { height: 6px; margin-top: 12px; background: var(--fill); }
+.dv .mini.water .mini-bar > i { background: linear-gradient(90deg, #0A84FF, #5AC8FA); }
+.dv .mini.act .mini-bar > i { background: #000; }
+:root[data-theme="dark"] .dv .mini.act .mini-bar > i { background: #fff; }
+:root[data-theme="dark"] .dv .mini-cv { stroke: #48484A; }
+.dv .sq { display: grid; place-items: center; flex: none; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .10), 0 1px 2px rgba(0, 0, 0, .16); }
+.dv .sq svg { width: 16px; height: 16px; fill: #fff; stroke: none; }
+
+/* ---------- Баланс дня: чёрный блок ---------- */
+.dv .gz-card { background: #0B0B0C; border-color: #000; color: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .14), 0 18px 40px rgba(0, 0, 0, .30); }
+:root[data-theme="dark"] .dv .gz-card { background: #26262A; border-color: rgba(255, 255, 255, .10); box-shadow: 0 2px 4px rgba(0, 0, 0, .5), 0 18px 40px rgba(0, 0, 0, .55); }
+.dv .gz-card .h2 { color: #fff; }
+.dv .gz-goal { font-size: 15px; font-weight: 400; letter-spacing: -.01em; color: #C7C7CC; white-space: nowrap; }
+.dv .gz-card .card-top { margin-bottom: 8px; align-items: center; min-height: 32px; }
+.dv .gz-side b { color: #fff; }
+.dv .gz-side span { font-size: 12px; color: #A1A1A6; }
+.dv .gz-svg { color: #2C2C2E; }
+.dv .gz-svg circle[r="3"] { fill: #0B0B0C; }
+.dv .gz-svg g path:not(.gz-track) { filter: drop-shadow(0 0 5px rgba(240, 140, 140, .22)); }
+.dv .gz-c.z-low b, .dv .gz-c.z-low span { color: #7FD6A1; }
+.dv .gz-c.z-mid b, .dv .gz-c.z-mid span { color: #E8B84A; }
+.dv .gz-c.z-hot b, .dv .gz-c.z-hot span, .dv .gz-c.z-over b, .dv .gz-c.z-over span { color: #F2958B; }
+.dv .gz-plate { background: rgba(255, 255, 255, .10); color: #EDC567; }
+.dv .gz-plate.over { background: rgba(242, 149, 139, .18); color: #F2958B; }
+.dv .gz-card .mcol-n { font-size: 13px; font-weight: 600; color: #fff; }
+.dv .gz-card .mcol-bar { background: #2C2C2E; }
+.dv .gz-card .mcol-v { color: #A1A1A6; }
+.dv .gz-card .mcol-v b { color: #fff; }
+.dv .gz-card .mcol-v b.over { color: #F2958B; }
+
+/* ---------- Главное на сегодня ---------- */
+.dv .day-tip { grid-template-columns: 36px 1fr; gap: 12px; }
+.dv .day-tip .dt-ic.sq { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(180deg, #FFD60A, #FF9F0A); }
+.dv .day-tip .dt-ic.sq svg { width: 21px; height: 21px; }
+.dv .day-tip b { font-size: 15px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); }
+.dv .day-tip p { margin-top: 3px; font-size: 15px; line-height: 1.4; color: var(--sec); }
+
+/* ---------- Приёмы пищи ---------- */
+.dv .m-sq, .pick-ov .m-sq { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 12px;
+  box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .25), 0 1px 2px rgba(0, 0, 0, .15), 0 5px 12px var(--sh, rgba(0, 0, 0, .2)); }
+.dv .m-sq svg, .pick-ov .m-sq svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dv .m-sq.dim { opacity: .55; }
+.g-breakfast { background: linear-gradient(160deg, #FFD60A, #FF9F0A); --sh: rgba(255, 159, 10, .33); }
+.g-lunch { background: linear-gradient(160deg, #FFA63D, #FF5A1F); --sh: rgba(255, 90, 31, .33); }
+.g-dinner { background: linear-gradient(160deg, #8E8CFF, #5856D6); --sh: rgba(88, 86, 214, .33); }
+.g-snack { background: linear-gradient(160deg, #D9A066, #9C5A28); --sh: rgba(156, 90, 40, .33); }
+.dv .m-name { font-size: 17px; font-weight: 600; letter-spacing: -.025em; color: var(--ink); }
+.dv .m-sub { font-size: 13px; color: var(--sec); }
+.dv .m-sub b { color: var(--ink); }
+.dv .m-sub.over, .dv .m-sub.over b { color: #D64545; }
+.dv .m-bar { height: 6px; background: var(--fill); margin-top: 8px; }
+.view:has(.dv) { padding-left: max(16px, calc((100% - 480px) / 2 + 16px)); padding-right: max(16px, calc((100% - 480px) / 2 + 16px)); }
+.dv .m-rings { grid-template-columns: auto auto auto; justify-content: space-between; gap: 8px; }
+.dv .mr-t b { overflow: visible; text-overflow: clip; }
+.dv .mr-ring { width: 38px; height: 38px; }
+.dv .mr-svg { width: 38px; height: 38px; }
+.dv .mr:nth-child(1) .mr-bg { stroke: #EDE3F8; }
+.dv .mr:nth-child(2) .mr-bg { stroke: #E3ECFA; }
+.dv .mr:nth-child(3) .mr-bg { stroke: #FBE9D3; }
+.dv .mr-v { font-size: 12px; color: var(--ink); }
+.dv .mr-t b { font-size: 14px; letter-spacing: -.02em; }
+.dv .mr-t small { font-size: 11px; color: #8E8E93; }
+.dv .entry .e-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+.dv .entry .e-sub { font-size: 12px; color: var(--sec); }
+.dv .entry .e-kcal { font-size: 15px; font-weight: 700; color: var(--ink); }
+.dv .entry .e-kcal small { margin-left: 2px; font-size: 11px; font-weight: 500; color: var(--sec); }
+:root[data-theme="dark"] .dv .m-bar, :root[data-theme="dark"] .dv .mcol-bar { background: #2C2C2E; }
+:root[data-theme="dark"] .dv .mr-bg { stroke: #2C2C2E !important; }
+
+/* тёмная тема: убираем остатки зелёного */
+:root[data-theme="dark"] .dv .mini.water .mini-ic.sq { background: linear-gradient(180deg, #5AC8FA, #0A84FF); }
+:root[data-theme="dark"] .dv .mini.act .mini-ic.sq { background: linear-gradient(180deg, #FFB340, #FF7A1A); }
+:root[data-theme="dark"] .dv .day-tip .dt-ic.sq { background: linear-gradient(180deg, #FFD60A, #FF9F0A); }
+:root[data-theme="dark"] .dv .meal-tog .cv { background: none; box-shadow: none; color: var(--sec); }
+:root[data-theme="dark"] .dv .meal .entries, :root[data-theme="dark"] .dv .sw, :root[data-theme="dark"] .dv .sw .entry { background: #1C1C1E; }
+:root[data-theme="dark"] .dv .entries { border-top-color: rgba(255, 255, 255, .08); }
+:root[data-theme="dark"] .dv .sw { border-bottom-color: rgba(255, 255, 255, .08); }
+
+/* ---------- Кнопка «+» ---------- */
+.dv .fab { width: 56px; height: 56px; right: max(16px, calc((100% - 480px) / 2 + 16px)); bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 14px);
+  background: #000; color: #fff; font-size: 32px; font-weight: 300; box-shadow: 0 3px 6px rgba(0, 0, 0, .2), 0 12px 28px rgba(0, 0, 0, .32); }
+.dv .fab:active { background: #1C1C1E; transform: scale(.88); transition: transform .12s ease-out; }
+:root[data-theme="dark"] .dv .fab { background: #fff; color: #000; box-shadow: 0 3px 6px rgba(0, 0, 0, .4), 0 12px 28px rgba(0, 0, 0, .5); }
+
+/* ---------- Нижнее меню: чёрная капсула у активной вкладки ---------- */
+.nav { height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); background: rgba(255, 255, 255, .94); border: 0; border-top: .5px solid rgba(60, 60, 67, .18); box-shadow: 0 -6px 24px rgba(0, 0, 0, .06); }
+.nav-btn { color: #8E8E93; gap: 2px; }
+.nav-btn.active { color: #000; }
+.nav-btn.active svg { background: #000; stroke: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .2), 0 4px 10px rgba(0, 0, 0, .2); }
+:root[data-theme="dark"] .nav { background: rgba(28, 28, 30, .94); border-top-color: rgba(255, 255, 255, .12); }
+:root[data-theme="dark"] .nav-btn.active { color: #fff; }
+:root[data-theme="dark"] .nav-btn.active svg { background: #fff; stroke: #000; }
+
+/* ---------- Окно «Куда добавить?»: шторка iOS, вылет из «+», свайп вниз ---------- */
+.pick-ov { transition: background .35s ease; }
+.pick-ov.open { background: rgba(0, 0, 0, .38); }
+.pick-ov .sheet { max-width: 480px; border-radius: 28px 28px 0 0; padding: 6px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); touch-action: none;
+  transform: scale(.1); opacity: 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .22); }
+.pick-ov:not(.open) .sheet { transition: transform .36s cubic-bezier(.4, 0, .8, .6), opacity .24s ease-in .08s; }
+.pick-ov.open .sheet { transform: none; opacity: 1; transition: transform .5s cubic-bezier(.2, .9, .25, 1.06), opacity .22s ease-out; }
+.pick-ov.swiped .sheet { transform: translateY(105%); opacity: 1; transition: transform .28s ease-in; }
+.pick-grab { width: 36px; height: 5px; border-radius: 3px; background: #D1D1D6; margin: 0 auto 10px; }
+.pick-ov .sheet-head { min-height: 44px; margin-bottom: 6px; }
+.pick-ov .sheet-head h2 { font-size: 22px; font-weight: 600; letter-spacing: -.03em; color: #000; }
+.pick-ov .meal-pick { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding-bottom: 0; }
+.pick-ov .meal-pick .meal-pick-btn { gap: 8px; padding: 10px; min-height: 72px; border-radius: 20px; background: #fff !important; border: .5px solid rgba(60, 60, 67, .14) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 8px 20px rgba(0, 0, 0, .08); }
+.pick-ov .meal-pick .meal-pick-btn.cur { border: 1.5px solid #000 !important; padding: 9.25px; box-shadow: 0 2px 4px rgba(0, 0, 0, .12), 0 10px 24px rgba(0, 0, 0, .14); }
+.pick-ov .m-ring { width: 48px; height: 48px; }
+.pick-ov .m-ring svg { width: 48px; height: 48px; }
+.pick-ov .m-ring-bg { stroke: #E9E9EE; }
+.pick-ov .m-ring-e .m-sq { width: 30px; height: 30px; border-radius: 8px; box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .25), 0 2px 4px var(--sh, rgba(0, 0, 0, .2)); }
+.pick-ov .m-ring-e .m-sq svg { width: 17px; height: 17px; }
+.pick-ov .mp-t b { font-size: 17px; font-weight: 600; letter-spacing: -.025em; color: #000; }
+.pick-ov .mp-t small { font-size: 12px; font-weight: 500; letter-spacing: -.01em; color: #6E6E73; }
+.pick-ov .sheet-head, .pick-ov .meal-pick-btn { opacity: 0; transform: translateY(12px); transition: opacity .2s ease-in, transform .2s ease-in; }
+.pick-ov.open .sheet-head, .pick-ov.open .meal-pick-btn { opacity: 1; transform: none; transition: opacity .35s ease-out, transform .35s ease-out; }
+.pick-ov.open .sheet-head { transition-delay: .3s; }
+.pick-ov.open .meal-pick-btn:nth-child(1) { transition-delay: .34s; }
+.pick-ov.open .meal-pick-btn:nth-child(2) { transition-delay: .39s; }
+.pick-ov.open .meal-pick-btn:nth-child(3) { transition-delay: .44s; }
+.pick-ov.open .meal-pick-btn:nth-child(4) { transition-delay: .49s; }
+:root[data-theme="dark"] .pick-grab { background: #48484A; }
+:root[data-theme="dark"] .pick-ov .sheet { background: #1C1C1E; }
+:root[data-theme="dark"] .pick-ov .sheet-head h2, :root[data-theme="dark"] .pick-ov .mp-t b { color: #fff; }
+:root[data-theme="dark"] .pick-ov .mp-t small { color: #8E8E93; }
+:root[data-theme="dark"] .pick-ov .meal-pick .meal-pick-btn { background: #2C2C2E !important; border-color: rgba(255, 255, 255, .10) !important; box-shadow: none; }
+:root[data-theme="dark"] .pick-ov .meal-pick .meal-pick-btn.cur { border: 1.5px solid #fff !important; }
+:root[data-theme="dark"] .pick-ov .m-ring-bg { stroke: #3A3A3C; }
+
+/* Уменьшение движения (iOS): просто плавное появление */
+@media (prefers-reduced-motion: reduce) {
+  .pick-ov .sheet, .pick-ov.open .sheet, .pick-ov:not(.open) .sheet { transform: none; transition: opacity .2s ease; }
+  .pick-ov .sheet-head, .pick-ov .meal-pick-btn, .pick-ov.open .sheet-head, .pick-ov.open .meal-pick-btn { opacity: 1; transform: none; transition: none; transition-delay: 0s; }
+  .pick-ov.swiped .sheet { transform: translateY(105%); transition: transform .2s ease; }
+}
