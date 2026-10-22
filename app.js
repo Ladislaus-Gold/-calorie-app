@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 236;
-const APP_VERSION_LABEL = "2.33"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 237;
+const APP_VERSION_LABEL = "2.34"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -710,7 +710,7 @@ function fillAnim(root, base = 0) {
   const D = 950; let i = 0;
   const at = () => base + Math.min(i++ * 45, 450);
   const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
-  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .fl-cap > i.w, .fl-cap > i.d").forEach((el) => {
+  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.w, .fl-cap > i.d").forEach((el) => {
     const w = el.style.width;
     if (w && w !== "0%") el.animate([{ width: "0%" }, { width: w }], opt(at()));
   });
@@ -740,6 +740,7 @@ function fillAnim(root, base = 0) {
   });
 }
 let fillSig = "", fillTab = "";
+const trainProgSig = (d) => { try { const s = trainSession(d); if (!s) return ""; const p = trainProgress(d, s); return `${p.k}/${p.n}`; } catch (_) { return ""; } };
 
 // Шкала жидкости: потяните вправо, чтобы выбрать объём (шаг 50 мл, до 1000 мл)
 function bindFluidCap(root) {
@@ -774,15 +775,18 @@ function render() {
   applyEmo($("#view"));
   if (state.tab === "health") bindFluidCap($("#view"));
   if (state.tab === "diary") {
-    const dl = entriesOn(state.date), sig = `${state.date}|${dl.length}|${Math.round(sumEntries(dl).kcal)}`;
+    const dl = entriesOn(state.date), sig = `${state.date}|${dl.length}|${Math.round(sumEntries(dl).kcal)}|${trainProgSig(state.date)}`;
     if (fillTab !== "diary" || sig !== fillSig) fillAnim($("#view"));
     fillSig = sig;
   }
-  if (state.tab === "health" && (state.hTab || "today") === "today") {
-    const sig = `${state.date}|${hydrationOn(state.date)}|${fluidItems(state.date).length}`;
-    if (fillTab !== "health-today" || sig !== fillSig) fillAnim($("#view"));
+  if (state.tab === "health") {
+    // Все вкладки «Здоровья»: заполнение при входе на вкладку, смене дня и изменении данных
+    const h = state.hTab || "today";
+    const sig = `${state.date}|${h}|${hydrationOn(state.date)}|${fluidItems(state.date).length}|${actOn(state.date).length}|${trainProgSig(state.date)}`;
+    const key = `health-${h}`;
+    if (fillTab !== key || sig !== fillSig) fillAnim($("#view"));
     fillSig = sig;
-    fillTab = "health-today";
+    fillTab = key;
     return;
   }
   fillTab = state.tab;
