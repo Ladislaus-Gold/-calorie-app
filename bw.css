@@ -1907,3 +1907,18 @@ html:root[data-theme="dark"] body .bw-ov .seg.full button.on { background: #6363
 html body .bw-ov .preview .pv-kcal { color: var(--ink); }
 html body .bw-ov .preview .pv-kcal small { color: var(--sec); }
 html body .bw-ov .preview .pv-macros > div { color: var(--sec); }
+
+/* ---------- v2.59: экран входа — как iPhone, без зелёного ---------- */
+html body .login { background: #fff; color: #000; justify-content: flex-end; padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px calc(env(safe-area-inset-bottom, 0px) + 28px); }
+html:root[data-theme="dark"] body .login { background: #000; color: #fff; }
+html body .login-hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 8vh; }
+html body .login-logo { width: 120px; height: 120px; border-radius: 27px; box-shadow: 0 2px 4px rgba(0,0,0,.12), 0 18px 40px rgba(0,0,0,.22); }
+html body .login h1 { font-size: 34px; font-weight: 700; letter-spacing: -.04em; margin: 28px 0 10px; color: inherit; }
+html body .login p { color: #6E6E73; font-size: 17px; line-height: 1.35; max-width: 290px; letter-spacing: -.01em; }
+html:root[data-theme="dark"] body .login p { color: #8E8E93; }
+html body .login-actions { width: 100%; max-width: 480px; margin: 0 auto; }
+html body .login .btn.primary { min-height: 52px; border-radius: 14px; border: 0; background: #000 !important; background-image: none !important; color: #fff !important; font-size: 17px; font-weight: 600; letter-spacing: -.01em; box-shadow: 0 3px 6px rgba(0,0,0,.2), 0 10px 24px rgba(0,0,0,.26); }
+html:root[data-theme="dark"] body .login .btn.primary { background: #fff !important; color: #000 !important; box-shadow: none; }
+html body .login .btn.primary:active { transform: scale(.98); opacity: .85; }
+html body .login .login-error { color: #FF3B30 !important; font-size: 13px !important; min-height: 20px; margin: 12px 0 0 !important; text-align: center; max-width: none !important; }
+html:root[data-theme="dark"] body .login-logo { box-shadow: 0 0 0 1px rgba(255,255,255,.16), 0 18px 40px rgba(255,255,255,.06); }
