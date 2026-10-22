@@ -1943,3 +1943,13 @@ html:root[data-theme="dark"] body .dv.hvw.hdy .ms-chips .chip.sel { background: 
 .bw-ov .rec-main span { font-size: 12px; color: var(--sec2); }
 .bw-ov .rec-del { flex: none; min-height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: var(--fill); color: #FF3B30; font-size: 14px; font-weight: 600; }
 .bw-ov .rec-del:active { opacity: .6; }
+
+/* v2.61: переключатели «Вес» и «Замеры» одного размера */
+html body .dv.hvw.hdy .seg.full.wt-seg, html body .dv.hvw.hdy .chips.ms-chips { box-sizing: border-box; height: 38px; padding: 2px; margin: 4px 0 14px; }
+html body .dv.hvw.hdy .wt-seg button, html body .dv.hvw.hdy .ms-chips .chip, html body .dv.hvw.hdy .ms-chips .chip.muted { box-sizing: border-box; height: 34px; min-height: 34px; padding: 0 2px; margin: 0; display: flex; align-items: center; justify-content: center; line-height: 1; font-size: 13px; }
+
+/* v2.61: переключатели «Вес» и «Замеры» одного размера, выбранный пункт чёрный */
+html body .dv.hvw.hdy .seg.full.wt-seg, html body .dv.hvw.hdy .chips.ms-chips { box-sizing: border-box; height: 38px; padding: 2px; margin: 4px 0 14px; }
+html body .dv.hvw.hdy .wt-seg button, html body .dv.hvw.hdy .ms-chips .chip, html body .dv.hvw.hdy .ms-chips .chip.muted { box-sizing: border-box; height: 34px; min-height: 34px; padding: 0 2px; margin: 0; display: flex; align-items: center; justify-content: center; line-height: 1; font-size: 13px; }
+html body .dv.hvw.hdy .wt-seg button.on, html body .dv.hvw.hdy .ms-chips .chip.sel { background: #000 !important; color: #fff !important; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,.25) !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .wt-seg button.on, html:root[data-theme="dark"] body .dv.hvw.hdy .ms-chips .chip.sel { background: #fff !important; color: #000 !important; box-shadow: none !important; }
