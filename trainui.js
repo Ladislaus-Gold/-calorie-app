@@ -205,7 +205,7 @@ function trainRowHtml(day, it, done) {
 function trainCardHtml(day) {
   if (!state.trainCfg) {
     return `<section class="card">
-      <div class="card-top fl-top"><span class="fl-ic">💪</span><h2 class="h2">План тренировок</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-plan">💪</span><h2 class="h2">План тренировок</h2></div>
       <p class="foot-note" style="margin:0 4px 12px">Составлю план на неделю под ваш инвентарь, время и выбранные дни: разминка, упражнения с рисунками техники, кардио и растяжка. Отметки «выполнено» нужны только вам и в общую статистику тренировок не попадают.</p>
       <button type="button" class="btn primary full" data-act="trainForm">Заполнить анкету</button>
     </section>`;
@@ -226,17 +226,17 @@ function trainCardHtml(day) {
     const { n, k, done } = trainProgress(day, ses);
     const m = trainMinutes(day);
     const from = TR.movedFrom(cfg, day);
-    const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
-    const rows = groups.map(([g, t]) => {
+    const groups = [["warm", "Разминка", "🔥"], ["main", "Основная часть", "💪"], ["cardio", "Кардио", "🏃"], ["cool", "Растяжка", "🧘"]];
+    const rows = groups.map(([g, t, em]) => {
       const list = ses.items.filter((i) => i.group === g);
       if (!list.length) return "";
       const kk = list.filter((i) => done[i.key]).length;
-      const head = `<p class="tr-g"><b>${t}</b><span>${kk}/${list.length}</span></p>`;
-      if (g !== "main") return `<div class="tr-blk">${head}<div class="tr-in">${list.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
+      const head = `<p class="tr-g"><i class="gi">${em}</i><b>${t}</b><span>${kk}/${list.length}</span></p>`;
+      if (g !== "main") return `<div class="tr-blk g-${g}">${head}<div class="tr-in">${list.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
       // Основная часть разделена по группам мышц: Ноги, Ягодицы, Спина, Бицепс, Трицепс, Кор…
       const order = [];
       list.forEach((i) => { if (!order.includes(i.mg)) order.push(i.mg); });
-      return `<div class="tr-blk">${head}<div class="tr-subs">` + order.map((mg) => {
+      return `<div class="tr-blk g-${g}">${head}<div class="tr-subs">` + order.map((mg) => {
         const part = list.filter((i) => i.mg === mg);
         const k = part.filter((i) => done[i.key]).length;
         return `<div class="tr-mgb"><p class="tr-mg"><b>${esc(TR.MG[mg] || "Другое")}</b><span>${k}/${part.length}</span></p><div class="tr-in">${part.map((i) => trainRowHtml(day, i, done)).join("")}</div></div>`;
@@ -262,7 +262,7 @@ function trainCardHtml(day) {
   }
   const open = !!state.trainDayOpen;
   return `<section class="card trc">
-    <div class="card-top fl-top"><span class="fl-ic">💪</span><h2 class="h2${ses ? " tr-tog" : ""}"${ses ? ` data-act="trainDayTog" role="button" aria-expanded="${open}"` : ""}>План тренировок${ses ? `${chev(open)}` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-plan">💪</span><h2 class="h2${ses ? " tr-tog" : ""}"${ses ? ` data-act="trainDayTog" role="button" aria-expanded="${open}"` : ""}>План тренировок${ses ? `${chev(open)}` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
     <p class="foot-note" style="margin:-4px 4px 10px">${esc(placeName.charAt(0).toUpperCase() + placeName.slice(1))} · ${cfg.days.map((d) => TR.DAY_SHORT[d]).join(", ")} · ${TR.TIMES[0]}–${TR.TIMES[TR.TIMES.length - 1]} мин</p>
     <div class="tr-week">${strip}</div>
     ${ses && !open ? sum : ""}
@@ -1112,31 +1112,41 @@ function trainProgressCardHtml(day) {
   const tip = [adv.tip, adv.band, adv.bell].filter(Boolean).join(" ");
   const open = state.trainOpen;
   const bandHex = (txt) => { const c = TR.BAND_COLORS.find((x) => String(txt).toLowerCase().includes(x.t.toLowerCase().slice(0, 4))); return c ? c.hex : "#9AA8A0"; };
-  const hist = fin.slice(0, 5).map((l) => {
-    const chips = Object.entries((l && l.ebands) || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `<i style="--c:${bandHex(bandName(c))}">${esc(TR.EXERCISES[id].name)}</i>`).join("");
-    const fl = Number(l.feel);
-    return `<div class="tr-h"><div class="tr-ha"><b>${esc(trainDayName(l.date))}</b><span class="tr-hf${fl >= 4 ? " hv" : ""}">${esc(feelLabel(fl))}</span></div>${bandsText(l) ? `<small class="tr-hb">${esc(bandsText(l))}</small>` : ""}${chips ? `<div class="tr-hc">${chips}</div>` : ""}</div>`;
+  const histN = state.trHistN || 7;
+  const hOpen = state.trHistOpen || {};
+  const hist = fin.slice(0, histN).map((l) => {
+    const ids = new Set();
+    Object.entries(l.sets || {}).forEach(([id, a]) => { if (Array.isArray(a) && a.some((v) => Number(v) > 0)) ids.add(id); });
+    Object.keys(l.ebands || {}).forEach((id) => ids.add(id));
+    const chips = [...ids].filter((id) => TR.EXERCISES[id]).map((id) => { const bn = bandName((l.ebands || {})[id]); return `<i style="--c:${bn ? bandHex(bn) : "#9AA8A0"}">${esc(TR.EXERCISES[id].name)}</i>`; }).join("");
+    const cnt = ids.size ? `${[...ids].filter((id) => TR.EXERCISES[id]).length} упр.` : "";
+    const fl = Number(l.feel), op = !!hOpen[l.date];
+    return `<div class="tr-h tr-dy${op ? " op" : ""}"><button type="button" class="tr-dh" data-act="toggleTrHist" data-d="${l.date}" aria-expanded="${op}"><span class="tr-dn"><b>${esc(trainDayName(l.date))}</b>${cnt ? `<small>${cnt}</small>` : ""}</span>${fl ? `<span class="tr-hf fv${fl}">${esc(feelLabel(fl))}</span>` : ""}<svg class="tr-dc" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>${op ? `<div class="tr-db">${bandsText(l) ? `<small class="tr-hb">${esc(bandsText(l))}</small>` : ""}${chips ? `<div class="tr-hc">${chips}</div>` : `<small class="tr-hb">Подробностей по упражнениям нет.</small>`}</div>` : ""}</div>`;
   }).join("");
+  const histFold = fin.length > 7 ? `<div class="tr-foldrow"><i></i><button type="button" class="tr-fold${histN >= fin.length ? " up" : ""}" data-act="moreTrHist" data-all="${histN >= fin.length ? 1 : 0}" aria-label="${histN >= fin.length ? "Свернуть" : "Показать ещё 7 дней"}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><i></i></div>` : "";
+  const wkLv = (p) => (p >= 67 ? 2 : p >= 34 ? 1 : 0);
+  const wkRows = wkKeys.map((w) => { const x = st.weeks[w]; const p = pct(x.done, x.plan); return `<div class="tr-bar wl${wkLv(p)}"><span>${esc(dateShort(w))}</span><div class="track"><i style="width:${Math.max(4, p)}%"></i></div><b>${p}%</b></div>`; }).join("");
   return `<section class="card pg-card">
-    <div class="card-top fl-top"><span class="fl-ic">📈</span><h2 class="h2">Прогресс тренировок</h2></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-prog">📈</span><h2 class="h2">Прогресс тренировок</h2></div>
     ${empty ? `<p class="foot-note" style="margin:0 4px">Пока нет данных. Отмечайте упражнения, вносите повторы и завершайте тренировки, и здесь появятся графики и рекорды.</p>` : `
     <div class="stat-grid">
       ${pgStat(`${st.plannedDone} из ${st.planned}`, `упражнений выполнено${st.planned ? `, ${pct(st.plannedDone, st.planned)}%` : ""}`, pgLv(st.plannedDone, st.planned), st.planned ? pct(st.plannedDone, st.planned) : 0)}
       ${pgStat(`${st.daysDone} из ${st.days}`, "тренировок завершено", pgLv(st.daysDone, st.days), st.days ? pct(st.daysDone, st.days) : 0)}
       ${pgStat(String(st.streak), "подряд без пропусков", st.streak >= 3 ? 2 : st.streak >= 1 ? 1 : 0, -1)}
-      ${pgStat(avg ? esc(feelLabel(Math.round(avg))) : "—", "самочувствие в среднем", avg ? (avg < 2.5 ? "f0" : avg < 3.6 ? "f1" : "f2") : "n", -1)}
+      ${pgStat(avg ? esc(feelLabel(Math.round(avg))) : "—", "самочувствие в среднем", avg ? `f${Math.max(1, Math.min(5, Math.round(avg)))}` : "n", -1)}
     </div>
     <p class="tr-tip"><span class="tip-ic" aria-hidden="true">💡</span><span>${esc(tip)}</span></p>
     ${trainBalanceInner(day)}
     <div class="card-top tog" data-act="toggleTrain" role="button" aria-expanded="${open}" style="margin-top:14px"><h3 class="ex-h" style="margin:0">Графики упражнений${chev(open)}</h3></div>
-    ${open ? `${exProgressHtml()}
-    ${wkBars ? `<p class="tr-lab" style="margin-top:14px">Выполнено по неделям</p>${wkBars}` : ""}
-    ${hist ? `<h3 class="ex-h">Последние тренировки</h3>${hist}` : ""}` : `<p class="foot-note tr-more">Нажмите, чтобы открыть графики по каждому упражнению</p>`}`}
-    <div class="pg-reset"><button type="button" class="more-btn red" data-act="trainResetAll">Сбросить весь прогресс</button><p class="foot-note">Удалит отметки, повторы, цвета резинок и итоги. Потребуется подтверждение.</p></div>
-  </section>`;
+    ${open ? exProgressHtml() : `<p class="foot-note tr-more">Нажмите, чтобы открыть графики по каждому упражнению</p>`}`}
+  </section>
+  ${!empty && open && wkRows ? `<section class="card pg-card"><div class="card-top fl-top"><span class="fl-ic">📅</span><h2 class="h2">Выполнено по неделям</h2></div>${wkRows}</section>` : ""}
+  ${!empty && open && hist ? `<section class="card pg-card"><div class="card-top fl-top"><span class="fl-ic">🕘</span><h2 class="h2">Последние тренировки</h2>${fin.length > 7 ? `<span class="pill">${Math.min(histN, fin.length)} из ${fin.length}</span>` : ""}</div>${hist}${histFold}</section>` : ""}
+  <section class="card pg-card pg-reset"><button type="button" class="more-btn red" data-act="trainResetAll">Сбросить весь прогресс</button><p class="foot-note">Удалит отметки, повторы, цвета резинок и итоги. Потребуется подтверждение.</p></section>`;
 }
 
 // Итоги тренировки: самочувствие, инвентарь, резинки по цветам и вес
+const EQ_EMO = { mat: "🧘", tube: "💪", anchor: "🚪", loop: "➰", dumbbell: "🏋️", bar: "🤸", bench: "🪑", treadmill: "🏃", cable: "🏗️" };
 function openTrainFinish(date) {
   const ses = trainSession(date);
   if (!ses) return;
@@ -1159,13 +1169,13 @@ function openTrainFinish(date) {
   const draw = () => {
     const band = f.used.has("tube") || f.used.has("loop");
     body.innerHTML = `
-      <p class="foot-note" style="margin:-4px 2px 12px">Выполнено упражнений: ${k} из ${n}. Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p>
-      <div class="field"><span>Как вы себя чувствуете?</span>
-        <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="${f.feel === v ? "on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div>
+      ${n > 0 && k >= n ? `<div class="fn-win"><span class="tw">🏆</span><div class="wm"><b>Тренировка выполнена! 🎉</b><div class="wb"><u></u></div></div><em>${k}/${n}</em></div>` : `<div class="fn-sum">Выполнено упражнений: <b>${k} из ${n}</b><div class="pb"><u style="width:${n ? Math.max(4, Math.round((k / n) * 100)) : 0}%"></u></div><p>Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p></div>`}
+      <div class="field"><span class="lb"><em>💭</em>Как вы себя чувствуете?</span>
+        <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="fv fv${v}${f.feel === v ? " on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div>
         <small class="foot-note" style="margin:2px 4px 0">1 — совсем легко, 5 — на пределе.</small></div>
-      <div class="field"><span>Какой инвентарь использовали</span>
-        ${list.map((e) => `<label class="check"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}>${esc(e.t)}</label>`).join("")}</div>
-      ${band ? `<div class="field"><span>Резинки: отметьте цвета и поправьте вес, кг (можно несколько)</span>
+      <div class="field"><span class="lb"><em>🎒</em>Какой инвентарь использовали</span>
+        ${list.map((e) => `<label class="check iv"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}><span class="ie">${EQ_EMO[e.id] || "🎒"}</span><b>${esc(e.t)}</b><i class="cb"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></label>`).join("")}</div>
+      ${band ? `<div class="field"><span class="lb"><em>🎨</em>Резинки: цвета и вес, кг</span>
         <small class="foot-note" style="margin:0 4px 4px">Вес подставлен по типовому набору из 5 трубок: жёлтая 10, красная 15, синяя 20, зелёная 25, чёрная 30 фунтов (4,5 · 6,8 · 9,1 · 11,3 · 13,6 кг). Точные значения зависят от продавца: поправьте один раз, приложение запомнит.</small>
         ${TR.BAND_COLORS.map((c) => {
           const on = c.id in f.bands;

@@ -2474,9 +2474,6 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .pg-card .stat-grid .stat.lv-0:nth-child(n){background:#FFF4D6}.pg-card .stat.lv-0 b{color:#8A5A00}
 .pg-card .stat-grid .stat.lv-1:nth-child(n){background:#F1F6DA}.pg-card .stat.lv-1 b{color:#4C6A12}
 .pg-card .stat-grid .stat.lv-2:nth-child(n){background:#E3F4E7}.pg-card .stat.lv-2 b{color:#0E7A37}
-.pg-card .stat.lv-f0{background:#E3F4E7}.pg-card .stat.lv-f0 b{color:#0E7A37}
-.pg-card .stat-grid .stat.lv-f1:nth-child(n){background:#FFF4D6}.pg-card .stat.lv-f1 b{color:#8A5A00}
-.pg-card .stat-grid .stat.lv-f2:nth-child(n){background:#FDECEC}.pg-card .stat.lv-f2 b{color:#A12B2B}
 .pg-card .stat .sb{display:block;height:5px;border-radius:4px;background:rgba(24,38,29,.08);margin-top:8px;overflow:hidden}
 .pg-card .stat .sb u{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#F5BD45,#E9A92B)}
 .pg-card .stat.lv-1 .sb u{background:linear-gradient(90deg,#C9D95A,#7DBB5C)}
@@ -2495,7 +2492,148 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 :root[data-theme="dark"] .pg-card .stat-grid .stat.f2{background:rgba(214,69,69,.18)}
 :root[data-theme="dark"] .pg-card .stat b{color:var(--text)}
 
-.pg-card .stat.lv-f2{background:#FDECEC!important}.pg-card .stat.lv-f1{background:#FFF4D6!important}.pg-card .stat.lv-f0{background:#E3F4E7!important}
-.pg-card .stat.lv-f0 b{color:#0E7A37}.pg-card .stat.lv-f1 b{color:#8A5A00}.pg-card .stat.lv-f2 b{color:#A12B2B}
 .mb-r.lag b{color:#C4513F}.mb-r.lag .track i{background:linear-gradient(90deg,#F4B8B0,#E58B80)}
-:root[data-theme="dark"] .pg-card .stat.lv-f2{background:rgba(214,69,69,.18)!important}:root[data-theme="dark"] .pg-card .stat.lv-f1{background:rgba(245,189,69,.16)!important}:root[data-theme="dark"] .pg-card .stat.lv-f0{background:rgba(55,168,115,.18)!important}
+
+/* v2.17: вкладка «Сон» — индиго-карточка, фазы отдельной карточкой, эмодзи, тени */
+.sl-hero{background:linear-gradient(135deg,#7581E6,#4B55C9);color:#fff;border:0;box-shadow:0 12px 26px rgba(75,85,201,.38)}
+.sl-hero .fl-ic{background:rgba(255,255,255,.2)}
+.sl-hero .h2,.sl-hero .big-line{color:#fff}
+.sl-hero .big-line small{color:rgba(255,255,255,.82)}
+.sl-hero .pill,.sl-hero .pill.warn,.sl-hero .pill.over{background:rgba(255,255,255,.22);color:#fff;border:0}
+.sl-hero .track{background:rgba(255,255,255,.25)}
+.sl-hero .track>i,.sl-hero .sl-track.warn>i,.sl-hero .sl-track.bad>i{background:#fff}
+.sl-hero .foot-note{color:rgba(255,255,255,.85)}
+.sl-strip{display:flex;margin-top:14px;background:rgba(255,255,255,.14);border-radius:16px;padding:12px 4px;text-align:center}
+.sl-strip>div{flex:1;display:flex;flex-direction:column;gap:2px}
+.sl-strip>div+div{border-left:1px solid rgba(255,255,255,.25)}
+.sl-strip b{font-size:19px;color:#fff}.sl-strip span{font-size:11px;color:rgba(255,255,255,.85);font-weight:600}
+.sl-ph .sl-legend{gap:0}
+.sl-ph .sl-lg{padding:9px 0;border-top:1px solid #EEF3F0}.sl-ph .sl-lg:first-child{border-top:0}
+.sl-ph .sl-lg small{background:#F1F5F2;border-radius:999px;padding:3px 0;font-weight:700;font-size:11.5px;text-align:center}
+.sl-ph .stat-grid .stat:nth-child(1){background:#E3F4E7;box-shadow:0 4px 12px rgba(23,60,40,.08)}.sl-ph .stat-grid .stat:nth-child(1) b{color:#0E7A37}
+.sl-ph .stat-grid .stat:nth-child(2){background:#ECE9FB;box-shadow:0 4px 12px rgba(23,60,40,.08)}.sl-ph .stat-grid .stat:nth-child(2) b{color:#4B55C9}
+.fl-ic.amb{background:#FFF4D6}
+.card:has(.caf-msgs) .fl-top{margin-bottom:4px}
+.card .caf-msgs{margin-top:8px}
+:root[data-theme="dark"] .sl-ph .sl-lg{border-color:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .sl-ph .sl-lg small{background:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .sl-ph .stat-grid .stat:nth-child(1){background:rgba(55,168,115,.18)}
+:root[data-theme="dark"] .sl-ph .stat-grid .stat:nth-child(2){background:rgba(111,123,224,.2)}
+.col .b.sleep{box-shadow:0 6px 12px rgba(111,123,224,.28)}
+.sl-strip b{font-size:15px;white-space:nowrap}
+.sl-ph .stat-grid .stat{border:0}
+.sl-ph .stat-grid .stat:nth-child(2) span{color:#6F8076}
+
+/* ===== v2.18 ===== */
+/* шкала самочувствия 1–5 */
+.pg-card .stat.lv-f1{background:#CDEFD9!important}.pg-card .stat.lv-f1 b{color:#0E7A37}
+.pg-card .stat.lv-f2{background:#E3F4E7!important}.pg-card .stat.lv-f2 b{color:#2F8F5E}
+.pg-card .stat.lv-f3{background:#FFF4D6!important}.pg-card .stat.lv-f3 b{color:#8A5A00}
+.pg-card .stat.lv-f4{background:#FCE0DC!important}.pg-card .stat.lv-f4 b{color:#B5392E}
+.pg-card .stat.lv-f5{background:#F9C9C4!important}.pg-card .stat.lv-f5 b{color:#9B1F1F}
+.tr-hf.fv1{background:#CDEFD9;color:#0E7A37}.tr-hf.fv2{background:#E3F4E7;color:#2F8F5E}.tr-hf.fv3{background:#FFF4D6;color:#8A5A00}.tr-hf.fv4{background:#FCE0DC;color:#B5392E}.tr-hf.fv5{background:#F9C9C4;color:#9B1F1F}
+.tr-feel button.fv{background:var(--fb);border:1.5px solid transparent;box-shadow:0 3px 8px rgba(23,60,40,.08);border-radius:14px;padding:10px 2px}
+.tr-feel button.fv b{font-size:20px;color:var(--ft)}
+.tr-feel button.fv1{--fb:#CDEFD9;--ft:#0E7A37;--fd:#37A873}.tr-feel button.fv2{--fb:#E3F4E7;--ft:#2F8F5E;--fd:#7DCBA0}.tr-feel button.fv3{--fb:#FFF4D6;--ft:#8A5A00;--fd:#F5BD45}.tr-feel button.fv4{--fb:#FCE0DC;--ft:#B5392E;--fd:#EE8F84}.tr-feel button.fv5{--fb:#F9C9C4;--ft:#9B1F1F;--fd:#D64545}
+.tr-feel button.fv.on{border-color:var(--fd);box-shadow:0 6px 14px rgba(23,60,40,.18);transform:translateY(-1px)}
+/* карточки плана: единые блоки */
+.tr-blk{background:#fff;border:0;border-radius:22px;overflow:hidden;box-shadow:0 8px 24px rgba(23,60,40,.10);margin-bottom:14px}
+.tr-blk>.tr-g{display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+.tr-blk>.tr-g b{font-weight:800}.tr-blk>.tr-g span{margin-left:auto;background:#fff;box-shadow:0 2px 6px rgba(23,60,40,.08);font-size:12px}
+.tr-g .gi{width:32px;height:32px;border-radius:10px;background:#fff;display:grid;place-items:center;font-size:17px;font-style:normal;box-shadow:0 2px 6px rgba(23,60,40,.10)}
+.g-warm>.tr-g{background:#FFF4D6;color:#8A5A00}.g-warm>.tr-g span{color:#8A5A00}
+.g-main>.tr-g{background:#E3F4E7;color:#0E7A37}.g-main>.tr-g span{color:#0E7A37}
+.g-cardio>.tr-g{background:#FDECEC;color:#A12B2B}.g-cardio>.tr-g span{color:#A12B2B}
+.g-cool>.tr-g{background:#ECE9FB;color:#4B55C9}.g-cool>.tr-g span{color:#4B55C9}
+.tr-blk .tr-in,.tr-subs .tr-in{padding:0;display:flex;flex-direction:column;gap:9px}
+.tr-blk>.tr-in{padding:12px}
+.tr-subs{padding:12px;gap:10px}
+.tr-mgb{background:none;border:0;box-shadow:none}
+.tr-mgb .tr-mg{display:flex;justify-content:space-between;padding:6px 4px 8px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#0E7A37}
+.tr-mgb .tr-mg span{background:#E3F4E7;color:#0E7A37;border-radius:999px;padding:2px 9px}
+.tr-blk .tr-row{padding:11px 12px;border-radius:16px;border:1px solid #EDF2EE;box-shadow:0 3px 10px rgba(23,60,40,.06)}
+.g-warm .tr-row{background:#FFFCF3}.g-main .tr-row{background:#F6FBF7}.g-cardio .tr-row{background:#FFF9F8}.g-cool .tr-row{background:#FAF9FE}
+.g-warm .tr-check{border-color:#F5BD45}.g-cardio .tr-check{border-color:#F4B8B0}.g-cool .tr-check{border-color:#B7B0EE}
+.tr-blk .tr-row+.tr-row{border-top:1px solid #EDF2EE}
+:root[data-theme="dark"] .tr-blk{background:rgba(255,255,255,.04)}
+:root[data-theme="dark"] .g-warm>.tr-g{background:rgba(245,189,69,.16);color:#F0CB75}:root[data-theme="dark"] .g-main>.tr-g{background:rgba(55,168,115,.18);color:#7FD6A0}:root[data-theme="dark"] .g-cardio>.tr-g{background:rgba(214,69,69,.18);color:#FF9A9A}:root[data-theme="dark"] .g-cool>.tr-g{background:rgba(111,123,224,.2);color:#B7B0EE}
+:root[data-theme="dark"] .tr-blk .tr-row{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.08)}
+/* окно «Завершить тренировку» */
+.fn-win{display:flex;align-items:center;gap:12px;margin:0 0 6px;padding:12px 14px;border-radius:20px;color:#fff;background:linear-gradient(135deg,#B39DF0 0%,#7B52E6 60%,#6A3FDB 100%);box-shadow:0 10px 22px rgba(106,63,219,.35)}
+.fn-win .tw{width:42px;height:42px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:22px;flex:none;box-shadow:0 3px 8px rgba(60,20,140,.25)}
+.fn-win .wm{flex:1}.fn-win .wm b{display:block;font-size:16px;font-weight:800}
+.fn-win .wb{height:5px;border-radius:4px;background:rgba(255,255,255,.35);margin-top:8px;overflow:hidden}.fn-win .wb u{display:block;width:100%;height:100%;background:#fff;border-radius:4px}
+.fn-win em{font-style:normal;font-weight:800;font-size:13px;background:rgba(255,255,255,.22);padding:4px 9px;border-radius:999px}
+.fn-sum{margin:0 0 6px;background:#EEF6F1;border-radius:16px;padding:12px 14px;box-shadow:0 4px 12px rgba(23,60,40,.06);font-size:13px;color:#2F4A3A}.fn-sum b{font-size:15px;color:var(--text)}
+.fn-sum .pb{height:6px;border-radius:4px;background:rgba(24,38,29,.08);margin-top:8px;overflow:hidden}.fn-sum .pb u{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#6FCD9A,#37A873)}
+.fn-sum p{margin:6px 0 0;font-size:12px;color:var(--muted)}
+.field>span.lb{display:flex;align-items:center;gap:8px;margin:16px 2px 10px;font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#6B7B72}
+.field>span.lb em{font-style:normal;font-size:15px}
+label.check.iv{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:16px;background:#F6F8F6;border:1px solid #EDF2EE;margin-bottom:8px;box-shadow:0 3px 10px rgba(23,60,40,.05);cursor:pointer}
+label.check.iv input{display:none}
+label.check.iv .ie{width:32px;height:32px;border-radius:10px;background:#fff;display:grid;place-items:center;font-size:16px;box-shadow:0 2px 6px rgba(23,60,40,.08)}
+label.check.iv b{flex:1;font-size:14.5px}
+label.check.iv .cb{width:24px;height:24px;border-radius:8px;border:2px solid #CBD5CE;background:#fff;display:grid;place-items:center}
+label.check.iv .cb svg{display:none}
+label.check.iv:has(input:checked){background:#EAF6EE;border-color:#CBE8D5}
+label.check.iv:has(input:checked) .cb{background:linear-gradient(#6FCD9A,#37A873);border:0;box-shadow:0 3px 8px rgba(55,168,115,.35)}
+label.check.iv:has(input:checked) .cb svg{display:block}
+.tr-band{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:16px;background:#F6F8F6;border:1px solid #EDF2EE;margin-bottom:8px;box-shadow:0 3px 10px rgba(23,60,40,.05)}
+.tr-band.on{background:#F6FBF7}
+.tr-dot{width:30px;height:30px;box-shadow:inset 0 0 0 3px rgba(255,255,255,.6),0 3px 8px rgba(23,60,40,.15);border:0;opacity:.55}
+.tr-dot.on{opacity:1;box-shadow:inset 0 0 0 3px #fff,0 0 0 2px #37A873,0 3px 8px rgba(23,60,40,.15)}
+.tr-band .input{width:86px;text-align:right;font-weight:800;border-radius:12px}
+:root[data-theme="dark"] label.check.iv,:root[data-theme="dark"] .tr-band{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.08)}
+/* низ «Прогресса»: недели, последние тренировки, сброс */
+.pg-card .tr-bar{display:grid;grid-template-columns:52px 1fr 44px;gap:10px;align-items:center;padding:11px 12px;border-radius:16px;margin-bottom:8px;box-shadow:0 3px 10px rgba(23,60,40,.06)}
+.tr-bar .track{height:9px;background:rgba(24,38,29,.08)}
+.tr-bar.wl0{background:#FFF4D6}.tr-bar.wl0 b{color:#8A5A00}.tr-bar.wl0 .track i{background:linear-gradient(90deg,#F5BD45,#E9A92B)}
+.tr-bar.wl1{background:#F1F6DA}.tr-bar.wl1 b{color:#4C6A12}.tr-bar.wl1 .track i{background:linear-gradient(90deg,#C9D95A,#7DBB5C)}
+.tr-bar.wl2{background:#E3F4E7}.tr-bar.wl2 b{color:#0E7A37}.tr-bar.wl2 .track i{background:linear-gradient(90deg,#6FCD9A,#37A873)}
+.tr-dy{padding:0;border:1px solid #EDF2EE;border-radius:18px;background:#F8FAF8;box-shadow:0 3px 10px rgba(23,60,40,.06);margin-bottom:9px;overflow:hidden}
+.tr-dy.op{background:#fff;border-color:#CBE8D5;box-shadow:0 6px 16px rgba(55,168,115,.14)}
+.tr-dh{display:flex;align-items:center;gap:8px;width:100%;padding:12px;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.tr-dn{flex:1}.tr-dn b{display:block;font-size:15px}.tr-dn small{font-size:12px;color:var(--muted)}
+.tr-dy .tr-hf{margin-left:0;white-space:nowrap}
+.tr-dc{color:var(--muted);transition:transform .2s}.tr-dy.op .tr-dc{transform:rotate(180deg)}
+.tr-db{padding:0 12px 12px}.tr-db .tr-hc{margin-top:8px}
+.tr-foldrow{display:flex;align-items:center;gap:12px;margin:12px 0 2px}.tr-foldrow i{flex:1;height:1px;background:#E3EBE5}
+.tr-fold{width:44px;height:36px;border-radius:12px;border:1px solid #BFE3CC;background:#E3F4E7;color:#1B7A4A;display:grid;place-items:center;box-shadow:0 3px 8px rgba(55,168,115,.18);cursor:pointer}
+.tr-fold.up svg{transform:rotate(180deg)}
+.pg-card.pg-reset{text-align:center}
+.pg-card.pg-reset .more-btn{margin:0 auto}
+:root[data-theme="dark"] .tr-dy{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .tr-bar.wl0{background:rgba(245,189,69,.16)}:root[data-theme="dark"] .tr-bar.wl1{background:rgba(125,187,92,.16)}:root[data-theme="dark"] .tr-bar.wl2{background:rgba(55,168,115,.18)}
+:root[data-theme="dark"] .pg-card .stat.lv-f1,:root[data-theme="dark"] .pg-card .stat.lv-f2{background:rgba(55,168,115,.2)!important}:root[data-theme="dark"] .pg-card .stat.lv-f3{background:rgba(245,189,69,.16)!important}:root[data-theme="dark"] .pg-card .stat.lv-f4,:root[data-theme="dark"] .pg-card .stat.lv-f5{background:rgba(214,69,69,.2)!important}
+:root[data-theme="dark"] .pg-card .stat b{color:var(--text)}
+.tr-dn b{color:var(--text)}
+.fn-win .wm b{font-size:15px}
+
+/* ===== v2.19: контрастные плитки-эмодзи вкладки «Тренировки», карточка «Тренировки» ===== */
+.ic-cal,.trc .ic-cal,.wkc .ic-cal{background:linear-gradient(135deg,#6FCD9A,#37A873)!important;box-shadow:0 4px 10px rgba(55,168,115,.38)}
+.ic-run,.trc .ic-run{background:linear-gradient(135deg,#8FBBF7,#4F8FE8)!important;box-shadow:0 4px 10px rgba(79,143,232,.38)}
+.ic-plan,.trc .ic-plan{background:linear-gradient(135deg,#BCA6F3,#7B52E6)!important;box-shadow:0 4px 10px rgba(123,82,230,.38)}
+.ic-prog,.pg-card .ic-prog{background:linear-gradient(135deg,#6FD6C8,#2EB8A6)!important;box-shadow:0 4px 10px rgba(46,184,166,.38)}
+.ic-shoe{background:linear-gradient(135deg,#F5A99C,#E0645A)!important;box-shadow:0 4px 10px rgba(224,100,90,.38)}
+/* плитки «минут / ккал» */
+.trc .stat-grid .stat:nth-child(1){background:#E3F4E7;box-shadow:0 4px 12px rgba(23,60,40,.08)}.trc .stat-grid .stat:nth-child(1) b{color:#0E7A37}
+.trc .stat-grid .stat:nth-child(2){background:#FFF1DC;box-shadow:0 4px 12px rgba(23,60,40,.08)}.trc .stat-grid .stat:nth-child(2) b{color:#A55A00}
+.trc .stat b{font-size:24px}
+/* записи тренировок — отдельные плашки */
+.trc .entries.flat{border-top:0;margin:12px 0 0;display:flex;flex-direction:column;gap:9px}
+.trc .entry.ae{display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:18px;background:#fff;border:1px solid #EDF2EE;box-shadow:0 3px 10px rgba(23,60,40,.07)}
+.trc .entry.ae:last-child{border:1px solid #EDF2EE}
+.ae-i{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:21px;flex:none;background:#E3F4E7}
+.ae-walk .ae-i{background:#E3F4E7}.ae-hot .ae-i{background:#FDECEC}.ae-str .ae-i{background:#ECE9FB}.ae-cool .ae-i{background:#E3F1FC}
+.trc .entry.ae .e-main{flex:1;min-width:0}
+.trc .entry.ae .e-name{display:block;font-size:14.5px;font-weight:700;line-height:1.25;white-space:normal}
+.trc .entry.ae .e-sub{display:block;font-size:12px;line-height:1.35;margin-top:3px}
+.trc .entry.ae .e-kcal{flex:none;text-align:right;display:flex;flex-direction:column;align-items:flex-end;font-size:17px;font-weight:800}
+.ae-walk .e-kcal{color:#0E7A37}.ae-hot .e-kcal{color:#B5392E}.ae-str .e-kcal{color:#4B55C9}.ae-cool .e-kcal{color:#2F6FC0}
+.trc .entry.ae .e-kcal small{font-size:11px;font-weight:600;margin:0}
+.trc .entry.ae .chip{border-radius:999px;font-weight:700}
+.trc .entry.ae .chip.muted{background:#F1F5F2;border:1px solid #E3EBE5;color:#6F8076;box-shadow:none}
+.trc .entry.ae .chip.sel{background:linear-gradient(#6FCD9A,#37A873);color:#fff;border:0;box-shadow:0 4px 10px rgba(55,168,115,.35)}
+:root[data-theme="dark"] .trc .entry.ae{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .trc .stat-grid .stat:nth-child(1){background:rgba(55,168,115,.18)}:root[data-theme="dark"] .trc .stat-grid .stat:nth-child(2){background:rgba(245,189,69,.16)}
+:root[data-theme="dark"] .ae-walk .ae-i{background:rgba(55,168,115,.2)}:root[data-theme="dark"] .ae-hot .ae-i{background:rgba(214,69,69,.2)}:root[data-theme="dark"] .ae-str .ae-i{background:rgba(111,123,224,.22)}:root[data-theme="dark"] .ae-cool .ae-i{background:rgba(79,143,232,.2)}

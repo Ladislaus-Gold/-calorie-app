@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=25";
+import { createTrainUI } from "./trainui.js?v=27";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 219;
-const APP_VERSION_LABEL = "2.16"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 222;
+const APP_VERSION_LABEL = "2.19"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1119,7 +1119,7 @@ function localInsights(a) {
     if (a.sleepDeepAvg > 0 && sa > 0) {
       const dp = a.sleepDeepAvg / sa;
       if (dp < 0.1) add("warn", `Глубокого сна мало: ${pct(dp)}% ночи (${fmtDur(a.sleepDeepAvg)}). Обычно 13–23%. Помогают режим, прохладная комната и меньше кофеина и алкоголя вечером.`);
-      else add("info", `Глубокий сон: ${fmtDur(a.sleepDeepAvg)} за ночь (${pct(dp)}%)${a.sleepRemAvg > 0 ? `, фаза REM ${fmtDur(a.sleepRemAvg)} (${pct(a.sleepRemAvg / sa)}%)` : ""}.`);
+      else add("info", `Глубокий сон: ${fmtDur(a.sleepDeepAvg)} за ночь (${pct(dp)}%)${a.sleepRemAvg > 0 ? `, быстрый сон ${fmtDur(a.sleepRemAvg)} (${pct(a.sleepRemAvg / sa)}%)` : ""}.`);
     }
     if (a.bedN >= 4 && a.bedSd > 60) add("warn", `Время отхода ко сну плавает: в среднем ${minToClock(a.bedAvg)}, разброс около ${fmtInt(a.bedSd)} мин. Регулярный режим улучшает качество сна.`);
     else if (a.bedN >= 2) add("info", `Обычно вы засыпаете около ${minToClock(a.bedAvg)}.`);
@@ -3532,15 +3532,28 @@ function viewHealth() {
   const wkStr = wk.reduce((sum, d) => sum + actOn(d).filter((a) => a.type === "strength").length + workoutsOn(d).filter(isStrengthW).length, 0);
   const wt = plan ? plan.weekly : { minutes: 150, strength: 2, text: WEEKLY.maintain.text };
   const favs = favDrinks();
-  const actRows = acts.map((a) => `
-    <button type="button" class="entry" data-act="editActivity" data-id="${esc(a.id)}">
-      <span class="e-main"><span class="e-name">${esc(a.name)}</span><span class="e-sub">${fmt(a.minutes)} мин</span></span>
+  // Значок и цвет записи по типу нагрузки
+  const actKind = (name, strength) => {
+    const n = String(name || "").toLowerCase();
+    if (strength || /силов|strength|функциональн|кроссфит/.test(n)) return ["🏋️", "str"];
+    if (/ходьб|прогул|walk|шаг/.test(n)) return ["🚶", "walk"];
+    if (/интервал|hiit|высокой интенсивности/.test(n)) return ["⚡", "hot"];
+    if (/бег|run|кардио/.test(n)) return ["🏃", "hot"];
+    if (/вело|cycl|bike/.test(n)) return ["🚴", "cool"];
+    if (/плав|swim|вод/.test(n)) return ["🏊", "cool"];
+    if (/йога|растяж|пилатес|yoga/.test(n)) return ["🧘", "str"];
+    return ["🔥", "walk"];
+  };
+  const actRows = acts.map((a) => { const [ek, ec] = actKind(a.name, a.type === "strength"); return `
+    <button type="button" class="entry ae ae-${ec}" data-act="editActivity" data-id="${esc(a.id)}">
+      <span class="ae-i">${ek}</span><span class="e-main"><span class="e-name">${esc(a.name)}</span><span class="e-sub">${fmt(a.minutes)} мин</span></span>
       <span class="e-kcal">${fmtInt(a.kcal)}<small>ккал</small></span>
-    </button>`).join("");
+    </button>`; }).join("");
   const wktRows = wkts.map((w) => {
     const bits = [timeOf(w.start), w.minutes ? `${fmtInt(w.minutes)} мин` : "", w.distanceKm ? `${fmt(w.distanceKm)} км` : "", w.hrAvg ? `пульс ${fmtInt(w.hrAvg)}${w.hrMax ? ` (макс ${fmtInt(w.hrMax)})` : ""}` : ""].filter(Boolean);
     const st = isStrengthW(w);
-    return `<div class="entry"><span class="e-main"><span class="e-name">${esc(w.name)}</span><span class="e-sub">${bits.join(" · ")} · Apple Watch</span><button type="button" class="chip ${st ? "sel" : "muted"}" style="margin-top:8px;padding:5px 12px;font-size:12px" data-act="toggleStrength" data-id="${esc(w.id)}">${st ? "Силовая ✓" : "Отметить силовой"}</button></span><span class="e-kcal">${w.kcal ? fmtInt(w.kcal) : "—"}<small>ккал</small></span></div>`;
+    const [ek, ec] = actKind(w.name, st);
+    return `<div class="entry ae ae-${ec}"><span class="ae-i">${ek}</span><span class="e-main"><span class="e-name">${esc(w.name)}</span><span class="e-sub">${bits.join(" · ")} · Apple Watch</span><button type="button" class="chip ${st ? "sel" : "muted"}" style="margin-top:8px;padding:5px 12px;font-size:12px" data-act="toggleStrength" data-id="${esc(w.id)}">${st ? "Силовая ✓" : "Отметить силовой"}</button></span><span class="e-kcal">${w.kcal ? fmtInt(w.kcal) : "—"}<small>ккал</small></span></div>`;
   }).join("");
   // Сначала самые свежие; по умолчанию видны два последних, остальные раскрываются кнопкой
   const FLUID_SHOW = 2;
@@ -3597,17 +3610,17 @@ function viewHealth() {
       ${hrLine}
       ${wkStepsAvg ? `<p class="th-note">В среднем за неделю ${fmtInt(wkStepsAvg)} шагов в день</p>` : ""}
     </section>` : `<section class="card">
-      <div class="card-top fl-top"><span class="fl-ic">👟</span><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-shoe">👟</span><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
       <p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>
     </section>`}
     <section class="card wkc">
-      <div class="wkc-r1"><span class="fl-ic">🗓️</span><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
+      <div class="wkc-r1"><span class="fl-ic ic-cal">🗓️</span><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
       <div class="wkc-bar"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
       <div class="wkc-r2">${wkDots}<span>Силовых: ${wkStr} из ${wt.strength}${wkLeft > 0 ? ` · осталось ${fmtInt(wkLeft)} мин` : ""}</span></div>
       ${wt.text ? `<p class="wkc-note">${esc(wt.text)}</p>` : ""}
     </section>
     <section class="card trc">
-      <div class="card-top fl-top"><span class="fl-ic">🏃</span><h2 class="h2">Тренировки</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-run">🏃</span><h2 class="h2">Тренировки</h2></div>
       <div class="stat-grid">
         <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
         <div class="stat"><b>${fmtInt(trainKcal)}</b><span>ккал на тренировках</span></div>
@@ -3637,7 +3650,7 @@ function viewHealth() {
     if (tot < 6) tips.push(["bad", `Сна меньше 6 часов. Ориентир для взрослых ${SLEEP_MIN}–${SLEEP_MAX} часов: постарайтесь лечь раньше.`]);
     else if (tot < SLEEP_MIN) tips.push(["warn", `До ${SLEEP_MIN} часов не хватило ${fmtDur(SLEEP_MIN - tot)}.`]);
     if (deep > 0 && deep / tot < 0.1) tips.push(["warn", `Глубокого сна мало: ${Math.round((deep / tot) * 100)}% (обычно 13–23%). Ему мешают кофеин, алкоголь и жара в комнате.`]);
-    if (rem > 0 && rem / tot < 0.15) tips.push(["warn", `Фазы REM мало: ${Math.round((rem / tot) * 100)}% (обычно 20–25%).`]);
+    if (rem > 0 && rem / tot < 0.15) tips.push(["warn", `Быстрого сна мало: ${Math.round((rem / tot) * 100)}% (обычно 20–25%).`]);
     if (inBed > 0 && tot / inBed < 0.85) tips.push(["warn", `В кровати вы провели ${fmtDur(inBed)}, спали ${fmtDur(tot)}: эффективность сна ${Math.round((tot / inBed) * 100)}% (хорошо от 85%).`]);
     const yd = addDays(day, -1);
     const lateCaf = fluidItems(yd).some((i) => itemCaf(i) > 0 && new Date(i.ts).getHours() >= 16);
@@ -3646,20 +3659,24 @@ function viewHealth() {
     if (lateAlc) tips.push(["info", "Накануне вечером был алкоголь: он делает сон поверхностным."]);
     if (!tips.length) tips.push(["good", "Ночь выглядит хорошо: длительность в норме, замечаний нет."]);
     pSleep = `
-    <section class="card">
-      <div class="card-top"><h2 class="h2">Сон</h2><span class="pill ${lv === "good" ? "" : lv === "bad" ? "over" : lv === "warn" ? "warn" : ""}">${lvTxt}</span></div>
+    <section class="card sl-hero">
+      <div class="card-top fl-top"><span class="fl-ic">😴</span><h2 class="h2">Сон</h2><span class="pill">${lvTxt}</span></div>
       <div class="big-line">${fmtDur(tot)}<small>за ночь</small></div>
       <div class="track sl-track ${lv}"><i style="width:${Math.min(100, (tot / 8) * 100)}%"></i></div>
       <p class="foot-note" style="margin:10px 0 12px">Ориентир ${SLEEP_MIN}–${SLEEP_MAX} часов.${sl.sleepStart && sl.sleepEnd ? ` Уснули в ${esc(sl.sleepStart)}, проснулись в ${esc(sl.sleepEnd)}.` : ""}</p>
+      ${stageTot > 0 ? `<div class="sl-strip"><div><b>${fmtDur(deep)}</b><span>глубокий</span></div><div><b>${fmtDur(rem)}</b><span>быстрый</span></div><div><b>${fmtDur(core)}</b><span>лёгкий</span></div></div>` : ""}
+    </section>
+    <section class="card sl-ph">
+      <div class="card-top fl-top"><span class="fl-ic">🌙</span><h2 class="h2">Фазы сна</h2></div>
       ${stageTot > 0 ? `<div class="sl-stages">${seg(deep, "deep")}${seg(rem, "rem")}${seg(core, "core")}${seg(awake, "awake")}</div>
-      <div class="sl-legend">${lg("Глубокий", deep, "deep")}${lg("REM", rem, "rem")}${lg("Лёгкий", core, "core")}${lg("Бодрствование", awake, "awake")}</div>` : ""}
+      <div class="sl-legend">${lg("Глубокий", deep, "deep")}${lg("Быстрый сон", rem, "rem")}${lg("Лёгкий", core, "core")}${lg("Бодрствование", awake, "awake")}</div>` : `<p class="foot-note" style="margin:0">Данных о фазах сна нет.</p>`}
       <div class="stat-grid" style="margin-top:12px">
         <div class="stat"><b>${inBed > 0 ? fmtDur(inBed) : "—"}</b><span>в кровати</span></div>
         <div class="stat"><b>${nights.length ? fmtDur(nAvg) : "—"}</b><span>в среднем за неделю${nights.length ? `<br>ночей с данными ${nights.length}` : ""}</span></div>
       </div>
     </section>
     <section class="card">
-      <h2 class="h2">Что заметно</h2>
+      <div class="card-top fl-top"><span class="fl-ic amb">💡</span><h2 class="h2">Что заметно</h2></div>
       <ul class="caf-msgs">${tips.map(([k, t]) => `<li class="${k === "bad" ? "over" : k === "good" ? "ok" : ""}">${esc(t)}</li>`).join("")}</ul>
     </section>
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v))}`;
@@ -3885,7 +3902,7 @@ function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
   }).join("");
   const withData = vals.filter((v) => v > 0);
   const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
-  return `<section class="card"><h2 class="h2">${title}</h2>
+  return `<section class="card">${cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic">📊</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
     <div ${chartAttrs(days.length)}>${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
     ${chartLabelsBox(days)}
     <p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${F(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${F(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p></section>`;
@@ -4682,6 +4699,8 @@ const actions = {
   toggleActKinds() { state.actKindsOpen = !state.actKindsOpen; render(); },
   toggleTrainGrp(ds) { state.trainGrpOpen = { ...(state.trainGrpOpen || {}), [ds.g]: !(state.trainGrpOpen || {})[ds.g] }; render(); },
   toggleTrain() { state.trainOpen = !state.trainOpen; render(); },
+  toggleTrHist(ds) { state.trHistOpen = { ...(state.trHistOpen || {}), [ds.d]: !(state.trHistOpen || {})[ds.d] }; render(); },
+  moreTrHist(ds) { state.trHistN = ds.all === "1" ? 7 : (state.trHistN || 7) + 7; render(); },
   checkStatus() { checkStatus(true); },
   async reloadApp() {
     try {
