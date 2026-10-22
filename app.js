@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 242;
-const APP_VERSION_LABEL = "2.39"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 243;
+const APP_VERSION_LABEL = "2.40"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3989,7 +3989,7 @@ function viewHealth() {
   const nRec = fluidAll.length + (legacyRow ? 1 : 0);
   const pToday = `
     <section class="card fl-main">
-      <div class="card-top fl-top"><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
+      <div class="card-top fl-top"><span class="fl-ic g-liq" data-ek="liq">${GLYPH_DROP}</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
       <div class="big-line"><span id="fl-n" data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></div>
       <p class="fl-sub">${flStatus}</p>
       <button type="button" class="fl-cap" id="fl-cap" data-act="toggleFluid" data-noswipe aria-expanded="${fluidOpen}" aria-label="Список выпитого">

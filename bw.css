@@ -1571,8 +1571,6 @@ html:has(.pvw), body:has(.pvw) { background: #fff; background-image: none; }
 :root[data-theme="dark"] .hvw .trc .entry.ae .chip.sel, :root[data-theme="dark"] .overlay .trc .entry.ae .chip.sel { background:#fff !important;color:#000 !important; }
 :root[data-theme="dark"] .hvw .tr-fin, :root[data-theme="dark"] .overlay .tr-fin { background:#1C1C1E !important;border:.5px solid rgba(255,255,255,.12) !important;box-shadow:none !important; }
 
-.hvw .card-top.fl-top:has(.fl-pills:empty) { display: none; }
-.hvw .fl-main .fl-top { min-height: 0; margin-bottom: 4px; }
 .hvw .fl-cap { overflow: hidden; }
 .hvw .fl-cap .sg + .sg { box-shadow: -1.5px 0 0 var(--surf, #fff); }
 /* окно напитка: выбранный напиток сверху, список ниже */
@@ -1606,11 +1604,9 @@ html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { backgr
 html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) b, html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) span { color: #000 !important; }
 html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb { background: rgba(0,0,0,.18) !important; }
 html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { background: #000 !important; }
-/* v2.38: «Шаги сегодня», число шагов и кружок с процентами — оранжевые, как «Нагрузка» */
-.hvw .th-hero .th-t1, .hvw .th-hero .th-t2, .hvw .th-hero .th-ring b { color: #FF9500 !important; }
-.hvw .th-hero .th-ring circle.fg { stroke: #FF9500 !important; }
-:root[data-theme="dark"] .hvw .th-hero .th-t1, :root[data-theme="dark"] .hvw .th-hero .th-t2, :root[data-theme="dark"] .hvw .th-hero .th-ring b { color: #E67E00 !important; }
-:root[data-theme="dark"] .hvw .th-hero .th-ring circle.fg { stroke: #E67E00 !important; }
 :root[data-theme="dark"] .hvw .th-hero::after { background: #F2F2F7 !important; }
 :root[data-theme="dark"] .hvw .th-hero .th-ring circle.bg { stroke: #E5E5EA !important; }
 [data-cnt] { display: inline-block; }
+/* v2.40: капля у заголовка «Жидкость» видна на светлой плитке */
+.hvw .fl-ic.g-liq svg { fill: #000 !important; }
+:root[data-theme="dark"] .hvw .fl-ic.g-liq svg { fill: #fff !important; }
