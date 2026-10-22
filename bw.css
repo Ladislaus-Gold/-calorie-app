@@ -1643,3 +1643,11 @@ html body .dv .mini.act .mini-bar > i { background: #000 !important; }
 html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq { color: #000; }
 html:root[data-theme="dark"] body .dv .mini.act .mini-bar > i { background: #fff !important; }
 html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg { filter: invert(1); }
+
+/* v2.47: убраны причины фризов на iPhone.
+   1) размытие под нижним меню (backdrop-filter) пересчитывалось на каждом кадре любой анимации за ним; меню и так почти непрозрачное, поэтому делаем его сплошным.
+   2) кольца, которые заполняются, вынесены в собственные слои: перерисовывается только маленькое кольцо, а не вся тёмная карточка. */
+.nav, :root[data-theme="dark"] .nav { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.nav { background: #fff; }
+:root[data-theme="dark"] .nav { background: #1C1C1E; }
+.mr-svg, .m-ring svg, .cp-rg, .th-ring, .th-ring svg { will-change: transform; transform: translateZ(0); }

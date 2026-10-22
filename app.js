@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 249;
-const APP_VERSION_LABEL = "2.46"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 250;
+const APP_VERSION_LABEL = "2.47"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -724,11 +724,8 @@ function fillAnim(root, base = 0) {
     const off = el.getAttribute("stroke-dashoffset"), full = el.getAttribute("stroke-dasharray");
     if (off != null && full) el.animate([{ strokeDashoffset: full }, { strokeDashoffset: off }], opt(at()));
   });
-  const mp = root.querySelector("#gzm-p");
-  if (mp) {
-    const f = Number(mp.dataset.f) || 0;
-    if (f > 0) mp.animate([{ strokeDasharray: "0 100" }, { strokeDasharray: `${Math.min(100, f * 100 + 3)} 100` }], opt(base));
-  }
+  // Большое кольцо калорий: плавно появляется целиком (opacity и transform на отдельном слое, без перерисовки)
+  root.querySelectorAll(".gz-wrap").forEach((el) => el.animate([{ opacity: 0, transform: "scale(.92)" }, { opacity: 1, transform: "scale(1)" }], { duration: 650, delay: base, easing: FILL_EASE, fill: "backwards" }));
   // Числа не «накручиваются»: появляются сразу готовыми, мягко (fade и подъём на пару пикселей), синхронно с полосками
   root.querySelectorAll("[data-cnt]").forEach((el) => {
     if (!(Number(el.dataset.cnt) > 0)) return;
@@ -882,8 +879,8 @@ function gaugeSvg(frac) {
     const [ex, ey] = P(A0 + SW * f);
     caps = `<circle cx="${tx0.toFixed(2)}" cy="${ty0.toFixed(2)}" r="7" fill="${gzColor(0)}"/><circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="7" fill="${gzColor(f)}"/><circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="3" fill="#fff"/>`;
   }
-  const mask = `<defs><mask id="gzm" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="190"><path id="gzm-p" d="${arc(A0, A0 + SW, true)}" fill="none" stroke="#fff" stroke-width="30" pathLength="100" stroke-dasharray="100 100" data-f="${f}"/></mask></defs>`;
-  return `<svg viewBox="0 6 200 176" class="gz-svg" role="img" aria-label="Калории за день">${mask}<g fill="none" stroke-width="14"><path class="gz-track" d="${arc(A0, A0 + SW, true)}" stroke="currentColor" stroke-linecap="round"/><g class="gz-fg" mask="url(#gzm)">${segs}</g></g><g class="gz-fg" mask="url(#gzm)">${caps}</g></svg>`;
+  // Без SVG-маски: маска с анимацией перерисовывала 135 сегментов на каждом кадре и давала фризы на iPhone
+  return `<svg viewBox="0 6 200 176" class="gz-svg" role="img" aria-label="Калории за день"><g fill="none" stroke-width="14"><path class="gz-track" d="${arc(A0, A0 + SW, true)}" stroke="currentColor" stroke-linecap="round"/><g class="gz-fg">${segs}</g></g><g class="gz-fg">${caps}</g></svg>`;
 }
 // кольцо приёма пищи: прогресс калорий, внутри эмодзи (используется в «Куда добавить?»)
 function mealRingSvg(ratio, emoji) {
