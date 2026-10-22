@@ -1922,3 +1922,14 @@ html:root[data-theme="dark"] body .login .btn.primary { background: #fff !import
 html body .login .btn.primary:active { transform: scale(.98); opacity: .85; }
 html body .login .login-error { color: #FF3B30 !important; font-size: 13px !important; min-height: 20px; margin: 12px 0 0 !important; text-align: center; max-width: none !important; }
 html:root[data-theme="dark"] body .login-logo { box-shadow: 0 0 0 1px rgba(255,255,255,.16), 0 18px 40px rgba(255,255,255,.06); }
+
+/* ---------- v2.60: Динамика — выбор периода и замеров как сегменты iPhone, ничего не выходит за карточку ---------- */
+html body .dv.hvw.hdy .card-top.fl-top .pill { flex: 0 1 auto !important; }
+html body .dv.hvw.hdy .seg.full.wt-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: 2px; margin: 4px 0 14px; border: 0 !important; border-radius: 10px; background: var(--fill) !important; box-shadow: none !important; max-width: 100%; }
+html body .dv.hvw.hdy .wt-seg button { min-height: 32px; padding: 0 6px; border: 0; border-radius: 8px; background: transparent !important; color: var(--ink) !important; font-size: 13px; font-weight: 500; box-shadow: none !important; }
+html body .dv.hvw.hdy .wt-seg button.on { background: var(--surf) !important; color: var(--ink) !important; font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04) !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .wt-seg button.on { background: #636366 !important; box-shadow: none !important; }
+html body .dv.hvw.hdy .chips.ms-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: 2px; margin: 4px 0 14px; border-radius: 10px; background: var(--fill); max-width: 100%; overflow: hidden; }
+html body .dv.hvw.hdy .ms-chips .chip, html body .dv.hvw.hdy .ms-chips .chip.muted { min-height: 32px; padding: 0 2px; border-radius: 8px; background: transparent !important; color: var(--ink) !important; font-size: 12.5px; font-weight: 500; box-shadow: none !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body .dv.hvw.hdy .ms-chips .chip.sel { background: var(--surf) !important; color: var(--ink) !important; font-weight: 600; box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04) !important; }
+html:root[data-theme="dark"] body .dv.hvw.hdy .ms-chips .chip.sel { background: #636366 !important; box-shadow: none !important; }
