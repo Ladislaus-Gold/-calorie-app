@@ -1130,7 +1130,7 @@ function trainProgressCardHtml(day) {
   }).join("");
   const histFold = fin.length > 7 ? `<div class="tr-foldrow"><i></i><button type="button" class="tr-fold${histN >= fin.length ? " up" : ""}" data-act="moreTrHist" data-all="${histN >= fin.length ? 1 : 0}" aria-label="${histN >= fin.length ? "Свернуть" : "Показать ещё 7 дней"}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><i></i></div>` : "";
   const wkLv = (p) => (p >= 67 ? 2 : p >= 34 ? 1 : 0);
-  const wkRows = wkKeys.map((w) => { const x = st.weeks[w]; const p = pct(x.done, x.plan); return `<div class="tr-bar wl${wkLv(p)}"><span>${esc(dateShort(w))}</span><div class="track"><i style="width:${Math.max(4, p)}%"></i></div><b>${p}%</b></div>`; }).join("");
+  const wkRows = wkKeys.map((w) => { const x = st.weeks[w]; const p = pct(x.done, x.plan); return `<div class="tr-bar wl${wkLv(p)}${p >= 100 ? " pf" : ""}"><span>${esc(dateShort(w))}</span><div class="track"><i style="width:${p > 0 ? Math.max(4, p) : 0}%"></i></div><b>${p}%</b></div>`; }).join("");
   return `<section class="card pg-card">
     <div class="card-top fl-top"><span class="fl-ic ic-prog">📈</span><h2 class="h2">Прогресс тренировок</h2></div>
     ${empty ? `<p class="foot-note" style="margin:0 4px">Пока нет данных. Отмечайте упражнения, вносите повторы и завершайте тренировки, и здесь появятся графики и рекорды.</p>` : `

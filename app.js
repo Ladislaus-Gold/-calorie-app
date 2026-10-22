@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 239;
-const APP_VERSION_LABEL = "2.36"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 240;
+const APP_VERSION_LABEL = "2.37"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3959,11 +3959,22 @@ function viewHealth() {
   const cafNotes = caf.mg > 0 ? `${caf.msgs.length ? `<ul class="caf-msgs fl-caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}${state.cafInfo ? `<p class="caf-now"><b>Кофеин</b> ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг</p><p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}` : "";
   // Полоска по напиткам: сегменты по цвету, под ней сводка; нажатие на полоску раскрывает весь список
   const dTot = Math.max(0, Math.round(dHyd + fHyd));
-  const capSc = Math.max(250, Math.ceil(Math.max(tg * 1.3, ml) / 250) * 250);
+  // шкала: при недоборе — доля от нормы, при переборе полоска заполнена целиком, а риска нормы встаёт внутрь
+  const capSc = Math.max(250, tg, (() => { let t = 0; items.forEach((i) => { const h = itemHyd(i); if (h > 0) t += h; }); return t + Math.max(0, waterOn(day)); })());
   const capPct = (v) => `${Math.max(0, Math.min(100, (v / capSc) * 100)).toFixed(2)}%`;
   const flStatus = left > 0 ? `Осталось ${fmtInt(left)} мл · норма ${fmtInt(tg)} мл` : `Норма ${fmtInt(tg)} мл выполнена · ${Math.round((ml / tg) * 100)}%`;
   const itemDot = (i) => {
-    if (i.kind === "food") return { hex: "#B58CFF", label: "Из дневника питания" };
+    if (i.kind === "food") {
+      // напиток из дневника питания разбираем по названию: находим такой же в каталоге напитков, иначе определяем категорию по слову
+      const nm = String(i.name || "").trim().toLowerCase();
+      let d = DRINKS.find((x) => String(x.n || "").toLowerCase() === nm) || DRINKS.find((x) => nm && (nm.includes(String(x.n || "").toLowerCase()) && String(x.n || "").length > 3));
+      if (!d) {
+        const cat = /кофе|эспрессо|американо|капучино|латте|флэт|раф\b|макиато|мокко/.test(nm) ? "coffee" : /чай|матча|мате|каркаде/.test(nm) ? "tea" : /молок|кефир|йогурт|айран|ряженк|какао|коктейль молоч/.test(nm) ? "milk" : /сок|нектар|морс|смузи|компот/.test(nm) ? "fruit" : /пиво|вино|водка|виски|ром\b|джин|коньяк|шампан|сидр|ликёр|ликер/.test(nm) ? "alc" : /лимонад|кола|пепси|фанта|спрайт|газиров/.test(nm) ? "sugar" : /энергет|изотоник|протеин/.test(nm) ? "active" : /^вод|минерал/.test(nm) ? "other" : "";
+        if (cat) d = { id: "", n: i.name, cat };
+      }
+      if (d) return { hex: d.id ? dotOf(d.id) : defDot(d), label: dotLabel(d, i.name) };
+      return { hex: "#B58CFF", label: i.name || "Из дневника питания" };
+    }
     const d = drinkById(i.drinkId);
     return { hex: d ? dotOf(i.drinkId) : "#B58CFF", label: dotLabel(d, i.name) };
   };
@@ -3983,7 +3994,7 @@ function viewHealth() {
   const nRec = fluidAll.length + (legacyRow ? 1 : 0);
   const pToday = `
     <section class="card fl-main">
-      <div class="card-top fl-top"><span class="fl-ic g-liq" data-ek="liq">${GLYPH_DROP}</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
+      <div class="card-top fl-top"><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
       <div class="big-line"><span id="fl-n" data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></div>
       <p class="fl-sub">${flStatus}</p>
       <button type="button" class="fl-cap" id="fl-cap" data-act="toggleFluid" data-noswipe aria-expanded="${fluidOpen}" aria-label="Список выпитого">
@@ -4631,6 +4642,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const favs = favDrinks();
     setHead(false);
     body.innerHTML = `
+      <div id="dk-pickbox"></div>
       ${presetMl > 0 ? `<p class="foot-note" style="margin:0 2px 8px">Выберите напиток для ${fmt(presetMl)} мл</p>` : ""}
       <input id="dk-q" class="input search" type="search" placeholder="Найти напиток" value="${esc(st.q)}" autocomplete="off">
       <div class="dk-lb"><span>★ Избранное</span><em>${favs.length}</em></div>
@@ -4671,8 +4683,84 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const star = e.target.closest("[data-star]");
     if (star) { toggleFav(star.dataset.star); star.classList.toggle("on", state.fav.includes(star.dataset.star)); return; }
     const pick = e.target.closest("[data-did]");
-    if (pick && drinkById(pick.dataset.did)) showDetail(drinkById(pick.dataset.did));
+    if (pick && drinkById(pick.dataset.did)) showInline(drinkById(pick.dataset.did));
   });
+
+  // Одно окно, как в референсе: выбранный напиток раскрывается сверху (объём, итог, «Добавить»), а избранное и список остаются ниже
+  function showInline(d) {
+    const box = $("#dk-pickbox", ov);
+    if (!box) { showDetail(d); return; }
+    const isWater = d.id === "water";
+    const lastMl = presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250);
+    box.innerHTML = `<div class="dk-pick">
+      <div class="pk-row"><span class="pk-ava">${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div><div class="p-sub">${esc([d.k > 0 ? `${d.k} ккал/100 мл` : "", d.a].filter(Boolean).join(", ") || "Гидратация " + fmt(d.h) + "%")}</div></div><button type="button" class="dk-dot" id="dk-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(d.id))}"><i></i></button><button type="button" class="dk-x" id="dk-unpick" aria-label="Снять выбор">×</button></div>
+      <div class="dk-pal hidden" id="dk-pal" data-noswipe>${DOT_PAL.map((h) => `<button type="button" data-hex="${h}" style="background:${h}" aria-label="Цвет ${h}"></button>`).join("")}</div>
+      <div class="dk-lbw">Объём, мл</div>
+      <div class="dk-inw"><input id="dk-ml" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"><em>мл</em></div>
+      <div class="dk-pre" data-noswipe>${[100, 150, 200, 250, 330, 500].map((n) => `<button type="button" data-n="${n}">${n}</button>`).join("")}</div>
+      <div class="preview" id="dk-prev"></div>
+      <div id="dk-kbox" class="hidden"><label class="field"><span>Приём пищи</span><select id="dk-meal" class="input">${mealOptions(mealByTime())}</select></label><div class="note">Попадёт и в жидкость, и в калории дневника одной записью.</div></div>
+      <button type="button" class="btn primary full" id="dk-save">Добавить</button>
+    </div>`;
+    const readMl = () => num($("#dk-ml", ov).value);
+    const caf100 = r1((d.c / 240) * 100);
+    const upd = () => {
+      const ml = readMl();
+      const eff = ml > 0 ? (ml * d.h) / 100 : 0;
+      const caf = ml > 0 ? (ml * caf100) / 100 : 0;
+      const kc = ml > 0 && !isWater ? calc({ kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0 }, ml) : { kcal: 0, protein: 0, fat: 0, carbs: 0 };
+      $("#dk-kbox", ov).classList.toggle("hidden", !(kc.kcal > 0));
+      $("#dk-prev", ov).innerHTML = `
+        <div class="pv-kcal ${eff < 0 ? "neg" : ""}">${signed(Math.round(eff))}<small>мл жидкости засчитано</small></div>
+        <div class="pv-macros"><div><b>${fmt(d.h)}%</b>гидратация</div>${caf > 0 ? `<div><b class="cof">${fmtInt(caf)} мг</b>кофеин</div>` : ""}</div>
+        ${kc.kcal > 0 ? `<div class="pv-macros" style="margin-top:8px"><div><b>${fmtInt(kc.kcal)}</b>ккал</div><div><b>${fmt(kc.protein)}</b>белки, г</div><div><b>${fmt(kc.fat)}</b>жиры, г</div><div><b>${fmt(kc.carbs)}</b>углеводы, г</div></div>` : ""}
+        ${isWater ? "" : cafWarnHtml(caf, 0)}`;
+      box.querySelectorAll(".dk-pre button").forEach((b) => b.classList.toggle("on", Number(b.dataset.n) === ml));
+    };
+    upd();
+    $("#dk-ml", ov).addEventListener("input", upd);
+    box.querySelectorAll(".dk-pre button").forEach((b) => b.addEventListener("click", () => { $("#dk-ml", ov).value = b.dataset.n; upd(); }));
+    $("#dk-unpick", ov).addEventListener("click", () => { box.innerHTML = ""; body.querySelectorAll(".dk-sel").forEach((x) => x.classList.remove("dk-sel")); });
+    const dotBtn = $("#dk-dot", ov), pal = $("#dk-pal", ov);
+    dotBtn.addEventListener("click", () => pal.classList.toggle("hidden"));
+    pal.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-hex]");
+      if (!b) return;
+      setDot(d.id, b.dataset.hex);
+      dotBtn.style.setProperty("--c", b.dataset.hex);
+      pal.querySelectorAll(".on").forEach((x) => x.classList.remove("on"));
+      b.classList.add("on");
+      pal.classList.add("hidden");
+      draw();
+    });
+    const cur = String(dotOf(d.id)).toUpperCase();
+    pal.querySelectorAll("[data-hex]").forEach((x) => x.classList.toggle("on", x.dataset.hex.toUpperCase() === cur));
+    body.querySelectorAll(".dk-sel").forEach((x) => x.classList.remove("dk-sel"));
+    body.querySelectorAll(`[data-did="${d.id}"]`).forEach((x) => (x.closest(".drow") || x).classList.add("dk-sel"));
+    $("#dk-save", ov).addEventListener("click", () => {
+      const ml = readMl();
+      if (!(ml > 0 && ml <= 5000)) { toast("Введите объём от 1 до 5000 мл"); return; }
+      lsSet(`dml:${d.id}`, String(ml));
+      if (isWater) { changeWater(Math.round(ml)); ov.close(); return; }
+      const nutr = { kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0 };
+      if (nutr.kcal > 0) {
+        const per100 = { ...nutr };
+        addDoc(colRef("entries"), {
+          date: state.date, meal: $("#dk-meal", ov).value, productId: `drink:${d.id}`, name: d.n, brand: "",
+          grams: ml, per100, ...calc(per100, ml), drink: { pct: d.h, caf100 }, createdAt: serverTimestamp(),
+        }).catch(writeFail);
+        const w = cafToast((ml * caf100) / 100, 0);
+        ov.close();
+        toast(w || `Добавлено: ${fmtInt(calc(per100, ml).kcal)} ккал и ${fmtInt((ml * d.h) / 100)} мл жидкости`);
+        return;
+      }
+      addDoc(colRef("drinks"), { drinkId: d.id, name: d.n, ml, pct: d.h, caf100, alc: d.a || "", date: state.date, createdAt: serverTimestamp() }).catch(writeFail);
+      const warn = cafToast((ml * caf100) / 100, 0);
+      ov.close();
+      toast(warn || "Напиток добавлен");
+    });
+    const sh = ov.querySelector(".sheet"); if (sh) sh.scrollTop = 0;
+  }
 
   // Карточка своего напитка: категория, гидратация, кофеин, БЖУ на 100 мл и штрих-коды (несколько упаковок/партий)
   function showCard(d, isNew, from) {
@@ -4991,7 +5079,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       ? { id: "custom", n: entry.name, h: Number(entry.pct), c: 0, a: "", cat: "other" }
       : { id: base.id, n: entry.name, h: Number(entry.pct), c: (Number(entry.caf100) * 240) / 100, a: entry.alc || "", cat: base.cat }, entry);
   } else if (prefill && prefill.card) showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [], ...prefill }, true, prefill.from);
-  else if (presetId && drinkById(presetId)) showDetail(drinkById(presetId));
+  else if (presetId && drinkById(presetId)) { showList(); showInline(drinkById(presetId)); }
   else showList();
 }
 
@@ -5033,7 +5121,6 @@ const actions = {
   pickMeal() {
     const cur = mealByTime();
     const ov = openSheetBw(`
-      <div class="pick-grab" aria-hidden="true"></div>
       <div class="sheet-head"><h2>Куда добавить?</h2></div>
       <div class="meal-pick">${MEALS.map((m) => { const mt = sumEntries(entriesOn(state.date).filter((e) => e.meal === m.id)); const tg = mealTarget(m.id);
         return `<button type="button" class="meal-pick-btn m-${m.id}${m.id === cur ? " cur" : ""}" data-meal="${m.id}">${mealRingSvg(tg > 0 ? mt.kcal / tg : 0, mealSq(m.id))}<span class="mp-t"><b>${m.name}</b><small>${fmtInt(mt.kcal)} из ${fmtInt(tg)} ккал</small></span></button>`; }).join("")}</div>`, { pick: true });

@@ -1509,3 +1509,100 @@ html:has(.pvw), body:has(.pvw) { background: #fff; background-image: none; }
 .hvw .tr-wr, .hvw .tr-wh, .hvw .tr-wr > *, .hvw .tr-wh > * { color: var(--sec) !important; }
 .hvw .tr-wr b, .hvw .tr-wh b { color: #000 !important; }
 :root[data-theme="dark"] .hvw .tr-wr b, :root[data-theme="dark"] .hvw .tr-wh b { color: #fff !important; }
+
+/* v2.37: чёрные акценты в тренировках, кнопки плана, 0% и 100% по неделям */
+.hvw .trc .card-top > .btn.ghost, .overlay .trc .card-top > .btn.ghost, .hvw .trc .tr-top .btn.ghost, .overlay .trc .tr-top .btn.ghost, .hvw .trc .tr-rest .btn.ghost, .overlay .trc .tr-rest .btn.ghost, .hvw .trc .tr-btns .btn.ghost, .overlay .trc .tr-btns .btn.ghost, .hvw .trc .row .btn.ghost, .overlay .trc .row .btn.ghost { background:#fff !important;border:1.5px solid #000 !important;color:#000 !important;box-shadow:0 1px 2px rgba(0,0,0,.08),0 4px 10px rgba(0,0,0,.08) !important;border-radius:999px !important;font-weight:600; }
+.hvw .trc .tr-rest .btn.ghost:nth-child(2), .overlay .trc .tr-rest .btn.ghost:nth-child(2), .hvw .trc .tr-top .btn.ghost, .overlay .trc .tr-top .btn.ghost, .hvw .trc .tr-fin .btn.ghost:first-child, .overlay .trc .tr-fin .btn.ghost:first-child { background:#000 !important;border-color:#000 !important;color:#fff !important;box-shadow:0 4px 12px rgba(0,0,0,.28) !important; }
+.hvw .trc .tr-fin .tr-wipe, .overlay .trc .tr-fin .tr-wipe { border-color:rgba(60,60,67,.3) !important;color:#6E6E73 !important;box-shadow:none !important; }
+.hvw .tr-bar, .overlay .tr-bar { background:#F2F2F7 !important; }
+.hvw .tr-bar .track, .overlay .tr-bar .track { background:#E1E1E6 !important; }
+.hvw .tr-bar .track > i, .overlay .tr-bar .track > i, .hvw .tr-bar .track i, .overlay .tr-bar .track i { background:#000 !important; }
+.hvw .tr-bar b, .overlay .tr-bar b, .hvw .tr-bar.wl0 b, .overlay .tr-bar.wl0 b, .hvw .tr-bar.wl1 b, .overlay .tr-bar.wl1 b, .hvw .tr-bar.wl2 b, .overlay .tr-bar.wl2 b { color:#000 !important; }
+.hvw .tr-bar.wl0 b, .overlay .tr-bar.wl0 b, .hvw .tr-bar.wl0 span, .overlay .tr-bar.wl0 span { color:#8E8E93 !important;font-weight:600; }
+.hvw .tr-bar.pf, .overlay .tr-bar.pf { background:#000 !important;box-shadow:0 4px 12px rgba(0,0,0,.25) !important; }
+.hvw .tr-bar.pf span, .overlay .tr-bar.pf span { color:rgba(255,255,255,.7) !important; }
+.hvw .tr-bar.pf b, .overlay .tr-bar.pf b { color:#fff !important; }
+.hvw .tr-bar.pf .track, .overlay .tr-bar.pf .track { background:rgba(255,255,255,.28) !important; }
+.hvw .tr-bar.pf .track i, .overlay .tr-bar.pf .track i { background:#fff !important; }
+.hvw .xg .gi, .overlay .xg .gi { background:#F2F2F7 !important;box-shadow:none !important;border:0 !important; }
+.hvw .xg .cv, .overlay .xg .cv { background:#000 !important;color:#fff !important;box-shadow:0 3px 8px rgba(0,0,0,.25) !important; }
+.hvw .xg .cv svg, .overlay .xg .cv svg, .hvw .xg .cv svg *, .overlay .xg .cv svg * { stroke:currentColor !important; }
+.hvw .xg .xs > div:first-child, .overlay .xg .xs > div:first-child { background:#000 !important; }
+.hvw .xg .xs > div:first-child b, .overlay .xg .xs > div:first-child b { color:#fff !important; }
+.hvw .xg .xs > div:first-child span, .overlay .xg .xs > div:first-child span { color:rgba(255,255,255,.7) !important; }
+.hvw .stat-grid .stat:nth-child(1), .overlay .stat-grid .stat:nth-child(1) { background:#000 !important;box-shadow:0 6px 16px rgba(0,0,0,.25) !important; }
+.hvw .stat-grid .stat:nth-child(1) b, .overlay .stat-grid .stat:nth-child(1) b { color:#fff !important; }
+.hvw .stat-grid .stat:nth-child(1) span, .overlay .stat-grid .stat:nth-child(1) span { color:rgba(255,255,255,.7) !important; }
+.hvw .stat-grid .stat:nth-child(1) .sb, .overlay .stat-grid .stat:nth-child(1) .sb { background:rgba(255,255,255,.28) !important; }
+.hvw .stat-grid .stat:nth-child(1) .sb u, .overlay .stat-grid .stat:nth-child(1) .sb u { background:#fff !important; }
+.hvw .trc .entry.ae .ae-i, .overlay .trc .entry.ae .ae-i { background:#F2F2F7 !important;box-shadow:none !important; }
+.hvw .trc .entry.ae, .overlay .trc .entry.ae { background:#fff !important;border:.5px solid rgba(60,60,67,.14) !important;box-shadow:0 2px 4px rgba(0,0,0,.06),0 8px 20px rgba(0,0,0,.08) !important; }
+.hvw .trc .entry.ae .chip.muted, .overlay .trc .entry.ae .chip.muted { background:#fff !important;border:1.5px solid #000 !important;color:#000 !important; }
+.hvw .trc .entry.ae .chip.sel, .overlay .trc .entry.ae .chip.sel { background:#000 !important;color:#fff !important;border:0 !important; }
+.hvw .tr-fin, .overlay .tr-fin { background:#fff !important;border:.5px solid rgba(60,60,67,.14) !important;box-shadow:0 2px 4px rgba(0,0,0,.06),0 10px 24px rgba(0,0,0,.1) !important; }
+.hvw .tr-fin > b, .overlay .tr-fin > b { font-size:17px; }
+:root[data-theme="dark"] .hvw .trc .card-top > .btn.ghost, :root[data-theme="dark"] .overlay .trc .card-top > .btn.ghost, :root[data-theme="dark"] .hvw .trc .tr-top .btn.ghost, :root[data-theme="dark"] .overlay .trc .tr-top .btn.ghost, :root[data-theme="dark"] .hvw .trc .tr-rest .btn.ghost, :root[data-theme="dark"] .overlay .trc .tr-rest .btn.ghost, :root[data-theme="dark"] .hvw .trc .tr-btns .btn.ghost, :root[data-theme="dark"] .overlay .trc .tr-btns .btn.ghost, :root[data-theme="dark"] .hvw .trc .row .btn.ghost, :root[data-theme="dark"] .overlay .trc .row .btn.ghost { background:#1C1C1E !important;border:1.5px solid #fff !important;color:#fff !important;box-shadow:none !important; }
+:root[data-theme="dark"] .hvw .trc .tr-rest .btn.ghost:nth-child(2), :root[data-theme="dark"] .overlay .trc .tr-rest .btn.ghost:nth-child(2), :root[data-theme="dark"] .hvw .trc .tr-top .btn.ghost, :root[data-theme="dark"] .overlay .trc .tr-top .btn.ghost, :root[data-theme="dark"] .hvw .trc .tr-fin .btn.ghost:first-child, :root[data-theme="dark"] .overlay .trc .tr-fin .btn.ghost:first-child { background:#fff !important;border-color:#fff !important;color:#000 !important; }
+:root[data-theme="dark"] .hvw .trc .tr-fin .tr-wipe, :root[data-theme="dark"] .overlay .trc .tr-fin .tr-wipe { border-color:rgba(255,255,255,.3) !important;color:#98989D !important; }
+:root[data-theme="dark"] .hvw .tr-bar, :root[data-theme="dark"] .overlay .tr-bar { background:#2C2C2E !important; }
+:root[data-theme="dark"] .hvw .tr-bar .track, :root[data-theme="dark"] .overlay .tr-bar .track { background:#48484A !important; }
+:root[data-theme="dark"] .hvw .tr-bar .track > i, :root[data-theme="dark"] .overlay .tr-bar .track > i, :root[data-theme="dark"] .hvw .tr-bar .track i, :root[data-theme="dark"] .overlay .tr-bar .track i { background:#fff !important; }
+:root[data-theme="dark"] .hvw .tr-bar b, :root[data-theme="dark"] .overlay .tr-bar b, :root[data-theme="dark"] .hvw .tr-bar.wl0 b, :root[data-theme="dark"] .overlay .tr-bar.wl0 b, :root[data-theme="dark"] .hvw .tr-bar.wl1 b, :root[data-theme="dark"] .overlay .tr-bar.wl1 b, :root[data-theme="dark"] .hvw .tr-bar.wl2 b, :root[data-theme="dark"] .overlay .tr-bar.wl2 b { color:#fff !important; }
+:root[data-theme="dark"] .hvw .tr-bar.wl0 b, :root[data-theme="dark"] .overlay .tr-bar.wl0 b, :root[data-theme="dark"] .hvw .tr-bar.wl0 span, :root[data-theme="dark"] .overlay .tr-bar.wl0 span { color:#8E8E93 !important; }
+:root[data-theme="dark"] .hvw .tr-bar.pf, :root[data-theme="dark"] .overlay .tr-bar.pf { background:#fff !important;box-shadow:none !important; }
+:root[data-theme="dark"] .hvw .tr-bar.pf span, :root[data-theme="dark"] .overlay .tr-bar.pf span { color:rgba(0,0,0,.6) !important; }
+:root[data-theme="dark"] .hvw .tr-bar.pf b, :root[data-theme="dark"] .overlay .tr-bar.pf b { color:#000 !important; }
+:root[data-theme="dark"] .hvw .tr-bar.pf .track, :root[data-theme="dark"] .overlay .tr-bar.pf .track { background:rgba(0,0,0,.18) !important; }
+:root[data-theme="dark"] .hvw .tr-bar.pf .track i, :root[data-theme="dark"] .overlay .tr-bar.pf .track i { background:#000 !important; }
+:root[data-theme="dark"] .hvw .xg .gi, :root[data-theme="dark"] .overlay .xg .gi { background:#2C2C2E !important;box-shadow:none !important;border:0 !important; }
+:root[data-theme="dark"] .hvw .xg .cv, :root[data-theme="dark"] .overlay .xg .cv { background:#fff !important;color:#000 !important;box-shadow:none !important; }
+:root[data-theme="dark"] .hvw .xg .cv svg, :root[data-theme="dark"] .overlay .xg .cv svg, :root[data-theme="dark"] .hvw .xg .cv svg *, :root[data-theme="dark"] .overlay .xg .cv svg * { stroke:currentColor !important; }
+:root[data-theme="dark"] .hvw .xg .xs > div:first-child, :root[data-theme="dark"] .overlay .xg .xs > div:first-child { background:#fff !important; }
+:root[data-theme="dark"] .hvw .xg .xs > div:first-child b, :root[data-theme="dark"] .overlay .xg .xs > div:first-child b { color:#000 !important; }
+:root[data-theme="dark"] .hvw .xg .xs > div:first-child span, :root[data-theme="dark"] .overlay .xg .xs > div:first-child span { color:rgba(0,0,0,.6) !important; }
+:root[data-theme="dark"] .hvw .stat-grid .stat:nth-child(1), :root[data-theme="dark"] .overlay .stat-grid .stat:nth-child(1) { background:#fff !important;box-shadow:none !important; }
+:root[data-theme="dark"] .hvw .stat-grid .stat:nth-child(1) b, :root[data-theme="dark"] .overlay .stat-grid .stat:nth-child(1) b { color:#000 !important; }
+:root[data-theme="dark"] .hvw .stat-grid .stat:nth-child(1) span, :root[data-theme="dark"] .overlay .stat-grid .stat:nth-child(1) span { color:rgba(0,0,0,.6) !important; }
+:root[data-theme="dark"] .hvw .stat-grid .stat:nth-child(1) .sb, :root[data-theme="dark"] .overlay .stat-grid .stat:nth-child(1) .sb { background:rgba(0,0,0,.18) !important; }
+:root[data-theme="dark"] .hvw .stat-grid .stat:nth-child(1) .sb u, :root[data-theme="dark"] .overlay .stat-grid .stat:nth-child(1) .sb u { background:#000 !important; }
+:root[data-theme="dark"] .hvw .trc .entry.ae .ae-i, :root[data-theme="dark"] .overlay .trc .entry.ae .ae-i { background:#2C2C2E !important; }
+:root[data-theme="dark"] .hvw .trc .entry.ae, :root[data-theme="dark"] .overlay .trc .entry.ae { background:#1C1C1E !important;border-color:rgba(255,255,255,.12) !important;box-shadow:none !important; }
+:root[data-theme="dark"] .hvw .trc .entry.ae .chip.muted, :root[data-theme="dark"] .overlay .trc .entry.ae .chip.muted { background:transparent !important;border:1.5px solid #fff !important;color:#fff !important; }
+:root[data-theme="dark"] .hvw .trc .entry.ae .chip.sel, :root[data-theme="dark"] .overlay .trc .entry.ae .chip.sel { background:#fff !important;color:#000 !important; }
+:root[data-theme="dark"] .hvw .tr-fin, :root[data-theme="dark"] .overlay .tr-fin { background:#1C1C1E !important;border:.5px solid rgba(255,255,255,.12) !important;box-shadow:none !important; }
+
+.hvw .card-top.fl-top:has(.fl-pills:empty) { display: none; }
+.hvw .fl-main .fl-top { min-height: 0; margin-bottom: 4px; }
+.hvw .fl-cap { overflow: hidden; }
+.hvw .fl-cap .sg + .sg { box-shadow: -1.5px 0 0 var(--surf, #fff); }
+/* окно напитка: выбранный напиток сверху, список ниже */
+.bw-ov .dk-pick { margin: 6px 0 4px; padding: 14px; border-radius: 22px; background: var(--surf, #fff); border: .5px solid var(--hair); box-shadow: 0 2px 4px rgba(0,0,0,.06), 0 12px 28px rgba(0,0,0,.12); }
+.bw-ov .dk-pick .pk-row { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.bw-ov .dk-pick .pk-tx { flex: 1; min-width: 0; }
+.bw-ov .dk-pick .p-name { font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.bw-ov .dk-pick .p-sub { font-size: 12px; color: var(--sec); margin-top: 2px; }
+.bw-ov .dk-x { flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--fill); color: var(--sec); font-size: 20px; line-height: 1; }
+.bw-ov .dk-lbw { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--sec); margin: 2px 2px 6px; }
+.bw-ov .dk-inw { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px; border-radius: 16px; background: var(--fill); }
+.bw-ov .dk-inw input { flex: 1; min-width: 0; border: 0; background: none; outline: 0; font: inherit; font-size: 28px; font-weight: 700; letter-spacing: -.03em; color: var(--ink); align-self: center; }
+.bw-ov .dk-inw em { font-style: normal; font-size: 15px; font-weight: 600; color: var(--sec); }
+.bw-ov .dk-pre { display: flex; gap: 8px; margin: 10px 0 12px; overflow-x: auto; scrollbar-width: none; }
+.bw-ov .dk-pre::-webkit-scrollbar { display: none; }
+.bw-ov .dk-pre button { flex: 1 0 auto; height: 38px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--fill); color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; }
+.bw-ov .dk-pre button.on { background: #000; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.25); }
+:root[data-theme="dark"] .bw-ov .dk-pre button.on { background: #fff; color: #000; box-shadow: none; }
+.bw-ov .dk-pick .preview { margin: 0 0 12px; }
+.bw-ov .dk-pick > .btn.primary { background: #000; color: #fff; border: 0; height: 52px; border-radius: 16px; font-size: 17px; font-weight: 600; box-shadow: 0 6px 16px rgba(0,0,0,.28); }
+:root[data-theme="dark"] .bw-ov .dk-pick > .btn.primary { background: #fff; color: #000; box-shadow: none; }
+.bw-ov .drow.dk-sel { background: var(--fill); border-radius: 14px; }
+
+/* v2.37: первая плитка статистики чёрная (усиленная специфичность) */
+html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1), html body .overlay .card .stat-grid .stat.stat.stat.stat:nth-child(1) { background: #000 !important; background-image: none !important; box-shadow: 0 6px 16px rgba(0,0,0,.25) !important; }
+html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) b, html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) span { color: #fff !important; }
+html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) span { opacity: .72; }
+html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb { background: rgba(255,255,255,.28) !important; }
+html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { background: #fff !important; }
+:root[data-theme="dark"] html body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1), html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) { background: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) b, html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) span { color: #000 !important; }
+html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb { background: rgba(0,0,0,.18) !important; }
+html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { background: #000 !important; }
