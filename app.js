@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 263;
-const APP_VERSION_LABEL = "2.60"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 264;
+const APP_VERSION_LABEL = "2.61"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4187,13 +4187,31 @@ function viewHealth() {
 const last7 = (day) => Array.from({ length: 7 }, (_, i) => addDays(day, i - 6));
 const weightOn = (d) => { const w = state.weights.find((x) => x.date === d); return w ? Number(w.kg) : 0; };
 const lastWeightUpTo = (d) => { let r = null; for (const w of state.weights) { if (w.date <= d) r = w; else break; } return r; };
+
+// Список последних записей с удалением (вес, замеры): запись можно убрать за любой день, не переключая дату
+function recListHtml(title, rows) {
+  if (!rows.length) return "";
+  return `<div class="rec-list"><div class="rec-title">${title}</div>${rows.map((r) => `<div class="rec-row"><div class="rec-main"><b>${esc(r.main)}</b><span>${esc(r.date)}</span></div><button type="button" class="rec-del" data-rdel="${r.id}" aria-label="Удалить запись">Удалить</button></div>`).join("")}</div>`;
+}
+function bindRecList(ov, coll, rerender) {
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-rdel]");
+    if (!b) return;
+    deleteDoc(docRef(coll, b.dataset.rdel)).catch(writeFail);
+    const row = b.closest(".rec-row"); if (row) row.remove();
+    toast("Запись удалена");
+  });
+}
+
 function openWeight() {
   const day = state.date, cur = weightOn(day) || (lastWeightUpTo(day) ? Number(lastWeightUpTo(day).kg) : Number(state.profile.weightKg) || "");
   const ov = openSheet(`
     <div class="sheet-head"><h2>Вес</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <p class="foot-note" style="margin:-4px 2px 12px">Запись за ${esc(shortDate(day))}. Взвешивайтесь утром, в одно время: так динамика честнее.</p>
     <label class="field"><span>Вес, кг</span><input id="wt-kg" class="input big" inputmode="decimal" value="${cur ? String(cur).replace(".", ",") : ""}" autocomplete="off"></label>
-    <div class="row">${weightOn(day) ? `<button type="button" class="btn danger" id="wt-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="wt-save">Сохранить</button></div>`);
+    <div class="row">${weightOn(day) ? `<button type="button" class="btn danger" id="wt-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="wt-save">Сохранить</button></div>
+    ${recListHtml("Последние записи", state.weights.slice().sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 10).map((w) => ({ id: w.id || w.date, main: `${String(w.kg).replace(".", ",")} кг`, date: shortDate(w.date) })))}`, { bw: true });
+  bindRecList(ov, "weights");
   $("#wt-save", ov).addEventListener("click", () => {
     const kg = num($("#wt-kg", ov).value);
     if (!(kg >= 25 && kg <= 400)) return;
@@ -4249,7 +4267,9 @@ function openMeasures() {
     <div class="sheet-head"><h2>Замеры</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <p class="foot-note" style="margin:-4px 2px 12px">Запись за ${esc(shortDate(day))}. Мерьте в см по самой узкой (талия) и широкой (бёдра, грудь) части, раз в 1–2 недели. Заполните только то, что мерили.</p>
     ${MS.map(([k, t]) => { const v = cur && msOf(cur, k) ? msOf(cur, k) : last(k); return `<label class="field"><span>${t}, см</span><input id="ms-${k}" class="input" inputmode="decimal" value="${v ? String(v).replace(".", ",") : ""}" autocomplete="off"></label>`; }).join("")}
-    <div class="row">${cur ? `<button type="button" class="btn danger" id="ms-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="ms-save">Сохранить</button></div>`);
+    <div class="row">${cur ? `<button type="button" class="btn danger" id="ms-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="ms-save">Сохранить</button></div>
+    ${recListHtml("Последние записи", state.measures.slice().sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 10).map((m) => ({ id: m.id || m.date, main: MS.filter(([k]) => msOf(m, k)).map(([k, t]) => `${t} ${String(msOf(m, k)).replace(".", ",")}`).join(" · "), date: shortDate(m.date) })))}`, { bw: true });
+  bindRecList(ov, "measures");
   $("#ms-save", ov).addEventListener("click", () => {
     const data = { date: day, updatedAt: serverTimestamp() };
     let any = false;
