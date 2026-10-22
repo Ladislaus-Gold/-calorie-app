@@ -8,6 +8,11 @@
 
 :root { --nav-h: 49px; }
 
+/* v2.56: подложка и «шапка» под статус-баром — не зелёные ни на одном экране */
+html, body { background: #fff; background-image: none; }
+:root[data-theme="dark"], :root[data-theme="dark"] body { background: #000; background-image: none; }
+#app { background: inherit; }
+
 /* ---------- Фон: белый (светлая) / чёрный (тёмная) ---------- */
 html:has(.dv), body:has(.dv) { background: #fff; background-image: none; }
 :root[data-theme="dark"]:has(.dv), :root[data-theme="dark"] body:has(.dv) { background: #000; background-image: none; }
