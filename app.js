@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 237;
-const APP_VERSION_LABEL = "2.34"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 238;
+const APP_VERSION_LABEL = "2.35"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -214,7 +214,7 @@ const state = {
   health: [],
   workouts: [],
   drinks: [],
-  fav: [], customDrinks: [], sharedDrinks: [], drinkdbReady: false, drinkSetReady: false,
+  fav: [], dots: {}, customDrinks: [], sharedDrinks: [], drinkdbReady: false, drinkSetReady: false,
   obShown: false,
   ready: { products: false, entries: false, settings: false, water: false, activity: false, drinks: false },
   unsubs: [],
@@ -327,7 +327,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.customDrinks = []; state.sharedDrinks = []; state.drinkdbReady = false; state.drinkSetReady = false; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.measures = []; state.msKey = lsGet("msKey") || "waist"; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null; state.trainCfg = null; state.trainLog = [];
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.dots = {}; state.customDrinks = []; state.sharedDrinks = []; state.drinkdbReady = false; state.drinkSetReady = false; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.measures = []; state.msKey = lsGet("msKey") || "waist"; state.hTab = lsGet("hTab") || "today"; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null; state.trainCfg = null; state.trainLog = [];
 }
 
 function markReady(name) {
@@ -409,6 +409,7 @@ function startData(uid) {
 
   state.unsubs.push(onSnapshot(doc(db, "users", uid, "settings", "drinks"), (snap) => {
     state.fav = snap.exists() && Array.isArray(snap.data().fav) ? snap.data().fav : [];
+    state.dots = snap.exists() && snap.data().dots && typeof snap.data().dots === "object" ? snap.data().dots : {};
     state.customDrinks = snap.exists() && Array.isArray(snap.data().custom) ? snap.data().custom : [];
     state.drinkSetReady = true;
     maybeMigrateDrinks();
@@ -710,7 +711,7 @@ function fillAnim(root, base = 0) {
   const D = 950; let i = 0;
   const at = () => base + Math.min(i++ * 45, 450);
   const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
-  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.w, .fl-cap > i.d").forEach((el) => {
+  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.sg").forEach((el) => {
     const w = el.style.width;
     if (w && w !== "0%") el.animate([{ width: "0%" }, { width: w }], opt(at()));
   });
@@ -742,28 +743,15 @@ function fillAnim(root, base = 0) {
 let fillSig = "", fillTab = "";
 const trainProgSig = (d) => { try { const s = trainSession(d); if (!s) return ""; const p = trainProgress(d, s); return `${p.k}/${p.n}`; } catch (_) { return ""; } };
 
-// Шкала жидкости: потяните вправо, чтобы выбрать объём (шаг 50 мл, до 1000 мл)
+// Жидкость: свайп вверх по подсказке внизу карточки открывает окно добавления напитка
 function bindFluidCap(root) {
-  const cap = root && root.querySelector("#fl-cap");
   state.flPend = 0;
-  if (!cap) return;
-  const sc = Number(cap.dataset.sc), ml = Number(cap.dataset.ml), p = cap.querySelector(".p"), nEl = root.querySelector("#fl-n"), vol = root.querySelector("#fl-vol");
-  let down = false, last = 0;
-  const setP = (x) => {
-    const r = cap.getBoundingClientRect();
-    const pend = Math.max(0, Math.min(1000, Math.round((((x - r.left) / r.width) * sc - ml) / 50) * 50));
-    if (pend === last) return;
-    last = pend; state.flPend = pend;
-    p.style.width = `${(pend / sc) * 100}%`;
-    if (nEl) { nEl.removeAttribute("data-cnt"); nEl.textContent = fmtInt(ml + pend); }
-    if (vol) vol.textContent = pend > 0 ? `${pend} мл` : "последний объём";
-    cap.setAttribute("aria-valuenow", String(pend));
-    try { if (navigator.vibrate) navigator.vibrate(4); } catch (_) {}
-  };
-  cap.addEventListener("pointerdown", (e) => { down = true; try { cap.setPointerCapture(e.pointerId); } catch (_) {} setP(e.clientX); });
-  cap.addEventListener("pointermove", (e) => { if (down) setP(e.clientX); });
-  const end = () => { down = false; };
-  cap.addEventListener("pointerup", end); cap.addEventListener("pointercancel", end);
+  const up = root && root.querySelector(".fl-up");
+  if (!up) return;
+  let y0 = null, fired = false;
+  up.addEventListener("touchstart", (e) => { y0 = e.touches[0].clientY; fired = false; }, { passive: true });
+  up.addEventListener("touchmove", (e) => { if (y0 != null && !fired && y0 - e.touches[0].clientY > 28) { fired = true; openDrinkSheet(); } }, { passive: true });
+  up.addEventListener("touchend", () => { y0 = null; });
 }
 
 function render() {
@@ -3809,13 +3797,55 @@ const CAT_EMO = { tea: "🍵", coffee: "☕", milk: "🥛", sugar: "🥤", fruit
 const drinkIcon = (d) => (d && d.e) ? d.e : (d ? (CAT_EMO[d.cat] || "💧") : "💧");
 const fluidIconHtml = (i) => {
   const d = i.kind === "drink" ? drinkById(i.drinkId) : null;
-  return `<span class="fl-ico"${d && d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(i.kind === "food" ? "🥤" : drinkIcon(d))}</span>`;
+  return `<span class="fl-ico" style="--c:${i.kind === "food" ? "#B58CFF" : dotOf(i.drinkId)}">${esc(i.kind === "food" ? "🥤" : drinkIcon(d))}</span>`;
 };
+// Цвет точки напитка: свой (из палитры) либо по виду напитка
+const DOT_PAL = (() => {
+  const hues = [212, 188, 145, 95, 50, 30, 2, 335, 280, 24], rows = [[28, .75], [42, .8], [56, .85], [70, .8], [82, .7]], out = [];
+  const f = (n, h, sat, L) => { const a = sat * Math.min(L, 1 - L), k = (m) => (m + h / 30) % 12; const c = (m) => L - a * Math.max(-1, Math.min(k(m) - 3, 9 - k(m), 1)); return `#${[c(0), c(8), c(4)].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`.toUpperCase(); };
+  rows.forEach(([L, S]) => hues.forEach((h) => out.push(f(0, h, S * (h === 24 ? .55 : 1), L / 100))));
+  return out;
+})();
+const COF_DOT = "#4A2F22";
+const defDot = (d) => {
+  if (!d) return "#B58CFF";
+  const n = String(d.n || "");
+  if (d.id === "water" || /вод[аыу]/i.test(n) && d.cat === "other") return "#2F8CFF";
+  switch (d.cat) {
+    case "coffee": return COF_DOT;
+    case "tea": return /зел[её]н|трав|мят|ромаш|матч|мат[эе]|имбир|ройбуш|фрукт/i.test(n) ? "#34C759" : "#8A5A3B";
+    case "milk": return "#AEAEB2";
+    case "fruit": return "#FF9500";
+    case "sugar": return "#FFD60A";
+    case "active": return "#FF2D88";
+    case "mock": return "#5856D6";
+    case "alc": return /пив|сидр/i.test(n) ? "#F5A623" : /вин/i.test(n) ? "#8E1B3A" : "#C0392B";
+    default: return "#B58CFF";
+  }
+};
+const dotOf = (id) => (state.dots && state.dots[id]) || defDot(drinkById(id));
+const dotLabel = (d, name) => {
+  if (!d) return name || "Другое";
+  if (d.id === "water" || (d.cat === "other" && /вод[аыу]/i.test(d.n || ""))) return "Вода";
+  switch (d.cat) {
+    case "coffee": return "Кофе";
+    case "tea": return /зел[её]н|трав|мят|ромаш|матч|мат[эе]|имбир|ройбуш|фрукт/i.test(d.n || "") ? "Чай зелёный и травяной" : "Чай чёрный";
+    case "milk": return "Молочные";
+    case "fruit": return "Соки";
+    case "sugar": return "Сладкие напитки";
+    case "active": return "Спорт и энергетики";
+    case "mock": return "Безалкогольные";
+    case "alc": return "Алкоголь";
+    default: return d.n || name || "Другое";
+  }
+};
+function setDot(id, hex) {
+  state.dots = { ...(state.dots || {}), [id]: hex };
+  setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { dots: { [id]: hex } }, { merge: true }).catch(writeFail);
+}
+// Избранное — только напитки со звёздочкой (частые больше не подмешиваются)
 function favDrinks() {
-  const counts = {};
-  state.drinks.forEach((x) => { if (x.drinkId && x.drinkId !== "custom" && x.drinkId !== "water" && drinkById(x.drinkId)) counts[x.drinkId] = (counts[x.drinkId] || 0) + 1; });
-  const freq = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-  return [...state.fav, ...freq.filter((id) => !state.fav.includes(id))].slice(0, 8).map((id) => drinkById(id)).filter(Boolean);
+  return state.fav.slice(0, 8).map((id) => drinkById(id)).filter(Boolean);
 }
 
 
@@ -3927,36 +3957,45 @@ function viewHealth() {
   const cafStop = caf.level === "over" ? "over" : caf.level === "warn" ? "warn" : "ok";
   const cafPill = `<button type="button" class="caf-pill ${cafStop}" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}" aria-label="Кофеин ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг"><span class="cp-rg"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - Math.min(1, Math.max(0, caf.ratio)))).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b data-ek="caf">☕</b></span></button>`;
   const cafNotes = caf.mg > 0 ? `${caf.msgs.length ? `<ul class="caf-msgs fl-caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}${state.cafInfo ? `<p class="caf-now"><b>Кофеин</b> ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг</p><p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}` : "";
-  // Шкала-ползунок: синяя часть — вода, зелёная — напитки, светлая — выбираемый объём; делений до нормы
+  // Полоска по напиткам: сегменты по цвету, под ней сводка; нажатие на полоску раскрывает весь список
   const dTot = Math.max(0, Math.round(dHyd + fHyd));
-  const capSc = Math.max(250, Math.ceil(Math.max(tg * 1.3, ml + 1000) / 250) * 250);
+  const capSc = Math.max(250, Math.ceil(Math.max(tg * 1.3, ml) / 250) * 250);
   const capPct = (v) => `${Math.max(0, Math.min(100, (v / capSc) * 100)).toFixed(2)}%`;
-  const wShown = Math.max(0, Math.min(wMl, ml));
   const flStatus = left > 0 ? `Осталось ${fmtInt(left)} мл · норма ${fmtInt(tg)} мл` : `Норма ${fmtInt(tg)} мл выполнена · ${Math.round((ml / tg) * 100)}%`;
-  const waterD = drinkById("water");
-  const favTiles = [waterD, ...favDrinks().filter((d) => d.id !== "water")].filter(Boolean).slice(0, 8)
-    .map((d) => `<button type="button" class="ft" data-act="quickDrink" data-did="${esc(d.id)}"><span class="ft-e">${esc(drinkIcon(d))}</span><span class="ft-n">${esc(d.n)}</span></button>`).join("");
+  const itemDot = (i) => {
+    if (i.kind === "food") return { hex: "#B58CFF", label: "Из дневника питания" };
+    const d = drinkById(i.drinkId);
+    return { hex: d ? dotOf(i.drinkId) : "#B58CFF", label: dotLabel(d, i.name) };
+  };
+  const dotGroups = (() => {
+    const g = new Map();
+    const add = (hex, label, hyd, cafMg) => { let x = g.get(hex); if (!x) { x = { hex, labels: {}, hyd: 0, caf: 0 }; g.set(hex, x); } x.hyd += hyd; x.caf += cafMg; x.labels[label] = (x.labels[label] || 0) + Math.abs(hyd) + 0.001; };
+    if (waterOn(day) > 0) add(dotOf("water"), "Вода", waterOn(day), 0);
+    items.forEach((i) => { const inf = itemDot(i); add(inf.hex, inf.label, itemHyd(i), itemCaf(i)); });
+    return [...g.values()].map((x) => ({ ...x, label: Object.entries(x.labels).sort((p, q) => q[1] - p[1])[0][0] })).sort((p, q) => Math.abs(q.hyd) - Math.abs(p.hyd));
+  })();
+  const fluidAll = fluidSorted;
+  const fluidListRows = fluidAll.map((i) => `
+    <button type="button" class="entry fl-e" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
+      ${fluidIconHtml(i)}<span class="e-main"><span class="e-name">${esc(i.name)}</span><span class="e-sub">${timeOf(i.ts)} · ${fmt(i.ml)} мл${Math.round(i.pct) !== 100 ? ` · гидратация ${fmt(i.pct)}% · засчитано ${signed(Math.round(itemHyd(i)))} мл` : ""}${i.kind === "food" ? " · из дневника питания" : ""}</span></span>
+      <span class="e-kcal">${itemCaf(i) > 0 ? `<b class="cof">${fmtInt(itemCaf(i))}</b>` : "—"}<small>мг кофеина</small></span>
+    </button>`).join("") + legacyRow;
+  const nRec = fluidAll.length + (legacyRow ? 1 : 0);
   const pToday = `
     <section class="card fl-main">
       <div class="card-top fl-top"><span class="fl-ic g-liq" data-ek="liq">${GLYPH_DROP}</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
       <div class="big-line"><span id="fl-n" data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></div>
       <p class="fl-sub">${flStatus}</p>
-      <div class="fl-cap" id="fl-cap" data-noswipe data-sc="${capSc}" data-ml="${ml}" role="slider" aria-label="Объём для добавления, мл" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0">
-        <i class="w" style="width:${capPct(wShown)}"></i><i class="d" style="left:${capPct(wShown)};width:${capPct(Math.max(0, ml - wShown))}"></i><i class="p" style="left:${capPct(ml)};width:0"></i><i class="tick" style="left:${capPct(tg)}"></i>
-        <svg viewBox="0 0 24 24" aria-hidden="true">${GLYPH_DROP.replace(/^<svg[^>]*>|<\/svg>$/g, "")}</svg>
-      </div>
-      <div class="fl-rows">
-        <div class="fl-rw"><i class="dw"></i><span>Вода</span><b>${fmtInt(wMl)} мл</b></div>
-        <div class="fl-rw"><i class="dd"></i><span>Напитки и дневник</span><b>${signed(dTot)} мл</b></div>
-      </div>
+      <button type="button" class="fl-cap" id="fl-cap" data-act="toggleFluid" data-noswipe aria-expanded="${fluidOpen}" aria-label="Список выпитого">
+        ${dotGroups.filter((x) => x.hyd > 0).map((x) => `<i class="sg" style="width:${capPct(x.hyd)};background:${esc(x.hex)}"></i>`).join("")}<i class="tick" style="left:${capPct(tg)}"></i>
+      </button>
+      <button type="button" class="fl-tap" data-act="toggleFluid" data-noswipe><span>${fluidOpen ? `Выпито сегодня · ${nRec} ${nRec === 1 ? "запись" : nRec < 5 && nRec > 1 ? "записи" : "записей"}` : "Нажмите на полоску — весь список"}</span>${chev(fluidOpen)}</button>
+      ${fluidOpen ? `<div class="entries flat fl-list">${fluidListRows || `<p class="foot-note" style="margin:8px 0">Пока ничего не выпито</p>`}</div>` : `<div class="fl-rows">${dotGroups.map((x) => `
+        <div class="fl-rw"><i style="background:${esc(x.hex)}"></i><span>${esc(x.label)}${x.caf > 0 ? `<em class="cof">кофеин ${fmtInt(x.caf)} мг</em>` : ""}</span><b>${x.hyd < 0 ? signed(Math.round(x.hyd)) : fmtInt(Math.round(x.hyd))} мл</b></div>`).join("") || `<p class="foot-note" style="margin:8px 0">Пока ничего не выпито</p>`}</div>`}
       ${cafNotes}
       <p class="foot-note fl-norm">Норма сегодня ${fmtInt(tg)} мл = база ${fmtInt(waterBase())} мл${extra ? ` + нагрузка около ${fmtInt(extra)} мл` : ""}.</p>
-      <div class="fl-favhd"><span class="fl-star g-fav" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.5z"/></svg></span><b>Избранное</b><em id="fl-vol">последний объём</em></div>
-      <div class="fl-fav" data-noswipe>${favTiles}<button type="button" class="ft all" data-act="addDrink"><span class="ft-e">+</span><span class="ft-n">Все</span></button></div>
-      <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
-      <p class="fl-hint">Потяните шкалу вправо, чтобы выбрать объём, затем нажмите напиток: он откроется с этим объёмом. Шаг 50 мл.</p>
-    </section>
-    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray g-drk" data-ek="drk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12l-1.2 15.2a3 3 0 0 1-3 2.8h-3.6a3 3 0 0 1-3-2.8L6 3z"/><path d="M6.4 9h11.2"/></svg></span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}`;
+      <div class="fl-up" data-act="addDrink" data-noswipe role="button" tabindex="0" aria-label="Добавить напиток"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg><span>Свайпните вверх — добавить напиток</span></div>
+    </section>`;
   const stepPct = Math.max(0, Math.min(100, (steps / STEPS_GOAL) * 100));
   const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span><span>В покое ${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</span></div>` : "";
   const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
@@ -4567,21 +4606,21 @@ function toggleFav(id) {
 // entry: запись, которую правим; presetId: сразу открыть напиток (из избранного)
 function openDrinkSheet(entry, presetId, presetMl, prefill) {
   const ov = openSheetBw(`
-    <div class="sheet-head" id="dk-head"><h2>Напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="sheet-head" id="dk-head"><h2>Добавить напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div id="dk-body"></div>`);
   const body = $("#dk-body", ov);
   // В окне объёма шапка как у продуктов: приём пищи слева, закрыть справа
   const headEl = $("#dk-head", ov);
   const setHead = (meal) => {
     headEl.className = meal ? "sheet-head af-head dk-head" : "sheet-head";
-    headEl.innerHTML = `${meal ? `<select id="dk-meal" class="input" aria-label="Приём пищи">${mealOptions(mealByTime())}</select>` : "<h2>Напиток</h2>"}<button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button>`;
+    headEl.innerHTML = `${meal ? `<select id="dk-meal" class="input" aria-label="Приём пищи">${mealOptions(mealByTime())}</select>` : "<h2>Добавить напиток</h2>"}<button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button>`;
   };
   const st = { q: "", cat: "all" };
 
   const rowHtml = (d) => {
     const sub = [d.k > 0 ? `${d.k} ккал/100 мл` : "", d.c > 0 ? `${d.c} мг кофеина` : "", d.a].filter(Boolean).join(", ");
     return `<div class="drow">
-      <button type="button" class="d-main dk-main" data-did="${d.id}"><span class="d-ava"${d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(drinkIcon(d))}</span><span class="d-tx"><span class="p-name">${esc(d.n)}</span>${sub ? `<span class="p-sub">${esc(sub)}</span>` : ""}</span></button>
+      <button type="button" class="d-main dk-main" data-did="${d.id}"><span class="d-ava" style="--c:${esc(dotOf(d.id))}">${esc(drinkIcon(d))}</span><span class="d-tx"><span class="p-name">${esc(d.n)}</span>${sub ? `<span class="p-sub">${esc(sub)}</span>` : ""}</span></button>
       <span class="d-pct ${d.h < 0 ? "neg" : ""}">${d.h}%</span>
       ${DRINK_BY_ID[d.id] ? "" : `<button type="button" class="d-edit" data-dedit="${d.id}" aria-label="Изменить напиток">✎</button>`}
       <button type="button" class="star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>
@@ -4593,11 +4632,12 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     setHead(false);
     body.innerHTML = `
       ${presetMl > 0 ? `<p class="foot-note" style="margin:0 2px 8px">Выберите напиток для ${fmt(presetMl)} мл</p>` : ""}
-      <button type="button" class="btn primary full dk-new" id="dk-new">+ Новый напиток</button>
       <input id="dk-q" class="input search" type="search" placeholder="Найти напиток" value="${esc(st.q)}" autocomplete="off">
-      ${favs.length ? `<p class="foot-note" style="margin:0 2px 8px">Избранное и частые</p><div class="chips fav-chips">${favs.map((d) => `<button type="button" class="chip" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div>` : ""}
-      <div class="chips cats" id="dk-cats">${DRINK_CATS.map((c) => `<button type="button" class="chip ${st.cat === c.id ? "sel" : ""}" data-cat="${c.id}">${c.t}</button>`).join("")}</div>
+      <div class="dk-lb"><span>★ Избранное</span><em>${favs.length}</em></div>
+      ${favs.length ? `<div class="dk-favs" data-noswipe>${favs.map((d) => `<button type="button" class="dk-fav" data-did="${d.id}"><i style="--c:${esc(dotOf(d.id))}">${esc(drinkIcon(d))}</i>${esc(d.n)}</button>`).join("")}</div>` : `<p class="foot-note" style="margin:0 2px 12px">Нажмите звёздочку у напитка в списке — он появится здесь.</p>`}
+      <div class="dk-lb"><span>Все напитки</span></div>      <div class="chips cats" id="dk-cats">${DRINK_CATS.map((c) => `<button type="button" class="chip ${st.cat === c.id ? "sel" : ""}" data-cat="${c.id}">${c.t}</button>`).join("")}</div>
       <div id="dk-list" class="plist"></div>
+      <button type="button" class="btn ghost full dk-new" id="dk-new">+ Новый напиток</button>
       <p class="foot-note" style="margin:10px 2px 12px">Кофеин указан на 240 мл (стакан) и пересчитывается на ваш объём. Гидратация показывает, сколько мл жидкости засчитывается на каждые 100 мл напитка. У алкоголя значение отрицательное: он уменьшает баланс жидкости.</p>
       <div class="note">Напитки с калориями (капучино, сок, газировка, алкоголь) добавляются и в жидкость, и в калории дневника одной записью. Напиток из магазина можно добавить по штрих-коду.</div>
       <div class="row"><button type="button" class="btn ghost grow" id="dk-scan">Сканировать код</button></div>`;
@@ -4812,7 +4852,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const lastMl = existing ? existing.ml : (presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250));
     setHead(!existing);
     body.innerHTML = `
-      ${isCustom ? `<div class="picked"><div class="p-name">${existing ? "Свой напиток" : "Новый напиток"}</div></div>` : `<div class="picked pk-row"><span class="pk-ava"${d.col ? ` style="background:${esc(d.col)}"` : ""}>${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div><div class="p-sub">${d.a ? `${esc(d.a)}. ` : ""}Гидратация ${d.h}%${d.c > 0 ? `, кофеин ${fmt(d.c)} мг на 240 мл` : ""}</div></div><button type="button" class="star pk-star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>${existing ? "" : `<button type="button" class="pk-edit" id="dk-card" aria-label="Карточка напитка">✎</button>`}</div>`}
+      ${isCustom ? `<div class="picked"><div class="p-name">${existing ? "Свой напиток" : "Новый напиток"}</div></div>` : `<div class="picked pk-row"><span class="pk-ava">${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div></div><button type="button" class="dk-dot" id="dk-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(d.id))}"><i></i></button><button type="button" class="star pk-star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>${existing ? "" : `<button type="button" class="pk-edit" id="dk-card" aria-label="Карточка напитка">✎</button>`}</div>`}
       ${isCustom ? `${existing ? "" : `<label class="field"><span>Категория</span><select id="dk-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
         <label class="field hidden" id="dk-alc-box"><span>Крепость</span><select id="dk-alc" class="input"><option value="Слабый алкоголь">Слабый (пиво, сидр)</option><option value="Легкий алкоголь">Лёгкий</option><option value="Умеренный алкоголь">Умеренный</option><option value="Средний алкоголь" selected>Средний (вино, вермут)</option><option value="Крепкий алкоголь">Крепкий (водка, виски, коньяк)</option></select></label>`}
         <label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
@@ -4822,6 +4862,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         </div>
         <label class="field"><span>Калории, ккал на 100 мл (если есть)</span><input id="dk-kcal" class="input" inputmode="decimal" placeholder="0" value="" autocomplete="off"></label>
         ${existing ? "" : `<label class="check"><input type="checkbox" id="dk-keep" checked> <span>Сохранить в список напитков</span></label>`}` : ""}
+      ${isCustom ? "" : `<div class="dk-pal hidden" id="dk-pal" data-noswipe>${DOT_PAL.map((h) => `<button type="button" data-hex="${h}" style="background:${h}" aria-label="Цвет ${h}"></button>`).join("")}</div>`}
       <label class="field"><span>Объём, мл</span><input id="dk-ml" class="input big" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"></label>
       <div class="chips">${[100, 150, 200, 250, 330, 500].map((n) => `<button type="button" class="chip" data-n="${n}">${n}</button>`).join("")}</div>
       <div class="preview" id="dk-prev"></div>
@@ -4850,7 +4891,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       if (mp) mp.classList.toggle("hidden", !(kc.kcal > 0));
       $("#dk-prev", ov).innerHTML = `
         <div class="pv-kcal ${eff < 0 ? "neg" : ""}">${signed(Math.round(eff))}<small>мл жидкости засчитано</small></div>
-        <div class="pv-macros"><div><b>${fmt(r.ml > 0 ? r.ml : 0)}</b>выпито, мл</div><div><b>${Number.isFinite(r.pct) ? fmt(r.pct) : 0}%</b>гидратация</div><div><b>${fmtInt(caf)}</b>кофеин, мг</div></div>
+        <div class="pv-macros"><div><b>${Number.isFinite(r.pct) ? fmt(r.pct) : 0}%</b>гидратация</div>${caf > 0 ? `<div><b class="cof">${fmtInt(caf)} мг</b>кофеин</div>` : ""}</div>
         ${kc.kcal > 0 ? `<div class="pv-macros" style="margin-top:8px"><div><b>${fmtInt(kc.kcal)}</b>ккал</div><div><b>${fmt(kc.protein)}</b>белки, г</div><div><b>${fmt(kc.fat)}</b>жиры, г</div><div><b>${fmt(kc.carbs)}</b>углеводы, г</div></div>` : ""}
         ${isWater ? "" : cafWarnHtml(caf, oldCaf)}`;
     };
@@ -4876,6 +4917,21 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       };
       catSel.addEventListener("change", sync);
       alcSel.addEventListener("change", sync);
+    }
+    const dotBtn = $("#dk-dot", ov), pal = $("#dk-pal", ov);
+    if (dotBtn && pal) {
+      dotBtn.addEventListener("click", () => pal.classList.toggle("hidden"));
+      pal.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-hex]");
+        if (!b) return;
+        setDot(d.id, b.dataset.hex);
+        dotBtn.style.setProperty("--c", b.dataset.hex);
+        pal.querySelectorAll(".on").forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        pal.classList.add("hidden");
+      });
+      const cur = dotOf(d.id);
+      pal.querySelectorAll("[data-hex]").forEach((x) => x.classList.toggle("on", x.dataset.hex.toUpperCase() === String(cur).toUpperCase()));
     }
     const cardBtn = $("#dk-card", ov);
     if (cardBtn) cardBtn.addEventListener("click", () => showCard(d, false));

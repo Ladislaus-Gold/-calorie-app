@@ -563,3 +563,47 @@ html:has(.pvw), body:has(.pvw) { background: #fff; background-image: none; }
 :root[data-theme="dark"] .dv .tr-banner .track { background: rgba(0, 0, 0, .12) !important; }
 :root[data-theme="dark"] .dv .tr-banner .track i { background: #000 !important; }
 :root[data-theme="dark"] .dv .tr-banner .tr-ban-btn { background: #000 !important; color: #fff !important; }
+
+/* ============================================================
+   v2.35 — Жидкость: полоска по напиткам, список, окно добавления, цвета
+   ============================================================ */
+.hvw, .bw-ov, .pick-ov { --cof: #4A2F22; }
+:root[data-theme="dark"] .hvw, :root[data-theme="dark"] .bw-ov, :root[data-theme="dark"] .pick-ov { --cof: #C9A27A; }
+.hvw .cof, .bw-ov .cof, .bw-ov .preview b.cof { color: var(--cof) !important; }
+.hvw .fl-cap { display: flex; width: 100%; height: 56px; padding: 0; border: 0; border-radius: 18px; margin-top: 14px; background: var(--fill); box-shadow: inset 0 0 0 .5px var(--hair); cursor: pointer; overflow: hidden; touch-action: manipulation; position: relative; }
+.hvw .fl-cap > i.sg { position: static; flex: none; height: 100%; box-sizing: border-box; border-right: 2px solid var(--surf, #fff); }
+.hvw .fl-cap > i.tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; border-radius: 0; background: var(--ink); }
+.hvw .fl-tap { display: flex; width: 100%; align-items: center; justify-content: space-between; margin: 6px 0 2px; padding: 6px 0; border: 0; background: none; font: inherit; font-size: 12px; color: var(--sec); text-align: left; }
+.hvw .fl-tap .cv { border: 0; background: none !important; color: var(--sec) !important; width: 18px; height: 18px; }
+.hvw .fl-rows { margin-top: 4px; }
+.hvw .fl-rw { padding: 12px 0; }
+.hvw .fl-rw i { width: 12px; height: 12px; }
+.hvw .fl-rw span em { font-style: normal; font-size: 12px; font-weight: 500; margin-left: 8px; }
+.hvw .fl-list { margin-top: 2px; }
+.hvw .fl-ico { position: relative; }
+.hvw .fl-ico::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; background: var(--c, #B58CFF); border: 2px solid var(--surf, #fff); }
+.hvw .fl-up { display: block; width: 100%; margin-top: 10px; padding: 10px 0 2px; border-top: .5px solid var(--hair); text-align: center; cursor: pointer; -webkit-user-select: none; user-select: none; }
+.hvw .fl-up svg { display: block; width: 22px; height: 22px; margin: 0 auto 2px; fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.hvw .fl-up span { font-size: 12px; font-weight: 500; color: var(--sec); }
+
+/* Окно «Добавить напиток» */
+.bw-ov .d-ava { position: relative; }
+.bw-ov .d-ava::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; background: var(--c, #B58CFF); border: 2px solid var(--surf, #fff); }
+.bw-ov .dk-lb { display: flex; justify-content: space-between; align-items: center; margin: 14px 2px 8px; font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--sec); }
+.bw-ov .dk-lb em { font-style: normal; }
+.bw-ov .dk-favs { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 6px; scrollbar-width: none; }
+.bw-ov .dk-favs::-webkit-scrollbar { display: none; }
+.bw-ov .dk-fav { flex: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 7px; border: 0; border-radius: 20px; background: var(--fill); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.bw-ov .dk-fav i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--surf, #fff); font-style: normal; font-size: 14px; box-shadow: 0 0 0 2px var(--c, transparent); }
+.bw-ov .dk-new { margin-top: 14px; }
+.bw-ov .dk-dot { flex: none; width: 44px; height: 44px; border: 0; border-radius: 14px; background: var(--fill); display: grid; place-items: center; }
+.bw-ov .dk-dot i { width: 22px; height: 22px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--surf, #fff), 0 0 0 3px rgba(0, 0, 0, .2); }
+.bw-ov .dk-pal { display: grid; grid-template-columns: repeat(10, 1fr); gap: 7px; padding: 12px; margin: 0 0 14px; border-radius: 18px; background: var(--surf, #fff); box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 12px 32px rgba(0, 0, 0, .18); }
+.bw-ov .dk-pal button { aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .15); }
+.bw-ov .dk-pal button.on { box-shadow: 0 0 0 2px var(--surf, #fff), 0 0 0 4px var(--ink); }
+.bw-ov .dk-pal.hidden { display: none; }
+.bw-ov #dk-prev .pv-macros:first-of-type { grid-template-columns: repeat(2, 1fr); }
+.hvw { --surf: #fff; }
+:root[data-theme="dark"] .hvw { --surf: #1C1C1E; }
+.bw-ov .preview .warn { background: var(--surf, #fff) !important; color: var(--ink) !important; border: 0 !important; box-shadow: inset 0 0 0 .5px var(--hair) !important; border-radius: 12px; font-size: 13px; font-weight: 500; padding: 10px 12px; }
+.bw-ov .preview .warn.over { box-shadow: inset 0 0 0 1.5px var(--ink) !important; font-weight: 600; }
