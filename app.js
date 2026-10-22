@@ -711,7 +711,7 @@ function fillAnim(root, base = 0) {
   const D = 950; let i = 0;
   const at = () => base + Math.min(i++ * 45, 450);
   const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
-  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.sg").forEach((el) => {
+  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.sg, .wkc-bar > i, .tr-prog .track > i, .tr-bar .track > i, .mb-r .track > i, .stat .sb > u").forEach((el) => {
     const w = el.style.width;
     if (w && w !== "0%") el.animate([{ width: "0%" }, { width: w }], opt(at()));
   });
@@ -719,7 +719,7 @@ function fillAnim(root, base = 0) {
     const [a, b] = el.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
     if (a > 0) el.animate([{ strokeDasharray: `0.01 ${a + b}` }, { strokeDasharray: `${a} ${b}` }], opt(at()));
   });
-  root.querySelectorAll(".cp-rg circle.fg").forEach((el) => {
+  root.querySelectorAll(".cp-rg circle.fg, .th-ring circle.fg").forEach((el) => {
     const off = el.getAttribute("stroke-dashoffset"), full = el.getAttribute("stroke-dasharray");
     if (off != null && full) el.animate([{ strokeDashoffset: full }, { strokeDashoffset: off }], opt(at()));
   });
@@ -3997,14 +3997,14 @@ function viewHealth() {
       <div class="fl-up" data-act="addDrink" data-noswipe role="button" tabindex="0" aria-label="Добавить напиток"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg><span>Свайпните вверх — добавить напиток</span></div>
     </section>`;
   const stepPct = Math.max(0, Math.min(100, (steps / STEPS_GOAL) * 100));
-  const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span><span>В покое ${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</span></div>` : "";
+  const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span></div>` : "";
   const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
   const wkLeft = Math.max(0, wt.minutes - wkMin);
   const pTrain = `
     ${hd ? `<section class="th-hero">
       <div class="th-top">
         <div class="th-ring"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - stepPct / 100)).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b>${Math.round(stepPct)}%</b></div>
-        <div class="th-main"><div class="th-t1">ШАГИ СЕГОДНЯ</div><div class="th-t2">${fmtInt(steps)}</div><div class="th-t3">из ${fmtInt(STEPS_GOAL)}${hd.updatedAt ? ` · обновлено ${timeOf(hd.updatedAt)}` : ""}</div></div>
+        <div class="th-main"><div class="th-t1">ШАГИ СЕГОДНЯ</div><div class="th-t2" data-cnt="${steps}">${fmtInt(steps)}</div><div class="th-t3">из ${fmtInt(STEPS_GOAL)}${hd.updatedAt ? ` · обновлено ${timeOf(hd.updatedAt)}` : ""}</div></div>
       </div>
       <div class="th-strip">
         <div><b>${hd.activeKcal ? fmtInt(hd.activeKcal) : "—"}</b><span>активные<br>ккал</span></div>
@@ -4092,7 +4092,7 @@ function viewHealth() {
     ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true, undefined, { ic: ["🔥", "ic-kc", "pc-red", " в день", "🎯", "dk"] })}
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v), { ic: ["😴", "ic-sl", "pc-ind", " в среднем", "🌙", "ds"] })}
     ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "", false, undefined, { ic: ["👟", "ic-st", "", " в среднем", "🚶", "dst"] }) : ""}`;
-  return `<div class="${tab === "train" || tab === "sleep" || tab === "dyn" ? "" : "dv hvw"}">
+  return `<div class="${tab === "sleep" || tab === "dyn" ? "" : "dv hvw"}">
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
     ${plan ? "" : fillProfilePrompt}
     ${tabs}
