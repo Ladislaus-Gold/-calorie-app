@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 257;
-const APP_VERSION_LABEL = "2.54"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 258;
+const APP_VERSION_LABEL = "2.55"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2055,7 +2055,7 @@ function statusHtml() {
   const rules = wait ? [N, "Проверяю…"] : !s.rules ? [N, "Не проверено"] : s.rules === "ok" ? [G, "Работают, доступ есть"] : s.rules === "denied" ? [R, "Блокируют доступ"] : [N, "Не проверить без связи"];
   const ver = s.latest > APP_VERSION ? [Y, `v${APP_VERSION_LABEL}, доступна v${s.label || "новее"}: нажмите «Обновить» в Дневнике`] : s.latest ? [G, `v${APP_VERSION_LABEL}, актуальная`] : [N, `v${APP_VERSION_LABEL}`];
   const allReady = Object.values(state.ready).every(Boolean);
-  const sync = state.error ? [R, "Ошибка загрузки"] : allReady ? [G, "Данные загружены"] : [Y, "Загружаю…"];
+  const sync = state.error ? [R, "Ошибка загрузки"] : allReady ? [G, "Загружены"] : [Y, "Загружаю…"];
   return `<div style="margin-top:14px">
     ${row("Вход", state.user ? G : R, state.user ? "Выполнен" : "Не выполнен")}
     ${row("Интернет", navigator.onLine ? G : R, navigator.onLine ? "Есть" : "Нет")}
@@ -2068,39 +2068,97 @@ function statusHtml() {
 }
 
 /* ================= Я ================= */
+/* ================= Я (v2.55: стиль iPhone) ================= */
+const ME_GLYPH = {
+  moon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>`,
+  target: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>`,
+  box: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2z"/></svg>`,
+  save: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l4 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>`,
+  dl: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.2l3.6-3.6L17 11l-5 5-5-5 1.4-1.4L11 13.2V3h1zM5 18h14v2H5z"/></svg>`,
+};
+const meHead = (g, title, right = "") => `<div class="card-top fl-top"><span class="fl-ic sl-sq">${ME_GLYPH[g]}</span><h2 class="h2">${title}</h2>${right}</div>`;
+// Общее состояние для строки «Всё работает»: подробности по каждому пункту раскрываются по нажатию
+function sysSummary() {
+  const s = state.status;
+  if (state.error || !navigator.onLine || s.server === "off" || s.rules === "denied") return ["#FF453A", "Есть проблемы"];
+  if (s.busy || !Object.values(state.ready).every(Boolean)) return ["#8E8E93", "Проверяю…"];
+  if (s.latest > APP_VERSION) return ["#FF9F0A", "Доступно обновление"];
+  return ["#30B94D", "Всё работает"];
+}
+function themeCardHtml() {
+  const p = themePref(), auto = p === "auto";
+  const eff = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  const tile = (v, t) => `<button type="button" class="th-tile" data-act="setTheme" data-v="${v}" aria-pressed="${eff === v}"><span class="th-mini ${v}"><i></i><i></i><i></i></span><b>${t}</b><span class="th-ck${eff === v ? " on" : ""}"></span></button>`;
+  return `<section class="card">${meHead("moon", "Оформление")}
+    <div class="th-row">${tile("light", "Светлое")}${tile("dark", "Тёмное")}</div>
+    <div class="th-sw-row"><span>Автоматически</span><button type="button" class="th-sw${auto ? " on" : ""}" role="switch" aria-checked="${auto}" aria-label="Автоматически" data-act="setTheme" data-v="${auto ? eff : "auto"}"><i></i></button></div>
+    <p class="foot-note" style="margin:8px 0 0">Следует настройке iPhone: вечером включается тёмная.</p>
+  </section>`;
+}
+function planGoalCardHtml() {
+  const pr = state.profile, plan = currentPlan();
+  const sp = mealSplit(), edit = !!state.goalEdit;
+  const MEAL_DOT = { breakfast: "#FFD60A", lunch: "#30D158", dinner: "#0A84FF", snack: "#BF5AF2" };
+  let planHtml;
+  if (!plan) {
+    planHtml = `<p class="foot-note" style="margin:0 0 12px">Укажите пол, возраст, рост, вес и цель: приложение рассчитает калории, БЖУ, норму воды и рекомендации по нагрузке.</p><button type="button" class="btn primary full" data-act="openProfile">Заполнить данные</button>`;
+  } else {
+    const lvl = LEVELS.find((l) => l.v === pr.activity) || LEVELS[0];
+    planHtml = `<div class="me-sh"><span>Мой план</span><button type="button" class="me-pill" data-act="openProfile">Изменить</button></div>
+      <div class="me-chips"><b>${pr.sex === "male" ? "Мужской" : "Женский"}</b><b>${fmt(pr.age)} лет</b><b>${fmt(pr.heightCm)} см</b><b>${fmt(pr.weightKg)} кг</b><b>${esc((GOAL_NAME[pr.goal] || "").replace(/^./, (c) => c.toUpperCase()))}</b><b>${esc(lvl.t)}</b></div>
+      <div class="me-ml"><span>Основной обмен</span><b>${fmtInt(plan.bmr)} ккал</b></div>
+      <div class="me-ml"><span>Расход с учётом образа жизни</span><b>${fmtInt(plan.tdee)} ккал</b></div>
+      <p class="foot-note" style="margin:6px 0 0">${esc(plan.weekly.text)} Это примерно ${fmtInt(plan.weekly.kcal)} ккал в неделю.</p>`;
+  }
+  const goalHead = `<div class="me-sh"><span>Цель на день</span><button type="button" class="me-pill" data-act="toggleGoalEdit">${edit ? "Готово" : "Изменить"}</button></div>`;
+  let goalHtml;
+  if (edit) {
+    goalHtml = `<label class="field big"><span>Калории в день</span><input id="goal-input" class="input" inputmode="numeric" value="${state.goal}" autocomplete="off"></label>
+      <div class="field-grid" style="margin-top:12px">${MEALS.map((m) => `<label class="field"><span>${m.name}, % · ${fmtInt(mealTarget(m.id))} ккал</span><input id="split-${m.id}" class="input" inputmode="numeric" value="${sp[m.id]}" autocomplete="off"></label>`).join("")}</div>
+      <p class="foot-note" style="margin:2px 0 12px">Сумма процентов приводится к 100.</p>
+      <button type="button" class="btn primary full" data-act="saveGoal">Сохранить цель</button>`;
+  } else {
+    const diff = plan && plan.calcKcal && Math.abs(plan.calcKcal - state.goal) >= 30;
+    goalHtml = `<div class="me-gl"><b>${fmtInt(state.goal)}<small>ккал</small></b><div class="me-pm"><button type="button" aria-label="Меньше" data-act="goalStep" data-d="-50">−</button><button type="button" aria-label="Больше" data-act="goalStep" data-d="50">+</button></div></div>
+      ${plan && plan.calcKcal ? `<p class="foot-note" style="margin:6px 0 12px">Расчёт по профилю: ${fmtInt(plan.calcKcal)} ккал${diff ? ` <button type="button" class="me-pill sm" data-act="applyPlanGoal">Применить</button>` : ""}</p>` : `<div style="height:8px"></div>`}
+      ${MEALS.map((m) => `<div class="me-mr"><em style="background:${MEAL_DOT[m.id] || "#8E8E93"}"></em><span>${m.name}</span><b>${sp[m.id]}%</b><small>${fmtInt(mealTarget(m.id))} ккал</small></div>`).join("")}`;
+  }
+  let tiles = "";
+  if (plan && !edit) {
+    const bp = Math.max(0, Math.min(100, ((plan.bmi - 15) / 20) * 100));
+    tiles = `<div class="me-div"></div>
+      <div class="me-mac"><div class="m-p"><b>${plan.protein}<small> г</small></b><span>белки</span></div><div class="m-f"><b>${plan.fat}<small> г</small></b><span>жиры</span></div><div class="m-c"><b>${plan.carbs}<small> г</small></b><span>углеводы</span></div></div>
+      <div class="me-mac2"><div class="m-w"><b>${fmtInt(plan.water)}<small> мл</small></b><span>норма воды в день</span></div><div class="m-b"><b>${fmt(plan.bmi)}</b><span>индекс массы тела: ${esc(plan.bmiLabel)}</span><u class="me-scale"><i style="left:${bp.toFixed(0)}%"></i></u></div></div>
+      ${plan.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}
+      <p class="foot-note" style="margin:10px 0 0">Индекс массы тела не учитывает мышечную массу. Все значения ориентировочные, для здоровых взрослых, и не заменяют рекомендацию врача. При беременности, диабете и других заболеваниях согласуйте питание и нагрузку с врачом.</p>`;
+  }
+  return `<section class="card">${meHead("target", "План и цель")}${planHtml}${plan ? `<div class="me-div"></div>` : `<div class="me-div"></div>`}${goalHead}${goalHtml}${tiles}</section>`;
+}
 function viewMe() {
   const u = state.user || {};
   const initial = esc((u.displayName || u.email || "?").trim().charAt(0).toUpperCase());
   const avatar = u.photoURL
     ? `<img class="avatar" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">`
     : `<div class="avatar">${initial}</div>`;
-  return `
+  const sy = sysSummary(), sysOpen = !!state.sysOpen;
+  return `<div class="dv hvw hme">
     ${pageHead("Профиль", "Я")}
-    <section class="card"><div class="me-head">${avatar}<div><div class="me-name">${esc(u.displayName || "Без имени")}</div><div class="me-mail">${esc(u.email || "")}</div></div></div>${statusHtml()}</section>
-    <section class="card">
-      <div class="card-top"><h2 class="h2">Оформление</h2></div>
-      <div class="seg full" data-seg="theme">${[["auto", "Авто"], ["light", "Светлая"], ["dark", "Тёмная"]].map(([v, t]) => `<button type="button" data-act="setTheme" data-v="${v}" class="${themePref() === v ? "on" : ""}">${t}</button>`).join("")}</div>
-      <p class="foot-note" style="margin:10px 2px 0">«Авто» следует настройке iPhone: вечером включается тёмная.</p>
+    <section class="card"><div class="me-head">${avatar}<div><div class="me-name">${esc(u.displayName || "Без имени")}</div><div class="me-mail">${esc(u.email || "")}</div></div></div>
+      <button type="button" class="me-sys" data-act="toggleSys" aria-expanded="${sysOpen}"><i style="background:${sy[0]}"></i><span>${sy[1]}</span><small>v${esc(APP_VERSION_LABEL)}</small>${chev(sysOpen)}</button>
+      ${sysOpen ? statusHtml() : ""}</section>
+    ${themeCardHtml()}
+    ${planGoalCardHtml()}
+    <section class="card">${meHead("box", "Общая база продуктов")}
+      <div class="me-num2"><div><b>${state.products.length}</b><span>продуктов в базе</span></div><div><b>${state.products.filter((p) => p.createdBy === u.uid).length}</b><span>добавили вы</span></div></div>
+      <p class="foot-note" style="margin:10px 2px 0">Дневник и цель видите только вы.</p>
     </section>
-    ${planCardHtml()}
-    <section class="card">
-      <h2 class="h2">Дневная цель</h2>
-      <label class="field"><span>Калории в день</span><input id="goal-input" class="input" inputmode="numeric" value="${state.goal}" autocomplete="off"></label>
-      ${splitFieldsHtml()}
-      <button type="button" class="btn primary full" data-act="saveGoal">Сохранить цель</button>
+    <section class="card">${meHead("save", "Мои данные")}
+      <p class="foot-note" style="margin:0 0 4px">Резервная копия: дневник, вода, вес, замеры, тренировки, настройки. Файл можно сохранить в «Файлы» или отправить себе.</p>
+      <button type="button" class="me-lr" data-act="exportJson"><span class="fl-ic sl-sq">${ME_GLYPH.dl}</span><span>Скачать всё (JSON)</span><i>›</i></button>
+      <button type="button" class="me-lr" data-act="exportCsv"><span class="fl-ic sl-sq">${ME_GLYPH.dl}</span><span>Скачать дневник питания (CSV)</span><i>›</i></button>
     </section>
-    ${quickCardHtml()}
-    <section class="card">
-      <h2 class="h2">Общая база продуктов</h2>
-      <p class="foot-note" style="margin:0">Всего продуктов: <b>${state.products.length}</b>. Добавили вы: <b>${state.products.filter((p) => p.createdBy === u.uid).length}</b>. Дневник и цель видите только вы.</p>
-    </section>
-    <section class="card">
-      <h2 class="h2">Мои данные</h2>
-      <p class="foot-note" style="margin:0 0 10px">Резервная копия всего, что вы записали: дневник, вода, вес, замеры, тренировки, настройки. Файл можно сохранить в «Файлы» или отправить себе.</p>
-      <div class="tr-actions" style="margin-top:0"><button type="button" class="btn ghost full" data-act="exportJson">Скачать всё (JSON)</button><button type="button" class="btn ghost full" data-act="exportCsv">Скачать дневник питания (CSV)</button></div>
-    </section>
-    ${emoCardHtml()}
-    <section class="card"><button type="button" class="btn danger full" data-act="logout">Выйти из аккаунта</button></section>`;
+    <button type="button" class="me-out" data-act="logout">Выйти из аккаунта</button>
+  </div>`;
 }
 
 /* ================= Штрих-коды, Open Food Facts, камера ================= */
@@ -5246,6 +5304,12 @@ const actions = {
   toggleWk(ds) { state.openWks[ds.k] = !state.openWks[ds.k]; render(); },
   openDay(ds) { state.date = ds.d; state.tab = "diary"; render(); const v = $("#view"); if (v) v.scrollTop = 0; },
   toggleIns() { state.insOpen = !state.insOpen; render(); },
+  toggleSys() { state.sysOpen = !state.sysOpen; render(); },
+  toggleGoalEdit() { state.goalEdit = !state.goalEdit; render(); },
+  goalStep(ds) {
+    const g = Math.min(10000, Math.max(500, Math.round(state.goal) + Number(ds.d)));
+    setDoc(docRef("settings", "profile"), { goalKcal: g }, { merge: true }).catch(writeFail);
+  },
   trainDayTog() { state.trainDayOpen = !state.trainDayOpen; render(); },
   trainDayTap(ds) { state.trainDayOpen = true; if (ds.date !== state.date) actions.pickDay(ds); else render(); },
   toggleActKinds() { state.actKindsOpen = !state.actKindsOpen; render(); },
@@ -5282,7 +5346,9 @@ const actions = {
     const raw = {};
     MEALS.forEach((m) => { const v = num($(`#split-${m.id}`).value); raw[m.id] = Number.isFinite(v) ? v : 0; });
     setDoc(docRef("settings", "profile"), { goalKcal: Math.round(g), mealSplit: normalizeSplit(raw) }, { merge: true }).catch(writeFail);
+    state.goalEdit = false;
     toast("Цель сохранена");
+    render();
   },
   logout() { signOut(auth); },
 };

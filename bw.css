@@ -1818,3 +1818,78 @@ html body .dv.hvw.hrp section.card svg[role="img"] { --accent: #30B94D; }
 html body .dv.hvw.hrp .dd-kcal, html body .dv.hvw.hrp .dd-kcal.ok, html body .dv.hvw.hrp .dd-kcal.near, html body .dv.hvw.hrp .dd-kcal.over { background: none !important; box-shadow: none !important; border: 0 !important; padding: 0; }
 html body .dv.hvw.hrp .dd-kcal.ok, html body .dv.hvw.hrp .dd-kcal.near { color: #1FA845 !important; } html body .dv.hvw.hrp .dd-kcal.over { color: #FF453A !important; }
 html:root[data-theme="dark"] body .dv.hvw.hrp .dd-kcal.ok, html:root[data-theme="dark"] body .dv.hvw.hrp .dd-kcal.near { color: #30D158 !important; }
+
+/* ===== v2.55: экран «Я» в стиле iPhone ===== */
+html body .dv.hvw.hme .card-top.fl-top .h2 { flex: 1; min-width: 0; }
+html body .dv.hvw.hme .h2::before { display: none !important; }
+html body .dv.hvw.hme .fl-ic.sl-sq { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex: none; background: #000 !important; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.25), 0 2px 5px rgba(0,0,0,.22) !important; }
+html body .dv.hvw.hme .fl-ic.sl-sq svg { width: 18px; height: 18px; fill: #fff; stroke: none; }
+html:root[data-theme="dark"] body .dv.hvw.hme .fl-ic.sl-sq { background: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .dv.hvw.hme .fl-ic.sl-sq svg { fill: #000; }
+/* профиль и состояние */
+html body .dv.hvw.hme .me-head { gap: 14px; }
+html body .dv.hvw.hme .me-sys { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-top: 12px; border: 0; border-radius: 16px; background: var(--fill); color: var(--ink); font: inherit; text-align: left; }
+html body .dv.hvw.hme .me-sys i { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 4px rgba(48,185,77,.18); }
+html body .dv.hvw.hme .me-sys span { flex: 1; font-weight: 600; font-size: 15px; }
+html body .dv.hvw.hme .me-sys small { color: var(--sec); font-size: 13px; }
+/* переключатель темы, как в настройках iPhone */
+html body .dv.hvw.hme .th-row { display: flex; justify-content: center; gap: 34px; padding: 4px 0 14px; }
+html body .dv.hvw.hme .th-tile { background: none; border: 0; padding: 0; color: var(--ink); text-align: center; font: inherit; font-size: 13px; font-weight: 500; display: flex; flex-direction: column; align-items: center; }
+html body .dv.hvw.hme .th-mini { width: 88px; height: 62px; border-radius: 12px; border: .5px solid var(--hair); padding: 8px; display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+html body .dv.hvw.hme .th-mini.light { background: #fff; } html body .dv.hvw.hme .th-mini.dark { background: #1C1C1E; }
+html body .dv.hvw.hme .th-mini i { display: block; height: 6px; border-radius: 3px; background: #E5E5EA; }
+html body .dv.hvw.hme .th-mini.dark i { background: #3A3A3C; }
+html body .dv.hvw.hme .th-mini i:first-child { width: 55%; background: #000; } html body .dv.hvw.hme .th-mini.dark i:first-child { background: #fff; }
+html body .dv.hvw.hme .th-ck { width: 22px; height: 22px; border-radius: 50%; margin-top: 8px; border: 1.5px solid #C7C7CC; display: grid; place-items: center; }
+html body .dv.hvw.hme .th-ck.on { background: #0A84FF; border-color: #0A84FF; }
+html body .dv.hvw.hme .th-ck.on::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px,-1px); }
+html body .dv.hvw.hme .th-sw-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 0; border-top: .5px solid var(--hair); font-size: 16px; }
+html body .dv.hvw.hme .th-sw { width: 51px; height: 31px; border-radius: 16px; background: #E5E5EA; border: 0; padding: 0; position: relative; flex: none; transition: background .2s; }
+html:root[data-theme="dark"] body .dv.hvw.hme .th-sw { background: #39393D; }
+html body .dv.hvw.hme .th-sw i { position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.25); transition: transform .2s; }
+html body .dv.hvw.hme .th-sw.on { background: #34C759 !important; } html body .dv.hvw.hme .th-sw.on i { transform: translateX(20px); }
+/* план и цель */
+html body .dv.hvw.hme .me-sh { display: flex; align-items: center; justify-content: space-between; font-size: 17px; font-weight: 600; letter-spacing: -.02em; margin: 14px 0 10px; }
+html body .dv.hvw.hme .me-pill { height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--fill); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; display: inline-grid; place-items: center; box-shadow: none; }
+html body .dv.hvw.hme .me-pill.sm { height: 26px; padding: 0 10px; font-size: 12px; margin-left: 6px; }
+html body .dv.hvw.hme .me-chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 8px; }
+html body .dv.hvw.hme .me-chips b { font-size: 13px; font-weight: 600; padding: 6px 11px; border-radius: 999px; background: var(--fill); }
+html body .dv.hvw.hme .me-ml { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: .5px solid var(--hair); font-size: 16px; }
+html body .dv.hvw.hme .me-ml:first-of-type { border-top: 0; } html body .dv.hvw.hme .me-ml b { font-weight: 600; text-align: right; }
+html body .dv.hvw.hme .me-div { height: .5px; background: var(--hair); margin: 16px 0 0; }
+html body .dv.hvw.hme .me-gl { display: flex; align-items: flex-end; justify-content: space-between; margin: 2px 0 4px; }
+html body .dv.hvw.hme .me-gl b { font-size: 44px; font-weight: 700; letter-spacing: -.05em; line-height: 1; }
+html body .dv.hvw.hme .me-gl b small { font-size: 17px; font-weight: 600; color: var(--sec); letter-spacing: -.01em; margin-left: 5px; }
+html body .dv.hvw.hme .me-pm { display: flex; gap: 8px; }
+html body .dv.hvw.hme .me-pm button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--fill); color: var(--ink); font-size: 22px; font-weight: 500; display: grid; place-items: center; padding: 0; box-shadow: none; }
+html body .dv.hvw.hme .me-mr { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: .5px solid var(--hair); font-size: 16px; }
+html body .dv.hvw.hme .me-mr em { width: 10px; height: 10px; border-radius: 50%; flex: none; } html body .dv.hvw.hme .me-mr span { flex: 1; } html body .dv.hvw.hme .me-mr b { font-weight: 600; }
+html body .dv.hvw.hme .me-mr small { color: var(--sec); font-size: 13px; width: 74px; text-align: right; }
+html body .dv.hvw.hme .me-mac, html body .dv.hvw.hme .me-mac2 { display: grid; gap: 8px; margin-top: 14px; }
+html body .dv.hvw.hme .me-mac { grid-template-columns: repeat(3, 1fr); } html body .dv.hvw.hme .me-mac2 { grid-template-columns: 1fr 1fr; margin-top: 8px; }
+html body .dv.hvw.hme .me-mac > div, html body .dv.hvw.hme .me-mac2 > div { border-radius: 16px; padding: 11px 12px; }
+html body .dv.hvw.hme .me-mac b, html body .dv.hvw.hme .me-mac2 b { display: block; font-size: 22px; font-weight: 700; letter-spacing: -.035em; }
+html body .dv.hvw.hme .me-mac b small, html body .dv.hvw.hme .me-mac2 b small { font-size: 14px; font-weight: 700; }
+html body .dv.hvw.hme .me-mac span, html body .dv.hvw.hme .me-mac2 span { display: block; font-size: 12px; font-weight: 500; color: var(--sec); line-height: 1.3; }
+html body .dv.hvw.hme .m-p { background: rgba(175,82,222,.15); } html body .dv.hvw.hme .m-p b { color: #8E3CC4; }
+html body .dv.hvw.hme .m-f { background: rgba(255,159,10,.15); } html body .dv.hvw.hme .m-f b { color: #B25E00; }
+html body .dv.hvw.hme .m-c { background: rgba(10,132,255,.15); } html body .dv.hvw.hme .m-c b { color: #0A5DC2; }
+html body .dv.hvw.hme .m-w { background: rgba(90,200,250,.18); } html body .dv.hvw.hme .m-w b { color: #0E7FB3; }
+html body .dv.hvw.hme .m-b { background: rgba(48,176,199,.15); } html body .dv.hvw.hme .m-b b { color: #0E7F93; }
+html:root[data-theme="dark"] body .dv.hvw.hme .m-p b { color: #D08CFF; } html:root[data-theme="dark"] body .dv.hvw.hme .m-f b { color: #FF9F0A; } html:root[data-theme="dark"] body .dv.hvw.hme .m-c b { color: #64A8FF; }
+html:root[data-theme="dark"] body .dv.hvw.hme .m-w b { color: #5AC8FA; } html:root[data-theme="dark"] body .dv.hvw.hme .m-b b { color: #5AD1E6; }
+html:root[data-theme="dark"] body .dv.hvw.hme .m-p, html:root[data-theme="dark"] body .dv.hvw.hme .m-f, html:root[data-theme="dark"] body .dv.hvw.hme .m-c, html:root[data-theme="dark"] body .dv.hvw.hme .m-w, html:root[data-theme="dark"] body .dv.hvw.hme .m-b { filter: brightness(1.15); }
+html body .dv.hvw.hme .me-scale { display: block; position: relative; height: 6px; border-radius: 3px; margin-top: 9px; background: linear-gradient(90deg,#5AC8FA 0 17.5%,#30B94D 17.5% 50%,#FF9F0A 50% 75%,#FF453A 75%); }
+html body .dv.hvw.hme .me-scale i { position: absolute; top: -3px; width: 4px; height: 12px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 1.5px var(--surf); }
+html body .dv.hvw.hme .field.big .input { font-size: 22px; font-weight: 700; height: 54px; letter-spacing: -.03em; }
+/* база, данные, выход */
+html body .dv.hvw.hme .me-num2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+html body .dv.hvw.hme .me-num2 > div { background: var(--fill); border-radius: 18px; padding: 12px 14px; }
+html body .dv.hvw.hme .me-num2 b { display: block; font-size: 30px; font-weight: 700; letter-spacing: -.04em; } html body .dv.hvw.hme .me-num2 span { font-size: 12px; color: var(--sec); font-weight: 500; }
+html body .dv.hvw.hme .me-lr { width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 0; border: 0; border-top: .5px solid var(--hair); border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; font-weight: 500; text-align: left; box-shadow: none; }
+html body .dv.hvw.hme .me-lr > span:nth-child(2) { flex: 1; } html body .dv.hvw.hme .me-lr i { font-style: normal; color: var(--sec); font-size: 20px; }
+html body .dv.hvw.hme .me-out { width: 100%; padding: 14px; margin: 4px 0 14px; border: 0; border-radius: 16px; background: rgba(255,69,58,.1); color: #FF453A; font: inherit; font-size: 17px; font-weight: 600; box-shadow: none; }
+/* кнопка «+» в дневнике: белое кольцо и мягкое свечение, чтобы не сливалась с чёрной карточкой «Баланс дня» */
+html:root:not([data-theme="dark"]) body .dv .fab { box-shadow: 0 0 0 3px #fff, 0 0 18px 4px rgba(255,255,255,.95), 0 6px 14px rgba(0,0,0,.28) !important; }
+html body .dv.hvw.hme .me-sys .cv { background: none !important; box-shadow: none !important; border: 0 !important; width: auto; height: auto; }
+html body .dv.hvw.hme .me-ml b { white-space: nowrap; flex: none; } html body .dv.hvw.hme .me-ml span { min-width: 0; }
