@@ -482,3 +482,65 @@ html:has(.pvw), body:has(.pvw) { background: #fff; background-image: none; }
 .bw-ov .input.big { height: 48px; font-size: 20px; font-weight: 600; padding: 0 14px; }
 .bw-ov .sheet-head { min-height: 36px; margin-bottom: 8px; }
 .bw-ov.top .sheet .pick-grab { order: 99; margin: 10px auto 0; }
+
+/* ============================================================
+   v2.32 — «Жидкость»: шкала-ползунок и избранное; карточки тренировки в Дневнике
+   ============================================================ */
+.hvw .fl-main .big-line { margin-top: 2px; }
+.hvw .fl-sub { margin: 4px 0 0; font-size: 13px; color: var(--sec); }
+.hvw .fl-cap { position: relative; height: 72px; margin-top: 14px; border-radius: 22px; background: var(--fill); overflow: hidden; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: ew-resize; }
+.hvw .fl-cap > i { position: absolute; top: 0; bottom: 0; display: block; }
+.hvw .fl-cap > i.w { left: 0; background: linear-gradient(90deg, #5AC8FA, #0A84FF); }
+.hvw .fl-cap > i.d { background: #30D158; }
+.hvw .fl-cap > i.p { background: rgba(10, 132, 255, .38); transition: width .08s linear; }
+.hvw .fl-cap > i.tick { top: 10px; bottom: 10px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); opacity: .55; }
+.hvw .fl-cap > svg { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; fill: #fff; stroke: none; pointer-events: none; }
+.hvw .fl-rows { margin-top: 8px; }
+.hvw .fl-rw { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-top: .5px solid var(--hair); font-size: 15px; }
+.hvw .fl-rw:first-child { border-top: 0; }
+.hvw .fl-rw i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.hvw .fl-rw i.dw { background: #0A84FF; } .hvw .fl-rw i.dd { background: #30D158; }
+.hvw .fl-rw span { flex: 1; color: var(--ink); } .hvw .fl-rw b { font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.hvw .fl-norm { margin: 8px 0 0; }
+.hvw .fl-favhd { display: flex; align-items: center; gap: 8px; margin: 16px 0 10px; }
+.hvw .fl-favhd b { font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
+.hvw .fl-favhd em { margin-left: auto; font-style: normal; font-size: 13px; color: var(--sec2); }
+.hvw .fl-favhd .fl-star { width: 24px; height: 24px; border-radius: 7px; }
+.hvw .fl-favhd .fl-star svg { width: 14px; height: 14px; }
+.hvw .fl-fav { display: flex; gap: 8px; margin: 0 -16px 14px; padding: 2px 16px 4px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.hvw .fl-fav::-webkit-scrollbar { display: none; }
+.hvw .ft { flex: none; width: 68px; padding: 0; border: 0; background: none; text-align: center; color: var(--ink); font: inherit; }
+.hvw .ft-e { display: grid; place-items: center; width: 56px; height: 56px; margin: 0 auto 6px; border-radius: 16px; background: var(--fill); font-size: 26px; box-shadow: inset 0 0 0 .5px var(--hair); transition: transform .15s; }
+.hvw .ft:active .ft-e { transform: scale(.92); }
+.hvw .ft.all .ft-e { background: #000; color: #fff; font-size: 28px; font-weight: 300; }
+:root[data-theme="dark"] .hvw .ft.all .ft-e { background: #fff; color: #000; }
+.hvw .ft-n { display: block; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hvw .fl-hint { margin: 10px 0 0; font-size: 12px; color: var(--sec2); }
+
+/* Карточка тренировки в Дневнике (.tr-banner): без градиентов, текст не обрезается */
+.dv .card.tr-banner, :root[data-theme="dark"] .dv .card.tr-banner { display: flex; align-items: center; gap: 12px; padding: 14px; border: .5px solid var(--hair) !important; border-radius: 24px; background: var(--card, #fff) !important; box-shadow: var(--cardsh) !important; color: var(--ink) !important; overflow: visible; text-align: left; }
+:root[data-theme="dark"] .dv .card.tr-banner { background: #1C1C1E !important; }
+.dv .tr-banner .tr-ban-ic { flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--fill) !important; box-shadow: inset 0 0 0 .5px var(--hair) !important; font-size: 28px; line-height: 1; display: grid; place-items: center; color: var(--ink); }
+.dv .tr-banner .tr-ban-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.dv .tr-banner .tr-ban-main b { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; font-size: 17px; font-weight: 600 !important; letter-spacing: -.02em; line-height: 1.15; color: var(--ink) !important; text-shadow: none !important; }
+.dv .tr-banner .tr-ban-main > span:not(.track) { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; font-size: 14px !important; font-weight: 500 !important; line-height: 1.25; color: var(--sec) !important; text-shadow: none !important; }
+.dv .tr-banner .tr-ban-sub { font-size: 15px !important; font-weight: 600 !important; color: var(--ink) !important; }
+.dv .tr-banner .tr-ban-chips { display: flex !important; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.dv .tr-banner .tr-ban-chips .chip { padding: 3px 9px; border-radius: 999px; border: 0; background: var(--fill) !important; color: var(--sec) !important; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.dv .tr-banner .track { height: 6px; margin-top: 8px; border-radius: 3px; background: var(--fill) !important; }
+.dv .tr-banner .track i { border-radius: 3px; background: var(--ink) !important; }
+.dv .tr-banner .tr-ban-btn { flex: none; align-self: center; padding: 0 18px; height: 40px; display: inline-flex; align-items: center; border-radius: 20px; background: #000 !important; color: #fff !important; font-size: 15px; font-weight: 600; text-shadow: none !important; box-shadow: 0 2px 4px rgba(0, 0, 0, .2), 0 6px 14px rgba(0, 0, 0, .2) !important; }
+:root[data-theme="dark"] .dv .tr-banner .tr-ban-btn { background: #fff !important; color: #000 !important; box-shadow: none !important; }
+/* выполнена: чёрная карточка (как «Баланс дня»), в тёмной теме белая */
+.dv .card.tr-banner.done { background: #0B0B0C !important; color: #fff !important; border-color: transparent !important; }
+.dv .tr-banner.done .tr-ban-ic { background: #fff !important; box-shadow: none !important; }
+.dv .tr-banner.done .tr-ban-main b { color: #fff !important; font-size: 19px; }
+.dv .tr-banner.done .tr-ban-main > span:not(.track) { color: rgba(255, 255, 255, .78) !important; }
+.dv .tr-banner.done .track { background: rgba(255, 255, 255, .2) !important; }
+.dv .tr-banner.done .track i { background: #fff !important; }
+:root[data-theme="dark"] .dv .card.tr-banner.done { background: #fff !important; color: #000 !important; }
+:root[data-theme="dark"] .dv .tr-banner.done .tr-ban-ic { background: #F2F2F7 !important; }
+:root[data-theme="dark"] .dv .tr-banner.done .tr-ban-main b { color: #000 !important; }
+:root[data-theme="dark"] .dv .tr-banner.done .tr-ban-main > span:not(.track) { color: #636366 !important; }
+:root[data-theme="dark"] .dv .tr-banner.done .track { background: rgba(0, 0, 0, .12) !important; }
+:root[data-theme="dark"] .dv .tr-banner.done .track i { background: #000 !important; }
