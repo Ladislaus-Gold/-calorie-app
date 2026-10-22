@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=27";
+import { createTrainUI } from "./trainui.js?v=28";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 222;
-const APP_VERSION_LABEL = "2.19"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 223;
+const APP_VERSION_LABEL = "2.20"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3573,8 +3573,8 @@ function viewHealth() {
   const tab = state.hTab || "today";
   const tabs = `<div class="seg full htabs" data-seg="htab">${[["today", "Жидкость"], ["train", "Тренировки"], ["sleep", "Сон"], ["dyn", "Динамика"]].map(([v, t]) => `<button type="button" data-act="healthTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
   const cafStop = caf.level === "over" ? "over" : caf.level === "warn" ? "warn" : "ok";
-  const cafPill = `<button type="button" class="caf-pill ${cafStop}" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}" aria-label="Кофеин ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг"><span class="cp-rg"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - Math.min(1, Math.max(0, caf.ratio)))).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b>${fmtInt(caf.mg)}</b></span><span class="cp-tx">кофеин<small>из ${fmtInt(caf.limit)} мг</small></span></button>`;
-  const cafNotes = caf.mg > 0 ? `${caf.msgs.length ? `<ul class="caf-msgs fl-caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}${state.cafInfo ? `<p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}` : "";
+  const cafPill = `<button type="button" class="caf-pill ${cafStop}" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}" aria-label="Кофеин ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг"><span class="cp-rg"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - Math.min(1, Math.max(0, caf.ratio)))).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b>☕</b></span></button>`;
+  const cafNotes = caf.mg > 0 ? `${caf.msgs.length ? `<ul class="caf-msgs fl-caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}${state.cafInfo ? `<p class="caf-now"><b>Кофеин</b> ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг</p><p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}` : "";
   const pToday = `
     <section class="card">
       <div class="card-top fl-top"><span class="fl-ic">💧</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>

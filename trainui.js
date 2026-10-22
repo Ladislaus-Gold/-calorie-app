@@ -1051,13 +1051,14 @@ function sparkBars(vals) {
 }
 function sparkLine(vals) {
   if (vals.length < 2) return "";
-  const m = Math.max(...vals, 1), lo = Math.min(...vals), w = 72, h = 26, rg = Math.max(1, m - lo);
+  const m = Math.max(...vals, 1), lo = Math.min(...vals), w = 120, h = 40, rg = Math.max(1, m - lo);
   const pts = vals.map((v, i) => [4 + (i * (w - 8)) / (vals.length - 1), h - 4 - ((v - lo) / rg) * (h - 8)]);
   const last = pts[pts.length - 1];
-  return `<svg class="xsl" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts.map((q) => q.map((x) => x.toFixed(1)).join(",")).join(" ")}"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.4"/></svg>`;
+  return `<svg class="xsl" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polygon points="${pts[0][0].toFixed(1)},${h} ${pts.map((q) => q.map((x) => x.toFixed(1)).join(",")).join(" ")} ${last[0].toFixed(1)},${h}"/><polyline points="${pts.map((q) => q.map((x) => x.toFixed(1)).join(",")).join(" ")}"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.4"/></svg>`;
 }
 
 // Прогресс упражнений: динамика повторов, резинка и рекорды
+const MG_EMO = { legs: "🦵", glutes: "🍑", back: "🧗", chest: "🏋️", shoulders: "🤸", biceps: "💪", triceps: "🦾", forearms: "🤝", core: "🎯" };
 function exProgressHtml() {
   const ids = new Set();
   state.trainLog.forEach((l) => { if (l.sets) Object.keys(l.sets).forEach((id) => ids.add(id)); });
@@ -1073,7 +1074,7 @@ function exProgressHtml() {
     const bestSet = Math.max(...h.map((x) => x.best));
     return `<div class="xe"><div class="xe-h"><b>${esc(TR.EXERCISES[id].name)}</b>${h.length > 1 ? trend(dl, null) : ""}</div>
       <p class="xe-last"><small>${dd(last.date)}</small>${last.sets.join(" · ")}${last.band ? ` <em>${esc(last.band)}</em>` : ""}${last.kg ? ` <em>≈${fmt(last.kg)} кг</em>` : ""}</p>
-      <div class="xe-ln"><span class="xe-nm">рекорд <b>${pr.total}</b> <small>(${dd(pr.date)})</small> · лучший <b>${bestSet}</b> · <b>${h.length}</b> ${h.length === 1 ? "трен." : "трен."}</span>${h.length > 1 ? sparkLine(h.slice(-8).map((x) => x.total)) : ""}</div></div>`;
+      <div class="xe-chips"><span class="rc">🏆 рекорд <b>${pr.total}</b> <small>(${dd(pr.date)})</small></span><span class="rc2">лучший <b>${bestSet}</b></span><span class="rc2"><b>${h.length}</b> трен.</span></div>${h.length > 1 ? `<div class="xe-sp">${sparkLine(h.slice(-8).map((x) => x.total))}</div>` : ""}</div></div>`;
   };
   // Группы мышц: свёрнутая карточка с главными цифрами, внутри упражнения
   const groups = {};
@@ -1090,7 +1091,7 @@ function exProgressHtml() {
     const best = Math.max(...tot), bestK = tot.indexOf(best);
     const open = !!openG[g];
     const nSes = state.trainLog.filter((l) => l.sets && Object.keys(l.sets).some((id) => gi.has(id))).length;
-    return `<div class="xg${open ? " open" : ""}" data-mg="${g}"><div class="xg-h" data-act="toggleTrainGrp" data-g="${g}" role="button" aria-expanded="${open}"><div class="xg-t"><b>${esc(TR.MG[g] || "Другое")}</b><small>${groups[g].length} упр.</small></div>${nz.length > 1 ? sparkBars(tot) : ""}${nz.length > 1 ? trend(dl, dp) : ""}${chev(open)}</div>
+    return `<div class="xg${open ? " open" : ""}" data-mg="${g}"><div class="xg-h" data-act="toggleTrainGrp" data-g="${g}" role="button" aria-expanded="${open}"><span class="gi">${MG_EMO[g] || "✨"}</span><div class="xg-t"><b>${esc(TR.MG[g] || "Другое")}</b><small>${groups[g].length} упр.</small></div>${nz.length > 1 ? sparkBars(tot) : ""}${nz.length > 1 ? trend(dl, dp) : ""}${chev(open)}</div>
       <div class="xs"><div><b>${lastV}</b><span>${rep(lastV)} за неделю</span></div><div><b>${best}</b><span>лучшая неделя, с ${dd(weeks[bestK])}</span></div><div><b>${nSes}</b><span>${nSes === 1 ? "тренировка" : "тренировок"}</span></div></div>
       ${open ? `<div class="xg-in">${groups[g].map(exBlock).join("")}</div>` : ""}</div>`;
   }).join("") + `</div>`;

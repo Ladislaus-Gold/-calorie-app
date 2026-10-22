@@ -2637,3 +2637,53 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 :root[data-theme="dark"] .trc .entry.ae{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.08)}
 :root[data-theme="dark"] .trc .stat-grid .stat:nth-child(1){background:rgba(55,168,115,.18)}:root[data-theme="dark"] .trc .stat-grid .stat:nth-child(2){background:rgba(245,189,69,.16)}
 :root[data-theme="dark"] .ae-walk .ae-i{background:rgba(55,168,115,.2)}:root[data-theme="dark"] .ae-hot .ae-i{background:rgba(214,69,69,.2)}:root[data-theme="dark"] .ae-str .ae-i{background:rgba(111,123,224,.22)}:root[data-theme="dark"] .ae-cool .ae-i{background:rgba(79,143,232,.2)}
+
+/* ===== v2.20 ===== */
+/* Графики упражнений: живее */
+.xg-h{gap:10px}
+.xg .gi{flex:none;width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:21px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--gc),0 3px 8px rgba(23,60,40,.10)}
+.xg-t{flex-direction:column;align-items:flex-start;gap:1px}
+.xg-t b{font-size:17px;font-weight:800}
+.xg{border-radius:20px;box-shadow:0 6px 18px rgba(23,60,40,.08)}
+.xg .xsp rect{fill:var(--gc);opacity:.35}
+.xg .xsp rect.cur{opacity:1}
+.xg .xsp rect.zero{opacity:.18}
+.xg .xs>div{border-radius:16px;box-shadow:0 3px 10px rgba(23,60,40,.07);border:0}
+.xg .xs b{font-size:21px}
+.xg .xs>div:nth-child(2){background:#FFF4D6}
+.xg .xs>div:nth-child(2) b{color:#8A5A00}
+.xg .xs>div:nth-child(3){background:#ECE9FB}
+.xg .xs>div:nth-child(3) b{color:#4B55C9}
+.xg .xe{border-radius:18px;box-shadow:0 3px 10px rgba(23,60,40,.06)}
+.xe-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.xe-chips .rc,.xe-chips .rc2{font-size:12px;border-radius:999px;padding:4px 10px;background:#fff;border:1px solid var(--gb,#E3EBE5);color:#4B5B52}
+.xe-chips .rc{background:#FFF4D6;border-color:#F5E3A8;color:#8A5A00;font-weight:600}
+.xe-chips b{color:var(--ink,#18261D)}
+.xe-chips .rc small{color:#8A5A00;opacity:.8}
+.xe-sp{display:flex;justify-content:flex-end;margin-top:6px}
+.xsl polygon{fill:var(--gc,#37A873);opacity:.16;stroke:none}
+.xg .xsl polyline{stroke:var(--gc)}
+.xg .xsl circle{fill:#fff;stroke:var(--gc);stroke-width:2.6}
+:root[data-theme="dark"] .xg .gi{background:rgba(255,255,255,.08)}
+:root[data-theme="dark"] .xg .xs>div:nth-child(2){background:rgba(245,189,69,.16)}
+:root[data-theme="dark"] .xg .xs>div:nth-child(2) b{color:#F5D27A}
+:root[data-theme="dark"] .xg .xs>div:nth-child(3){background:rgba(123,82,230,.2)}
+:root[data-theme="dark"] .xg .xs>div:nth-child(3) b{color:#C5B5FA}
+:root[data-theme="dark"] .xe-chips .rc2{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#C9D3CD}
+:root[data-theme="dark"] .xe-chips b{color:#fff}
+:root[data-theme="dark"] .xe-chips .rc{background:rgba(245,189,69,.16);border-color:rgba(245,189,69,.3);color:#F5D27A}
+/* Иконки вкладки «Тренировки»: цветная плитка, эмодзи на белом круге */
+.ic-cal,.trc .ic-cal,.wkc .ic-cal,.ic-run,.trc .ic-run,.ic-plan,.trc .ic-plan,.ic-prog,.pg-card .ic-prog,.ic-shoe{font-size:15px;background-repeat:no-repeat!important}
+.ic-cal,.trc .ic-cal,.wkc .ic-cal{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#6FCD9A,#37A873)!important}
+.ic-run,.trc .ic-run{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#8FBBF7,#4F8FE8)!important}
+.ic-plan,.trc .ic-plan{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#BCA6F3,#7B52E6)!important}
+.ic-prog,.pg-card .ic-prog{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#6FD6C8,#2EB8A6)!important}
+.ic-shoe{background-image:radial-gradient(circle at 50% 50%,#fff 11.5px,rgba(255,255,255,0) 12.5px),linear-gradient(135deg,#F5A99C,#E0645A)!important}
+/* Кофеин: кольцо с чашкой */
+.caf-pill{width:42px;height:42px;padding:0;gap:0;justify-content:center;border-radius:50%;box-shadow:0 3px 10px rgba(229,169,43,.25)}
+.cp-rg,.cp-rg svg{width:42px;height:42px}
+.cp-rg circle{stroke-width:11}
+.cp-rg b{font-size:17px;letter-spacing:0}
+.caf-now{margin:8px 0 0;padding:8px 12px;border-radius:12px;background:#FFF4D6;color:#6A4A00;font-size:13.5px}
+.caf-now b{margin-right:6px}
+:root[data-theme="dark"] .caf-now{background:rgba(240,221,176,.16);color:#F0DDB0}
