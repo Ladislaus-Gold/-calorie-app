@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 233;
-const APP_VERSION_LABEL = "2.30"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 234;
+const APP_VERSION_LABEL = "2.31"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -710,13 +710,17 @@ function fillAnim(root, base = 0) {
   const D = 950; let i = 0;
   const at = () => base + Math.min(i++ * 45, 450);
   const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
-  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i").forEach((el) => {
+  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .track.water > i").forEach((el) => {
     const w = el.style.width;
     if (w && w !== "0%") el.animate([{ width: "0%" }, { width: w }], opt(at()));
   });
   root.querySelectorAll(".mr-svg circle[stroke-dasharray], .m-ring circle[stroke-dasharray]").forEach((el) => {
     const [a, b] = el.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
     if (a > 0) el.animate([{ strokeDasharray: `0.01 ${a + b}` }, { strokeDasharray: `${a} ${b}` }], opt(at()));
+  });
+  root.querySelectorAll(".cp-rg circle.fg").forEach((el) => {
+    const off = el.getAttribute("stroke-dashoffset"), full = el.getAttribute("stroke-dasharray");
+    if (off != null && full) el.animate([{ strokeDashoffset: full }, { strokeDashoffset: off }], opt(at()));
   });
   const mp = root.querySelector("#gzm-p");
   if (mp) {
@@ -748,6 +752,13 @@ function render() {
     const dl = entriesOn(state.date), sig = `${state.date}|${dl.length}|${Math.round(sumEntries(dl).kcal)}`;
     if (fillTab !== "diary" || sig !== fillSig) fillAnim($("#view"));
     fillSig = sig;
+  }
+  if (state.tab === "health" && (state.hTab || "today") === "today") {
+    const sig = `${state.date}|${hydrationOn(state.date)}|${fluidItems(state.date).length}`;
+    if (fillTab !== "health-today" || sig !== fillSig) fillAnim($("#view"));
+    fillSig = sig;
+    fillTab = "health-today";
+    return;
   }
   fillTab = state.tab;
 }
@@ -3889,12 +3900,12 @@ function viewHealth() {
   const cafNotes = caf.mg > 0 ? `${caf.msgs.length ? `<ul class="caf-msgs fl-caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}${state.cafInfo ? `<p class="caf-now"><b>Кофеин</b> ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг</p><p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}` : "";
   const pToday = `
     <section class="card">
-      <div class="card-top fl-top"><span class="fl-ic" data-ek="liq">💧</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
-      <div class="big-line">${fmtInt(ml)}<small>мл засчитано</small></div>
+      <div class="card-top fl-top"><span class="fl-ic g-liq" data-ek="liq">${GLYPH_DROP}</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
+      <div class="big-line"><span data-cnt="${ml}">${fmtInt(ml)}</span><small>мл засчитано</small></div>
       <div class="track water"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></div>
       <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось <b>${fmtInt(left)} мл</b>.` : "Норма на сегодня выполнена."}${` Норма сегодня ${fmtInt(tg)} мл = база ${fmtInt(waterBase())} мл${extra ? ` + нагрузка около ${fmtInt(extra)} мл` : ""}.`}</p>
       ${cafNotes}
-      <div class="fl-tiles"><div class="fl-tile w"><b>${fmtInt(wMl)}</b><span>вода, мл</span></div><div class="fl-tile d"><b>${signed(Math.round(dHyd + fHyd))}</b><span>напитки и дневник, мл</span></div></div>
+      <div class="fl-tiles"><div class="fl-tile w"><b data-cnt="${wMl}">${fmtInt(wMl)}</b><span>вода, мл</span></div><div class="fl-tile d"><b>${signed(Math.round(dHyd + fHyd))}</b><span>напитки и дневник, мл</span></div></div>
       <div class="chips">
         ${[150, 250, 330, 500].map((n) => `<button type="button" class="chip water" data-act="addWater" data-ml="${n}">+${n}</button>`).join("")}
         <button type="button" class="chip water other" data-act="waterCustom">Другое</button>
@@ -3902,8 +3913,8 @@ function viewHealth() {
       </div>
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
     </section>
-    ${favs.length ? `<section class="card fl-fav"><h2 class="h2"><span class="fl-star" aria-hidden="true">⭐</span>Избранное</h2><div class="chips fav-chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div></section>` : ""}
-    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray" data-ek="drk">🥤</span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}`;
+    ${favs.length ? `<section class="card fl-fav"><h2 class="h2"><span class="fl-star g-fav" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.5z"/></svg></span>Избранное</h2><div class="chips fav-chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div></section>` : ""}
+    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray g-drk" data-ek="drk"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12l-1.2 15.2a3 3 0 0 1-3 2.8h-3.6a3 3 0 0 1-3-2.8L6 3z"/><path d="M6.4 9h11.2"/></svg></span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}`;
   const stepPct = Math.max(0, Math.min(100, (steps / STEPS_GOAL) * 100));
   const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span><span>В покое ${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</span></div>` : "";
   const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
@@ -4000,7 +4011,7 @@ function viewHealth() {
     ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true, undefined, { ic: ["🔥", "ic-kc", "pc-red", " в день", "🎯", "dk"] })}
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v), { ic: ["😴", "ic-sl", "pc-ind", " в среднем", "🌙", "ds"] })}
     ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "", false, undefined, { ic: ["👟", "ic-st", "", " в среднем", "🚶", "dst"] }) : ""}`;
-  return `<div class="${false ? "dv hvw" : ""}">
+  return `<div class="${tab === "train" || tab === "sleep" || tab === "dyn" ? "" : "dv hvw"}">
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
     ${plan ? "" : fillProfilePrompt}
     ${tabs}
