@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 252;
-const APP_VERSION_LABEL = "2.49"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 253;
+const APP_VERSION_LABEL = "2.50"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -708,7 +708,7 @@ function openEmoEdit(key) {
 const FILL_EASE = "cubic-bezier(.22,1,.36,1)";
 function fillAnim(root, base = 0) {
   if (!root || !root.animate || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
-  const D = 950; let i = 0;
+  const D = 950; let i = 0, ri = 0; // кольца стартуют сразу, без очереди за полосками (раньше ждали до 0,45 с)
   const at = () => base + Math.min(i++ * 45, 450);
   const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
   root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.sg, .wkc-bar > i, .tr-prog .track > i, .tr-bar .track > i, .mb-r .track > i, .stat .sb > u").forEach((el) => {
@@ -718,11 +718,11 @@ function fillAnim(root, base = 0) {
   });
   root.querySelectorAll(".mr-svg circle[stroke-dasharray], .m-ring circle[stroke-dasharray]").forEach((el) => {
     const [a, b] = el.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
-    if (a > 0) el.animate([{ strokeDasharray: `0.01 ${a + b}` }, { strokeDasharray: `${a} ${b}` }], opt(at()));
+    if (a > 0) el.animate([{ strokeDasharray: `0.01 ${a + b}` }, { strokeDasharray: `${a} ${b}` }], { ...opt(base + Math.min(ri++ * 30, 150)), duration: 800 });
   });
   root.querySelectorAll(".cp-rg circle.fg, .th-ring circle.fg").forEach((el) => {
     const off = el.getAttribute("stroke-dashoffset"), full = el.getAttribute("stroke-dasharray");
-    if (off != null && full) el.animate([{ strokeDashoffset: full }, { strokeDashoffset: off }], opt(at()));
+    if (off != null && full) el.animate([{ strokeDashoffset: full }, { strokeDashoffset: off }], { ...opt(base), duration: 800 });
   });
   const mp = root.querySelector("#gzm-p");
   if (mp) {
