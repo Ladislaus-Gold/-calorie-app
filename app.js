@@ -13,7 +13,7 @@ import {
 import { STARTER } from "./starter.js?v=50";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=13";
-import { createTrainUI } from "./trainui.js?v=29";
+import { createTrainUI } from "./trainui.js?v=31";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 225;
-const APP_VERSION_LABEL = "2.22"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 227;
+const APP_VERSION_LABEL = "2.24"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -557,12 +557,77 @@ const docRef = (name, id) => doc(db, "users", state.user.uid, name, id);
 const writeFail = (err) => { console.error(err); toast("Не удалось сохранить. Проверьте соединение."); };
 
 /* ================= Отрисовка: общее ================= */
+
+// ===== Редактор эмодзи (v2.24): замена эмодзи и цвета фона плиток по вкладкам, хранится на этом устройстве =====
+const EMO_REG = [
+  ["Жидкость", "liq", "Заголовок «Жидкость»", "💧", true, "#E3F1FC"], ["Жидкость", "caf", "Кофеин (кольцо в шапке)", "☕", false, ""], ["Жидкость", "drk", "Сегодня выпито", "🥤", true, "#EEF1F4"],
+  ["Тренировки", "wk", "Неделя", "🗓️", true, "g:#6FCD9A,#37A873"], ["Тренировки", "trn", "Тренировки", "⚡", true, "g:#8FBBF7,#4F8FE8"], ["Тренировки", "act", "Активность", "👟", true, "g:#F5A99C,#E0645A"],
+  ["Тренировки", "plan", "План тренировок", "💪", true, "g:#BCA6F3,#7B52E6"], ["Тренировки", "prog", "Прогресс тренировок", "📈", true, "g:#6FD6C8,#2EB8A6"], ["Тренировки", "byw", "Выполнено по неделям", "📅", true, "#E6F4EC"], ["Тренировки", "hist", "Последние тренировки", "🕘", true, "#E6F4EC"],
+  ["Сон", "slh", "Сон (шапка)", "😴", true, "#8C96EE"], ["Сон", "slp", "Фазы сна", "🌙", true, "g:#A9B1F5,#7581E6"], ["Сон", "sln", "Что заметно", "💡", true, "#FFF4D6"], ["Сон", "slw", "Сон за неделю", "📊", true, "#E6F4EC"],
+  ["Динамика", "dw", "Вес", "⚖️", true, "g:#FBD98A,#E9A92B"], ["Динамика", "dm", "Замеры", "📏", true, "g:#6FD6C8,#2EB8A6"], ["Динамика", "dp", "Тренировки по плану", "🏋️", true, "g:#BCA6F3,#7B52E6"],
+  ["Динамика", "dk", "Калории", "🔥", true, "g:#8FBBF7,#4F8FE8"], ["Динамика", "ds", "Сон за неделю", "😴", true, "g:#A9B1F5,#7581E6"], ["Динамика", "dst", "Шаги", "👟", true, "g:#F5A99C,#E0645A"],
+];
+const EMO_TABS = ["Жидкость", "Тренировки", "Сон", "Динамика"];
+const EMO_COLORS = [["#6FCD9A", "#37A873"], ["#8FBBF7", "#4F8FE8"], ["#BCA6F3", "#7B52E6"], ["#6FD6C8", "#2EB8A6"], ["#F5A99C", "#E0645A"], ["#FBD98A", "#E9A92B"], ["#A9B1F5", "#7581E6"], ["#F5A9D0", "#D6478F"], ["#F7C08A", "#E08A12"], ["#C5E27A", "#6FA11A"], ["#B8C2BC", "#6F7B74"], ["#FFFFFF", "#DDE7E0"]];
+const EMO_SET = ["💧", "☕", "🍵", "🥛", "🧃", "🥤", "🍹", "🍺", "🍷", "🫖", "🧋", "🍶", "🏃", "🚶", "⚡", "🔥", "💪", "🏋️", "🧘", "🤸", "🚴", "🏊", "🧗", "⛹️", "👟", "🥇", "🏅", "🏆", "🎯", "⏱️", "📈", "📊", "📅", "🗓️", "🕘", "⚖️", "📏", "💡", "❤️", "💚", "🌙", "😴", "🛌", "🌞", "🍎", "🥗", "🍽️", "⭐", "✨", "🎒"];
+const emoOv = () => { try { return JSON.parse(lsGet("emoOv") || "{}") || {}; } catch { return {}; } };
+function applyEmo(root) {
+  const ov = emoOv();
+  (root || document).querySelectorAll("[data-ek]").forEach((el) => {
+    const o = ov[el.dataset.ek];
+    if (!o) return;
+    if (o.e) el.textContent = o.e;
+    if (o.c) { el.style.setProperty("background", `linear-gradient(135deg,${o.c[0]},${o.c[1]})`, "important"); el.style.setProperty("box-shadow", `0 4px 10px ${o.c[1]}66`, "important"); }
+  });
+}
+const emoBg = (r, o) => (o && o.c ? `linear-gradient(135deg,${o.c[0]},${o.c[1]})` : String(r[5]).startsWith("g:") ? `linear-gradient(135deg,${r[5].slice(2)})` : r[5] || "#EEF1F4");
+function emoCardHtml() {
+  const tab = EMO_TABS.includes(state.emoTab) ? state.emoTab : EMO_TABS[0], ov = emoOv();
+  const rows = EMO_REG.filter((r) => r[0] === tab).map((r) => { const o = ov[r[1]]; return `<div class="emo-row"><span class="emo-t" style="background:${emoBg(r, o)}">${esc((o && o.e) || r[3])}</span><div><b>${esc(r[2])}</b><small>${o ? "изменено" : "по умолчанию"}</small></div><button type="button" class="btn ghost sm" data-act="emoEdit" data-k="${r[1]}">Изменить</button></div>`; }).join("");
+  return `<section class="card emo-card"><div class="card-top fl-top"><span class="fl-ic ic-plan">🎨</span><h2 class="h2">Редактор эмодзи</h2></div>
+    <p class="foot-note" style="margin:0 0 12px">Выберите вкладку и замените эмодзи или цвет фона плитки. Изменения действуют на этом устройстве.</p>
+    <div class="chips" style="margin:0 0 6px">${EMO_TABS.map((t) => `<button type="button" class="chip${t === tab ? " sel" : ""}" data-act="emoTab" data-t="${t}">${t}</button>`).join("")}</div>
+    <div class="emo-list">${rows}</div>
+    <button type="button" class="btn ghost full" data-act="emoReset" style="margin-top:10px">Вернуть по умолчанию (вкладка «${esc(tab)}»)</button></section>`;
+}
+function openEmoEdit(key) {
+  const r = EMO_REG.find((x) => x[1] === key);
+  if (!r) return;
+  const cur = emoOv()[key] || {};
+  const f = { e: cur.e || r[3], c: cur.c || null };
+  const ov = openSheet(`<div class="sheet-head"><h2>${esc(r[2])}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="em-body"></div>`);
+  const body = $("#em-body", ov);
+  const draw = () => {
+    body.innerHTML = `<div class="emo-pv"><span class="emo-big" style="background:${emoBg(r, f.c ? { c: f.c } : null)}">${esc(f.e)}</span><div><b>Так будет выглядеть</b><small>Везде, где стоит эта плитка</small></div></div>
+      <div class="emo-lb">Эмодзи</div><div class="emo-grid">${EMO_SET.map((x) => `<button type="button" class="${x === f.e ? "on" : ""}" data-em="${x}">${x}</button>`).join("")}</div>
+      ${r[4] ? `<div class="emo-lb">Цвет фона</div><div class="emo-sw">${EMO_COLORS.map((c, i) => `<button type="button" aria-label="Цвет ${i + 1}" class="${f.c && f.c[1] === c[1] ? "on" : ""}" data-ci="${i}" style="background:linear-gradient(135deg,${c[0]},${c[1]})"></button>`).join("")}</div>` : ""}
+      <div class="row" style="margin-top:14px"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="em-save">Сохранить</button></div>`;
+  };
+  draw();
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-em]"), c = e.target.closest("[data-ci]");
+    if (b) { f.e = b.dataset.em; draw(); return; }
+    if (c) { f.c = EMO_COLORS[Number(c.dataset.ci)]; draw(); return; }
+    if (e.target.closest("#em-save")) {
+      const all = emoOv();
+      const o = {};
+      if (f.e !== r[3]) o.e = f.e;
+      if (f.c) o.c = f.c;
+      if (Object.keys(o).length) all[key] = o; else delete all[key];
+      lsSet("emoOv", JSON.stringify(all));
+      ov.close();
+      render();
+    }
+  });
+}
+
 function render() {
   if (!state.user) return;
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
   const views = { diary: viewDiary, products: viewProducts, health: viewHealth, reports: viewReports, me: viewMe };
   const banner = state.error ? `<div class="banner" role="alert">${esc(state.error)}</div>` : "";
   $("#view").innerHTML = banner + views[state.tab]();
+  applyEmo($("#view"));
 }
 
 /* ================= Дневник ================= */
@@ -1878,6 +1943,7 @@ function viewMe() {
       <p class="foot-note" style="margin:0 0 10px">Резервная копия всего, что вы записали: дневник, вода, вес, замеры, тренировки, настройки. Файл можно сохранить в «Файлы» или отправить себе.</p>
       <div class="tr-actions" style="margin-top:0"><button type="button" class="btn ghost full" data-act="exportJson">Скачать всё (JSON)</button><button type="button" class="btn ghost full" data-act="exportCsv">Скачать дневник питания (CSV)</button></div>
     </section>
+    ${emoCardHtml()}
     <section class="card"><button type="button" class="btn danger full" data-act="logout">Выйти из аккаунта</button></section>`;
 }
 
@@ -3573,11 +3639,11 @@ function viewHealth() {
   const tab = state.hTab || "today";
   const tabs = `<div class="seg full htabs" data-seg="htab">${[["today", "Жидкость"], ["train", "Тренировки"], ["sleep", "Сон"], ["dyn", "Динамика"]].map(([v, t]) => `<button type="button" data-act="healthTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
   const cafStop = caf.level === "over" ? "over" : caf.level === "warn" ? "warn" : "ok";
-  const cafPill = `<button type="button" class="caf-pill ${cafStop}" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}" aria-label="Кофеин ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг"><span class="cp-rg"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - Math.min(1, Math.max(0, caf.ratio)))).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b>☕</b></span></button>`;
+  const cafPill = `<button type="button" class="caf-pill ${cafStop}" data-act="toggleCafInfo" aria-expanded="${!!state.cafInfo}" aria-label="Кофеин ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг"><span class="cp-rg"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - Math.min(1, Math.max(0, caf.ratio)))).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b data-ek="caf">☕</b></span></button>`;
   const cafNotes = caf.mg > 0 ? `${caf.msgs.length ? `<ul class="caf-msgs fl-caf-msgs">${caf.msgs.map((m) => `<li class="${m.lv === "over" ? "over" : ""}">${esc(m.t)}</li>`).join("")}</ul>` : ""}${state.cafInfo ? `<p class="caf-now"><b>Кофеин</b> ${fmtInt(caf.mg)} из ${fmtInt(caf.limit)} мг</p><p class="caf-info">Норма для вашего веса (${fmt(userWeight())} кг): до ${caf.limit} мг в сутки и до ${cafDose()} мг за один раз. Это ориентир EFSA для здоровых взрослых. При беременности и кормлении, а также при болезнях сердца или давлении норма ниже, уточните у врача.</p>` : ""}` : "";
   const pToday = `
     <section class="card">
-      <div class="card-top fl-top"><span class="fl-ic">💧</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
+      <div class="card-top fl-top"><span class="fl-ic" data-ek="liq">💧</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
       <div class="big-line">${fmtInt(ml)}<small>мл засчитано</small></div>
       <div class="track water"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></div>
       <p class="foot-note" style="margin:10px 0 12px">${left > 0 ? `Осталось <b>${fmtInt(left)} мл</b>.` : "Норма на сегодня выполнена."}${` Норма сегодня ${fmtInt(tg)} мл = база ${fmtInt(waterBase())} мл${extra ? ` + нагрузка около ${fmtInt(extra)} мл` : ""}.`}</p>
@@ -3591,7 +3657,7 @@ function viewHealth() {
       <button type="button" class="btn primary full" data-act="addDrink">+ Напиток</button>
     </section>
     ${favs.length ? `<section class="card fl-fav"><h2 class="h2"><span class="fl-star" aria-hidden="true">⭐</span>Избранное</h2><div class="chips fav-chips" style="margin:0">${favs.map((d) => `<button type="button" class="chip" data-act="quickDrink" data-did="${d.id}">${d.e ? esc(d.e) + " " : ""}${esc(d.n)}</button>`).join("")}</div></section>` : ""}
-    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray">🥤</span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}`;
+    ${fluidRows || legacyRow ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic gray" data-ek="drk">🥤</span><h2 class="h2">Сегодня выпито</h2></div><div class="entries flat" style="margin-top:0">${fluidRows}${fluidOpen || fluidSorted.length <= FLUID_SHOW ? legacyRow : ""}</div>${fluidMore}</section>` : ""}`;
   const stepPct = Math.max(0, Math.min(100, (steps / STEPS_GOAL) * 100));
   const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span><span>В покое ${hd.restingHr ? fmtInt(hd.restingHr) : "—"}</span></div>` : "";
   const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
@@ -3610,17 +3676,17 @@ function viewHealth() {
       ${hrLine}
       ${wkStepsAvg ? `<p class="th-note">В среднем за неделю ${fmtInt(wkStepsAvg)} шагов в день</p>` : ""}
     </section>` : `<section class="card">
-      <div class="card-top fl-top"><span class="fl-ic ic-shoe">👟</span><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-shoe" data-ek="act">👟</span><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
       <p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>
     </section>`}
     <section class="card wkc">
-      <div class="wkc-r1"><span class="fl-ic ic-cal">🗓️</span><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
+      <div class="wkc-r1"><span class="fl-ic ic-cal" data-ek="wk">🗓️</span><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
       <div class="wkc-bar"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
       <div class="wkc-r2">${wkDots}<span>Силовых: ${wkStr} из ${wt.strength}${wkLeft > 0 ? ` · осталось ${fmtInt(wkLeft)} мин` : ""}</span></div>
       ${wt.text ? `<p class="wkc-note">${esc(wt.text)}</p>` : ""}
     </section>
     <section class="card trc">
-      <div class="card-top fl-top"><span class="fl-ic ic-run">⚡</span><h2 class="h2">Тренировки</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-run" data-ek="trn">⚡</span><h2 class="h2">Тренировки</h2></div>
       <div class="stat-grid">
         <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
         <div class="stat"><b>${fmtInt(trainKcal)}</b><span>ккал на тренировках</span></div>
@@ -3660,14 +3726,14 @@ function viewHealth() {
     if (!tips.length) tips.push(["good", "Ночь выглядит хорошо: длительность в норме, замечаний нет."]);
     pSleep = `
     <section class="card sl-hero">
-      <div class="card-top fl-top"><span class="fl-ic">😴</span><h2 class="h2">Сон</h2><span class="pill">${lvTxt}</span></div>
+      <div class="card-top fl-top"><span class="fl-ic" data-ek="slh">😴</span><h2 class="h2">Сон</h2><span class="pill">${lvTxt}</span></div>
       <div class="big-line">${fmtDur(tot)}<small>за ночь</small></div>
       <div class="track sl-track ${lv}"><i style="width:${Math.min(100, (tot / 8) * 100)}%"></i></div>
       <p class="foot-note" style="margin:10px 0 12px">Ориентир ${SLEEP_MIN}–${SLEEP_MAX} часов.${sl.sleepStart && sl.sleepEnd ? ` Уснули в ${esc(sl.sleepStart)}, проснулись в ${esc(sl.sleepEnd)}.` : ""}</p>
       ${stageTot > 0 ? `<div class="sl-strip"><div><b>${fmtDur(deep)}</b><span>глубокий</span></div><div><b>${fmtDur(rem)}</b><span>быстрый</span></div><div><b>${fmtDur(core)}</b><span>лёгкий</span></div></div>` : ""}
     </section>
     <section class="card sl-ph">
-      <div class="card-top fl-top"><span class="fl-ic ic-sl">🌙</span><h2 class="h2">Фазы сна</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic ic-sl" data-ek="slp">🌙</span><h2 class="h2">Фазы сна</h2></div>
       ${stageTot > 0 ? `<div class="sl-stages">${seg(deep, "deep")}${seg(rem, "rem")}${seg(core, "core")}${seg(awake, "awake")}</div>
       <div class="sl-legend">${lg("Глубокий", deep, "deep")}${lg("Быстрый сон", rem, "rem")}${lg("Лёгкий", core, "core")}${lg("Бодрствование", awake, "awake")}</div>` : `<p class="foot-note" style="margin:0">Данных о фазах сна нет.</p>`}
       <div class="stat-grid" style="margin-top:12px">
@@ -3676,7 +3742,7 @@ function viewHealth() {
       </div>
     </section>
     <section class="card">
-      <div class="card-top fl-top"><span class="fl-ic amb">💡</span><h2 class="h2">Что заметно</h2></div>
+      <div class="card-top fl-top"><span class="fl-ic amb" data-ek="sln">💡</span><h2 class="h2">Что заметно</h2></div>
       <ul class="caf-msgs">${tips.map(([k, t]) => `<li class="${k === "bad" ? "over" : k === "good" ? "ok" : ""}">${esc(t)}</li>`).join("")}</ul>
     </section>
     ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v))}`;
@@ -3685,9 +3751,9 @@ function viewHealth() {
     ${weightCard(day)}
     ${measuresCard(day)}
     ${trainDynCardHtml(day)}
-    ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true, undefined, { ic: ["🔥", "ic-kc", "pc-red", " в день"] })}
-    ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v), { ic: ["😴", "ic-sl", "pc-ind", " в среднем"] })}
-    ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "", false, undefined, { ic: ["👟", "ic-st", "", " в среднем"] }) : ""}`;
+    ${barsCard("Калории за 7 дней", last7(day), (d) => sumEntries(entriesOn(d)).kcal, () => state.goal, "ккал", "", true, undefined, { ic: ["🔥", "ic-kc", "pc-red", " в день", "🎯", "dk"] })}
+    ${barsCard("Сон за неделю", wk, (d) => Math.round(sleepHours(d) * 10) / 10, () => SLEEP_MIN, "ч", "sleep", false, (v) => fmt(v), { ic: ["😴", "ic-sl", "pc-ind", " в среднем", "🌙", "ds"] })}
+    ${wkStepsDays.length ? barsCard("Шаги за неделю", wk, stepsOn, () => STEPS_GOAL, "шагов", "", false, undefined, { ic: ["👟", "ic-st", "", " в среднем", "🚶", "dst"] }) : ""}`;
   return `
     ${pageHead("Здоровье", dayLabel(day), dayNavButtons(day))}
     ${plan ? "" : fillProfilePrompt}
@@ -3797,7 +3863,7 @@ function measuresCard(day) {
     else { const d = Math.round((pts[pts.length - 1].v - pts[0].v) * 10) / 10; note = `<b>${d > 0 ? "+" : d < 0 ? "−" : ""}${fmt(Math.abs(d))} см</b> ${range ? `за ${range} дн.` : "за всё время"}.`; }
   }
   return `<section class="card">
-    <div class="card-top fl-top"><span class="fl-ic ic-ms">📏</span><h2 class="h2">Замеры</h2><span class="pill">${lastAny ? `${esc(keyName)}: ${fmt(msOf(lastAny, key))} см` : "нет записей"}</span></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-ms" data-ek="dm">📏</span><h2 class="h2">Замеры</h2><span class="pill">${lastAny ? `${esc(keyName)}: ${fmt(msOf(lastAny, key))} см` : "нет записей"}</span></div>
     ${chips}
     ${svg}
     <p class="chart-note" style="margin:8px 0 12px">${note}</p>
@@ -3817,28 +3883,30 @@ function weightBlock(from, day, label) {
     p.avg = win.reduce((a, b) => a + b, 0) / win.length;
   });
   const lw = lastWeightUpTo(day);
-  let svg = "", note = "Запишите вес на вкладке «Здоровье» → «Динамика», и здесь появится график.";
+  let svg = "", first = null, delta = null, note = "Запишите вес на вкладке «Здоровье» → «Динамика», и здесь появится график.";
   if (pts.length) {
+    first = pts[0].v;
     const vs = pts.flatMap((p) => [p.v, p.avg]), lo = Math.min(...vs), hi = Math.max(...vs), pad = Math.max(0.3, (hi - lo) * 0.15);
     const mn = lo - pad, mx = hi + pad, L = 30, R = 292;
     const X = (d) => L + (dayN(d) / span) * (R - L), Y = (v) => 8 + (1 - (v - mn) / (mx - mn)) * 66;
+    const area = pts.length > 1 ? `<polygon points="${X(pts[0].d).toFixed(1)},74 ${pts.map((p) => `${X(p.d).toFixed(1)},${Y(p.avg).toFixed(1)}`).join(" ")} ${X(pts[pts.length - 1].d).toFixed(1)},74" fill="var(--accent)" opacity=".14"/>` : "";
     const line = pts.length > 1 ? `<polyline points="${pts.map((p) => `${X(p.d).toFixed(1)},${Y(p.avg).toFixed(1)}`).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "";
     const dots = pts.map((p) => `<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="${pts.length > 45 ? 1.8 : 3}" fill="var(--muted-2)" opacity=".75"/>`).join("");
     const lastp = pts[pts.length - 1];
     const end = pts.length === 1 ? `<circle cx="${X(lastp.d).toFixed(1)}" cy="${Y(lastp.v).toFixed(1)}" r="4.5" fill="var(--card)" stroke="var(--accent)" stroke-width="2.5"/>` : "";
     const ax = `<text x="0" y="${(Y(hi) + 3).toFixed(1)}" font-size="10" fill="var(--muted)">${fmt(Math.round(hi * 10) / 10)}</text><text x="0" y="${(Y(lo) + 3).toFixed(1)}" font-size="10" fill="var(--muted)">${fmt(Math.round(lo * 10) / 10)}</text>`;
-    svg = `<svg class="wt-svg" viewBox="0 0 300 84" role="img" aria-label="График веса">${ax}${dots}${line}${end}</svg>
+    svg = `<svg class="wt-svg" viewBox="0 0 300 84" role="img" aria-label="График веса">${ax}${area}${dots}${line}${end}</svg>
       <div class="wt-axis"><span>${esc(shortDate(from))}</span><span>${esc(shortDate(day))}</span></div>`;
     if (pts.length < 2) note = "Одна запись. Взвешивайтесь раз в 2–3 дня, и здесь появится динамика.";
     else {
-      const delta = pts[pts.length - 1].avg - pts[0].avg;
+      delta = pts[pts.length - 1].avg - pts[0].avg;
       const days = Math.max(1, Math.round((parseD(pts[pts.length - 1].d) - parseD(pts[0].d)) / 86400000));
       const sign = (x) => (x > 0 ? "+" : x < 0 ? "−" : "");
       note = `<b>${sign(delta)}${fmt(Math.abs(Math.round(delta * 10) / 10))} кг</b> ${label}` + (days >= 7 ? `, около ${sign(delta)}${fmt(Math.abs(Math.round((delta / days) * 70) / 10))} кг в неделю.` : "." + " Для скорости нужно хотя бы 7 дней между записями.");
       note += ` <span class="wt-legend"><i class="d"></i>записи <i class="l"></i>среднее за 7 дней</span>`;
     }
   }
-  return { svg, note, last: lw, count: pts.length };
+  return { svg, note, last: lw, count: pts.length, first, delta };
 }
 
 function weightCard(day) {
@@ -3848,8 +3916,9 @@ function weightCard(day) {
   const b = weightBlock(from, day, range ? `за ${range} дн.` : "за всё время");
   const segs = `<div class="seg full wt-seg">${WT_RANGES.map(([v, t]) => `<button type="button" data-act="wtRange" data-v="${v}" class="${range === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
   return `<section class="card">
-    <div class="card-top fl-top"><span class="fl-ic ic-wt">⚖️</span><h2 class="h2">Вес</h2><span class="pill">${b.last ? `${fmt(b.last.kg)} кг` : "нет записей"}</span></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-wt" data-ek="dw">⚖️</span><h2 class="h2">Вес</h2><span class="pill">${b.last ? `${fmt(b.last.kg)} кг` : "нет записей"}</span></div>
     ${segs}
+    ${b.last ? `<div class="dn-tiles"><div class="dn-t t-g"><b>${fmt(b.last.kg)}</b><span>сейчас, кг</span></div>${b.delta !== null ? `<div class="dn-t t-y"><b>${b.delta > 0 ? "+" : b.delta < 0 ? "−" : ""}${fmt(Math.abs(Math.round(b.delta * 10) / 10))}</b><span>${range ? `за ${range} дн.` : "за всё время"}, кг</span></div>` : ""}${b.first !== null && b.count > 1 ? `<div class="dn-t t-p"><b>${fmt(b.first)}</b><span>в начале периода, кг</span></div>` : ""}</div>` : ""}
     ${b.svg}
     <p class="chart-note" style="margin:8px 0 12px">${b.note}</p>
     <button type="button" class="btn ghost full" data-act="addWeight">+ Записать вес</button>
@@ -3898,14 +3967,16 @@ function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
     }
     if (o.extra && v > 0) { const x = o.extra(days[i], v); if (x) lines.push(x); }
     const tip = tipAttr((o.titleFn || dayLabel)(days[i]), v > 0 ? `${o.grouped ? "≈ " : ""}${F(v)} ${unit}` : "нет данных", lines, over);
-    return `<div class="col"${tip}><div class="b ${v > 0 ? (over ? "over" : cls) : "zero"}" style="height:${v > 0 ? Math.max(2, (v / max) * 100) : 2}%"></div></div>`;
+    return `<div class="col"${tip}>${v > 0 && days.length <= 7 ? `<i class="bv">${F(v)}</i>` : ""}<div class="b ${v > 0 ? (over ? "over" : cls) : "zero"}" style="height:${v > 0 ? Math.max(2, (v / max) * 100) : 2}%"></div></div>`;
   }).join("");
   const withData = vals.filter((v) => v > 0);
   const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
-  return `<section class="card">${o.ic ? `<div class="card-top fl-top"><span class="fl-ic ${o.ic[1]}">${o.ic[0]}</span><h2 class="h2">${title}</h2>${withData.length ? `<span class="pill ${o.ic[2] || ""}">${F(avg)} ${unit}${o.ic[3] || ""}</span>` : ""}</div>` : cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic">📊</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
+  const nOver = vals.filter((v, i) => v > 0 && goalFn && v > goalFn(days[i])).length, nOk = withData.length - nOver;
+  const bestI = vals.indexOf(Math.max(...vals)), best = vals[bestI] > 0 ? { d: days[bestI], v: vals[bestI] } : null;
+  return `<section class="card">${o.ic ? `<div class="card-top fl-top"><span class="fl-ic ${o.ic[1]}" data-ek="${o.ic[5]}">${o.ic[0]}</span><h2 class="h2">${title}</h2>${withData.length ? `<span class="pill ${o.ic[2] || ""}">${F(avg)} ${unit}${o.ic[3] || ""}</span>` : ""}</div>` : cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic" data-ek="slw">📊</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
     <div ${chartAttrs(days.length)}>${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
     ${chartLabelsBox(days)}
-    <p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${F(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${F(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p></section>`;
+    ${o.ic && goal > 0 && withData.length ? `<div class="dn-pl"><span>${o.ic[4] || "🎯"}</span><div>Норма <b>${F(goal)} ${unit}</b>. ${overLimit ? `Выше нормы <b>${nOver} ${nOver === 1 ? "день" : nOver >= 2 && nOver <= 4 ? "дня" : "дней"}</b> из ${withData.length} (красные).` : `В норме <b>${nOk} из ${withData.length}</b> записанных дней.${best ? ` Лучший день: <b>${esc(dayLabel(best.d))}, ${F(best.v)}</b>.` : ""}`}</div></div>` : `<p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${F(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${F(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p>`}</section>`;
 }
 
 function planCardHtml() {
@@ -4640,6 +4711,14 @@ const actions = {
   msKey(ds) { state.msKey = ds.k; lsSet("msKey", ds.k); render(); },
   wtRange(ds) { state.wtRange = Number(ds.v); lsSet("wtRange", ds.v); render(); },
   toggleCafInfo() { state.cafInfo = !state.cafInfo; render(); },
+  emoTab(d) { state.emoTab = d.t; render(); },
+  emoEdit(d) { openEmoEdit(d.k); },
+  emoReset() {
+    const tab = EMO_TABS.includes(state.emoTab) ? state.emoTab : EMO_TABS[0], all = emoOv();
+    EMO_REG.filter((r) => r[0] === tab).forEach((r) => { delete all[r[1]]; });
+    lsSet("emoOv", JSON.stringify(all));
+    render();
+  },
   toggleMeal(ds) { state.mealOpen[ds.key] = !state.mealOpen[ds.key]; render(); },
   toggleFluid() { state.fluidOpenDay = state.fluidOpenDay === state.date ? null : state.date; render(); },
   quickDrink(ds) { openDrinkSheet(null, ds.did); },

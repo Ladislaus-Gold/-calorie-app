@@ -605,16 +605,17 @@ function openTrainWorkout(date) {
 // Добавление своего упражнения в день: выбираете упражнение, группу и объём, дальше оно идёт как обычное
 function openTrainAdd(date) {
   const f = { cat: "all", id: "", group: "", sets: 3, reps: 12, secs: 40, minutes: 10 };
-  const cats = [["all", "Все"], ["main", "Силовые"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
+  const cats = [["all", "Все"], ["main", "💪 Силовые"], ["cardio", "🏃 Кардио"], ["cool", "🧘 Растяжка"]];
+  const GRP_BADGE = { warm: ["Разминка", "wm"], main: ["Силовое", "mn"], cardio: ["Кардио", "cd"], cool: ["Растяжка", "cl"] };
   const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
   const ov = openSheet(`<div class="sheet-head"><h2>Добавить упражнение</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="ta-body"></div>`);
   const body = $("#ta-body", ov);
   const draw = () => {
     if (!f.id) {
       const list = Object.values(TR.EXERCISES).filter((e) => f.cat === "all" || TR.GROUP_OF(e) === f.cat);
-      body.innerHTML = `<p class="foot-note" style="margin:-4px 2px 10px">${esc(trainDayName(date))}. Выберите упражнение, а категорию и объём зададите дальше.</p>
-        <div class="chips" style="margin:0 0 10px">${cats.map(([v, t]) => `<button type="button" class="chip${f.cat === v ? " sel" : ""}" data-ta-cat="${v}">${t}</button>`).join("")}</div>
-        <div class="ta-list">${list.map((e) => `<button type="button" class="ta-row" data-ta-id="${esc(e.id)}"><b>${esc(e.name)}</b><small>${esc(e.muscles)}</small></button>`).join("")}</div>`;
+      body.innerHTML = `<p class="foot-note" style="margin:-4px 2px 10px">${esc(trainDayName(date)).replace(/\.$/, "")}. Выберите упражнение, а категорию и объём зададите дальше.</p>
+        <div class="chips ta-cats" style="margin:0 0 12px">${cats.map(([v, t]) => `<button type="button" class="chip${f.cat === v ? " sel" : ""}" data-ta-cat="${v}">${t}</button>`).join("")}</div>
+        <div class="ta-list">${list.map((e) => `<button type="button" class="ta-row ${(GRP_BADGE[TR.GROUP_OF(e)] || GRP_BADGE.main)[1]}" data-ta-id="${esc(e.id)}"><span class="ta-tx"><b>${esc(e.name)}</b><small>${esc(e.muscles)}</small></span><em class="ta-bd">${(GRP_BADGE[TR.GROUP_OF(e)] || GRP_BADGE.main)[0]}</em><i class="ta-pl">+</i></button>`).join("")}</div>`;
       return;
     }
     const ex = TR.EXERCISES[f.id], cardio = ex.kind === "cardio", stretch = ex.kind === "stretch", timed = !cardio && !stretch && !ex.reps;
@@ -777,18 +778,20 @@ function openTrainForm() {
     const eq = new Set(f.equip[f.place]);
     const list = TR.EQUIP_BY_PLACE[f.place].map((id) => TR.EQUIP.find((e) => e.id === id));
     const placeHint = { home: "Отметьте, что есть у вас дома.", outdoor: "Отметьте, что вы берёте с собой или что есть на площадке.", gym: "Свободные веса и блоки есть почти в любом зале, отметьте нужное." }[f.place];
+    const sec = (e, cls, tt, s, inner) => `<div class="tf-sec"><div class="tf-st"><span class="fl-ic ${cls}">${e}</span><div><b>${tt}</b>${s ? `<small>${s}</small>` : ""}</div></div>${inner}</div>`;
+    const LIM_EMO = { knees: "🦵", back: "🧍", shoulders: "💪", wrists: "🤚" };
     body.innerHTML = `
       <p class="foot-note" style="margin:-4px 2px 12px">После сохранения план на неделю соберётся заново. Анкету можно менять в любой момент.</p>
-      <div class="field"><span>Где занимаетесь</span><div class="seg full" data-tf="place">${TR.PLACES.map((p) => `<button type="button" data-v="${p.v}" class="${p.v === f.place ? "on" : ""}">${p.t}</button>`).join("")}</div></div>
-      <div class="field"><span>Дни тренировок</span><div class="chips" data-tf="days" style="margin:0">${TR.DAY_SHORT.map((d, i) => `<button type="button" data-v="${i}" class="chip${f.days.has(i) ? " sel" : " muted"}">${d}</button>`).join("")}</div>
-        <small class="foot-note" id="tf-days-hint" style="margin:2px 4px 0">${f.days.size === 3 ? "Три дня в неделю: хороший ритм, между тренировками остаётся день отдыха." : f.days.size < 3 ? "Можно и меньше, но три раза в неделю даёт заметно больше." : "Следите за самочувствием: между силовыми тренировками нужен отдых."}</small></div>
-      <div class="field"><span>Времени на тренировку, мин</span><div class="chips" data-tf="minutes" style="margin:0">${TR.TIMES.map((t) => `<button type="button" data-v="${t}" class="chip${t === f.minutes ? " sel" : " muted"}">${t}</button>`).join("")}</div>
-        <small class="foot-note" style="margin:2px 4px 0">В любой день время можно поменять прямо в плане, упражнения подстроятся.</small></div>
-      <div class="field"><span>Уровень</span><div class="seg full" data-tf="level">${TR.TRAIN_LEVELS.map((l) => `<button type="button" data-v="${l.v}" class="${l.v === f.level ? "on" : ""}">${l.t}</button>`).join("")}</div></div>
-      <div class="field"><span>Инвентарь · ${placeHint}</span>${list.map((e) => `<label class="check"><input type="checkbox" data-eq="${e.id}" ${eq.has(e.id) ? "checked" : ""}>${esc(e.t)}</label>`).join("")}
-        ${eq.has("dumbbell") ? `<label class="field" style="margin-top:6px"><span>Вес гантелей, кг (необязательно)</span><input id="tf-kg" class="input" inputmode="decimal" value="${esc(f.kg)}" autocomplete="off"></label>` : ""}</div>
-      <div class="field"><span>Есть ограничения? Такие упражнения заменим</span><div class="chips" data-tf="limits" style="margin:0">${TR.LIMITS.map((l) => `<button type="button" data-v="${l.id}" class="chip${f.limits.has(l.id) ? " sel" : " muted"}">${l.t}</button>`).join("")}</div></div>
-      <div class="warn" style="margin:0 0 14px">Это общий ориентир для здоровых взрослых, а не лечебная программа. При болезнях сердца, травмах, беременности и других состояниях согласуйте нагрузку с врачом.</div>
+      ${sec("📍", "ic-run", "Где занимаетесь", "", `<div class="seg full" data-tf="place">${TR.PLACES.map((p) => `<button type="button" data-v="${p.v}" class="${p.v === f.place ? "on" : ""}">${p.t}</button>`).join("")}</div>`)}
+      ${sec("🗓️", "ic-cal", "Дни тренировок", `Выбрано: ${f.days.size}`, `<div class="chips tf-days" data-tf="days" style="margin:0">${TR.DAY_SHORT.map((d, i) => `<button type="button" data-v="${i}" class="chip${f.days.has(i) ? " sel" : " muted"}">${d}</button>`).join("")}</div>
+        <div class="tf-hint">💡 <span id="tf-days-hint">${f.days.size === 3 ? "Три дня в неделю: хороший ритм, между тренировками остаётся день отдыха." : f.days.size < 3 ? "Можно и меньше, но три раза в неделю даёт заметно больше." : "Следите за самочувствием: между силовыми тренировками нужен отдых."}</span></div>`)}
+      ${sec("⏱️", "ic-wt", "Времени на тренировку, мин", "", `<div class="chips" data-tf="minutes" style="margin:0">${TR.TIMES.map((t) => `<button type="button" data-v="${t}" class="chip${t === f.minutes ? " sel" : " muted"}">${t}</button>`).join("")}</div>
+        <div class="tf-hint amb">💡 <span>В любой день время можно поменять прямо в плане, упражнения подстроятся.</span></div>`)}
+      ${sec("📈", "ic-prog", "Уровень", "", `<div class="seg full" data-tf="level">${TR.TRAIN_LEVELS.map((l) => `<button type="button" data-v="${l.v}" class="${l.v === f.level ? "on" : ""}">${l.t}</button>`).join("")}</div>`)}
+      ${sec("🎒", "ic-plan", "Инвентарь", placeHint, `<div class="tf-inv">${list.map((e) => `<label class="tf-iv${eq.has(e.id) ? " on" : ""}"><input type="checkbox" data-eq="${e.id}" ${eq.has(e.id) ? "checked" : ""}><i>${EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div>
+        ${eq.has("dumbbell") ? `<label class="field" style="margin:10px 0 0"><span>Вес гантелей, кг (необязательно)</span><input id="tf-kg" class="input" inputmode="decimal" value="${esc(f.kg)}" autocomplete="off"></label>` : ""}`)}
+      ${sec("🩹", "ic-shoe", "Есть ограничения?", "Такие упражнения заменим", `<div class="chips" data-tf="limits" style="margin:0">${TR.LIMITS.map((l) => `<button type="button" data-v="${l.id}" class="chip${f.limits.has(l.id) ? " sel" : " muted"}">${LIM_EMO[l.id] || ""} ${l.t}</button>`).join("")}</div>`)}
+      <div class="tf-warn"><i>⚠️</i><span>Это общий ориентир для здоровых взрослых, а не лечебная программа. При болезнях сердца, травмах, беременности и других состояниях согласуйте нагрузку с врачом.</span></div>
       <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="tf-save">Сохранить и собрать план</button></div>`;
   };
   draw();
@@ -1021,7 +1024,7 @@ function trainDynCardHtml(day) {
   if (!st.planned && !logs.length) return "";
   const weeks = Array.from({ length: 8 }, (_, i) => addDays(mon0, i * 7));
   const wk = weeks.map((w) => ({ w, x: st.weeks[w] || { plan: 0, done: 0 } }));
-  const bars = wk.map(({ w, x }) => { const p = x.plan ? Math.round((x.done / x.plan) * 100) : 0; return `<div class="col"><div class="${x.plan ? "b" : "b zero"}" style="height:${x.plan ? Math.max(3, p) : 2}%" title="${esc(dateShort(w))}: ${p}%"></div></div>`; }).join("");
+  const bars = wk.map(({ w, x }) => { const p = x.plan ? Math.round((x.done / x.plan) * 100) : 0; return `<div class="col">${x.plan && p > 0 ? `<i class="bv">${p}</i>` : ""}<div class="${x.plan ? "b" : "b zero"}" style="height:${x.plan ? Math.max(3, p) : 2}%" title="${esc(dateShort(w))}: ${p}%"></div></div>`; }).join("");
   const labels = `<div class="chart-labels">${wk.map(({ w }) => `<span>${esc(dateShort(w).split(" ")[0])}</span>`).join("")}</div>`;
   const last = logs.slice(-12);
   const feelBars = last.map((l) => `<div class="col"><div class="b${Number(l.feel) >= 4 ? " over" : ""}" style="height:${Math.max(8, (Number(l.feel) || 0) * 20)}%" title="${esc(dateShort(l.date))}: ${esc(feelLabel(Number(l.feel)))}"></div></div>`).join("");
@@ -1036,6 +1039,7 @@ function trainDynCardHtml(day) {
   const cmp = wDone.length >= 2 ? Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan - wDone[0].x.done / wDone[0].x.plan) * 100) : null;
   return `<section class="card">
     <div class="card-top fl-top"><span class="fl-ic ic-plan">🏋️</span><h2 class="h2">Тренировки по плану</h2><span class="pill pc-ind">не из Apple Health</span></div>
+    ${wDone.length ? `<div class="dn-tiles"><div class="dn-t t-g"><b>${Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan) * 100)}%</b><span>последняя неделя</span></div>${cmp !== null ? `<div class="dn-t t-y"><b>${cmp > 0 ? "+" : ""}${cmp}</b><span>п. п. с первой недели</span></div>` : ""}<div class="dn-t t-p"><b>${wDone.length}</b><span>${wDone.length === 1 ? "неделя" : wDone.length < 5 ? "недели" : "недель"} с планом</span></div></div>` : ""}
     <p class="tr-lab" style="margin-top:0">Выполнение плана по неделям, %</p>
     <div class="chart tr-feel-chart">${bars}</div>${labels}
     <p class="chart-note">${cmp === null ? "Динамика появится, когда будет хотя бы две недели с тренировками." : `С первой недели выполнение ${cmp > 0 ? "выросло" : cmp < 0 ? "снизилось" : "не изменилось"}${cmp ? ` на ${Math.abs(cmp)} п.п.` : ""}.`}</p>
