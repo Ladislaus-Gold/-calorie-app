@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 255;
-const APP_VERSION_LABEL = "2.52"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 256;
+const APP_VERSION_LABEL = "2.53"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1686,7 +1686,7 @@ function aiCardHtml(days) {
   const errHtml = ai.error ? `<div class="banner" role="alert"><b>${esc(ai.error)}</b>${ai.detail ? `<br><small style="white-space:pre-wrap;word-break:break-word">${esc(ai.detail)}</small>` : ""}</div>` : "";
   if (!key) {
     return `<section class="card ai-card ai-mini">
-      <div class="ai-mini-row"><div><h2 class="h2">Анализ с помощью ИИ</h2><p class="foot-note" style="margin:4px 0 0">Gemini разберёт данные за период. Нужен бесплатный ключ.</p></div><button type="button" class="btn ghost sm" data-act="aiSetup">Подключить</button></div>
+      <div class="ai-mini-row"><div><h2 class="h2"><span class="fl-ic sl-sq">${SL_GLYPH.spark}</span>Анализ с помощью ИИ</h2><p class="foot-note" style="margin:4px 0 0">Gemini разберёт данные за период. Нужен бесплатный ключ.</p></div><button type="button" class="btn ghost sm" data-act="aiSetup">Подключить</button></div>
       ${delBtn}
       ${lastHtml}
     </section>`;
@@ -1695,7 +1695,7 @@ function aiCardHtml(days) {
     ? `<p class="foot-note" style="margin:0 0 12px">${esc(ai.step || "Gemini читает ваши данные. Обычно это 10–30 секунд.")}</p>`
     : errHtml || (last ? "" : `<p class="foot-note" style="margin:0 0 12px">Нажмите кнопку: ИИ изучит данные за период ${esc(periodText(days))} и напишет выводы. Сводка по дням без имени и почты отправляется в Google Gemini.</p>`);
   return `<section class="card ai-card ai-mini">
-    <div class="ai-mini-row"><div><h2 class="h2">Анализ с помощью ИИ <span class="pill">Gemini</span></h2>${ai.busy || errHtml ? "" : last ? "" : `<p class="foot-note" style="margin:4px 0 0">ИИ изучит данные за ${esc(periodText(days))}. Сводка без имени и почты уходит в Google Gemini.</p>`}</div></div>
+    <div class="ai-mini-row"><div><h2 class="h2"><span class="fl-ic sl-sq">${SL_GLYPH.spark}</span>Анализ с помощью ИИ <span class="pill">Gemini</span></h2>${ai.busy || errHtml ? "" : last ? "" : `<p class="foot-note" style="margin:4px 0 0">ИИ изучит данные за ${esc(periodText(days))}. Сводка без имени и почты уходит в Google Gemini.</p>`}</div></div>
     ${ai.busy ? `<p class="foot-note" style="margin:8px 0 0">${esc(ai.step || "Gemini читает ваши данные. Обычно это 10–30 секунд.")}</p>` : errHtml}
     <div class="ai-actions"><button type="button" class="btn primary" id="ai-run" data-act="aiRun" ${ai.busy ? "disabled" : ""}>${ai.busy ? "Анализирую…" : last ? `Обновить за ${esc(periodText(days))}` : "Проанализировать"}</button><button type="button" class="btn ghost ai-key" data-act="aiForgetKey" aria-label="Сменить или удалить ключ" title="Ключ">🔑</button></div>
     ${delBtn}
@@ -1804,13 +1804,14 @@ function actKindsCard(types) {
       <div class="ak-bar"><i style="width:${Math.max(3, (t.min / list[0].min) * 100)}%"></i></div>
     </div>`;
   }).join("");
-  return `<section class="card"><div class="card-top"><h2 class="h2">Нагрузки по видам</h2><span class="pill">${fmtInt(tm)} мин</span></div>
+  return `<section class="card"><div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.bolt}</span><h2 class="h2">Нагрузки по видам</h2><span class="pill">${fmtInt(tm)} мин</span></div>
     <p class="foot-note" style="margin:-2px 0 12px">Всего ${fmtInt(tn)} ${pluralRaz(tn)}, сожжено ${fmtInt(tk)} ккал. Доля считается от общего времени.</p>
     <div class="ak-list">${rows}</div>
     ${hidden ? `<button type="button" class="btn ghost full fold-row ak-more" data-act="toggleActKinds" aria-expanded="${open}">${open ? "Свернуть" : `Ещё ${hidden}`}${chev(open)}</button>` : ""}</section>`;
 }
 
-function viewReports() {
+function viewReports() { return `<div class="dv hvw hrp">${viewReportsInner()}</div>`; }
+function viewReportsInner() {
   const days = reportDays();
   const n = days.length;
   const a = analyze(days);
@@ -1921,32 +1922,32 @@ function viewReports() {
   const wtp = weightBlock(days[0], days[n - 1], `за ${n} дн.`);
   const moreOpen = !!state.moreCharts;
   return head + `
-    <section class="card"><h2 class="h2">Все показатели периода</h2>${kpi}</section>
+    <section class="card"><div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.bars}</span><h2 class="h2">Все показатели периода</h2></div>${kpi}</section>
     ${aiCardHtml(days)}
     <section class="card${state.insOpen ? "" : " ins-card"}"${state.insOpen ? "" : ` data-act="toggleIns" role="button"`}>
-      <div class="card-top tog" data-act="toggleIns" role="button" aria-expanded="${!!state.insOpen}"><h2 class="h2">Краткие выводы${chev(state.insOpen)}</h2><span class="pill">${state.insOpen ? "все" : `${ins.length} · ${ins.filter((i) => i.kind === "bad").length ? "есть важное" : "всё спокойно"}`}</span></div>
+      <div class="card-top tog" data-act="toggleIns" role="button" aria-expanded="${!!state.insOpen}"><span class="fl-ic sl-sq">${SL_GLYPH.bulb}</span><h2 class="h2">Краткие выводы${chev(state.insOpen)}</h2><span class="pill">${state.insOpen ? "все" : `${ins.length} · ${ins.filter((i) => i.kind === "bad").length ? "есть важное" : "всё спокойно"}`}</span></div>
       ${state.insOpen ? `${insHtml}` : `${insBad}<p class="foot-note ins-more">Нажмите на блок, чтобы открыть все выводы</p>`}
     </section>
     <section class="card">
-      <div class="card-top"><h2 class="h2">Вес</h2><span class="pill">${wtp.last ? `${fmt(wtp.last.kg)} кг` : "нет записей"}</span></div>
+      <div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.scale}</span><h2 class="h2">Вес</h2><span class="pill">${wtp.last ? `${fmt(wtp.last.kg)} кг` : "нет записей"}</span></div>
       ${wtp.svg}<p class="chart-note" style="margin:8px 0 0">${wtp.note}</p>
     </section>
     <section class="card">
-      <h2 class="h2">Калории ${by}</h2>
+      <div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.flame}</span><h2 class="h2">Калории ${by}</h2></div>
       <div ${chartAttrs(chartKeys.length)}>${bars}<div class="goal" style="bottom:${goalBottom}%"></div></div>
       ${chartLabelsBox(chartKeys)}
       <p class="chart-note">Пунктир: ваша цель ${fmtInt(state.goal)} ккал. Красным отмечены дни с перебором.</p>
     </section>
     ${a.L ? `<section class="card">
-      <h2 class="h2">Что я ем чаще всего</h2>
+      <div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.flame}</span><h2 class="h2">Что я ем чаще всего</h2></div>
       ${rankRows(foodRows)}
       <p class="chart-note">Продукты и блюда с наибольшим вкладом в калории.</p>
     </section>` : ""}
-    ${drinkRows.length ? `<section class="card"><h2 class="h2">Что я пью</h2>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
+    ${drinkRows.length ? `<section class="card"><div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.cup}</span><h2 class="h2">Что я пью</h2></div>${rankRows(drinkRows)}<p class="chart-note">${a.alcMl > 0 ? `Алкоголь за период: ${fmtInt(a.alcMl)} мл. ` : ""}${a.drinkKcalTotal > 0 ? `Калорий из напитков: ${fmtInt(a.drinkKcalTotal)} ккал.` : ""}</p></section>` : ""}
     <button type="button" class="btn ghost full more-charts fold-row" data-act="toggleMoreCharts" aria-expanded="${moreOpen}">Ещё графики${chev(moreOpen)}</button>
     ${moreOpen ? `
     ${a.L ? `<section class="card">
-      <h2 class="h2">Белки, жиры, углеводы в день</h2>
+      <div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.bars}</span><h2 class="h2">Белки, жиры, углеводы в день</h2></div>
       <div class="rank">
         ${macroRow("Белки", a.pAvg, plan && plan.protein, "prot")}
         ${macroRow("Жиры", a.fAvg, plan && plan.fat, "fat")}
@@ -1955,15 +1956,15 @@ function viewReports() {
       <p class="chart-note">В среднем за день с записями. Доли калорий: белки ${Math.round(a.share.protein * 100)}%, жиры ${Math.round(a.share.fat * 100)}%, углеводы ${Math.round(a.share.carbs * 100)}%.${plan ? "" : " Заполните профиль, чтобы увидеть ориентиры."}</p>
     </section>
     <section class="card">
-      <h2 class="h2">По приёмам пищи</h2>
+      <div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.flame}</span><h2 class="h2">По приёмам пищи</h2></div>
       ${rankRows(mealRows)}
     </section>
 ` : ""}
-    ${barsCard(`Жидкость ${by}`, chartKeys, gfn(hydrationOn), ggoal(waterTarget), "мл", "water", false, null, tipO)}
-    ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true, null, tipO)}
-    ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "", false, null, { ...tipO, extra: grouped ? null : (d) => { const b = actBurned(d); return b > 0 ? `сожжено ${fmtInt(b)} ккал` : ""; } })}
-    ${barsCard(`Сон ${by}`, chartKeys, gfn((d) => Math.round(sleepHours(d) * 10) / 10), (() => SLEEP_MIN), "ч", "sleep", false, (v) => fmt(v), { ...tipO, extra: grouped ? null : (d) => { const z = sleepOn(d); return z && (Number(z.sleepDeepH) > 0 || Number(z.sleepRemH) > 0) ? `глубокий ${fmt(Number(z.sleepDeepH) || 0)} ч · REM ${fmt(Number(z.sleepRemH) || 0)} ч` : ""; } })}
-    ${a.stepDays ? barsCard(`Шаги ${by}`, chartKeys, gfn(stepsOn), (() => STEPS_GOAL), "шагов", "", false, null, tipO) : ""}
+    ${barsCard(`Жидкость ${by}`, chartKeys, gfn(hydrationOn), ggoal(waterTarget), "мл", "water", false, null, { ...tipO, sq: "drop" })}
+    ${barsCard(`Кофеин ${by}`, chartKeys, gfn((d) => Math.round(caffeineOn(d))), cafLimit, "мг", "caf", true, null, { ...tipO, sq: "cup" })}
+    ${barsCard(`Нагрузки ${by}`, chartKeys, gfn(actMinutes), null, "мин", "", false, null, { ...tipO, sq: "bolt", extra: grouped ? null : (d) => { const b = actBurned(d); return b > 0 ? `сожжено ${fmtInt(b)} ккал` : ""; } })}
+    ${barsCard(`Сон ${by}`, chartKeys, gfn((d) => Math.round(sleepHours(d) * 10) / 10), (() => SLEEP_MIN), "ч", "sleep", false, (v) => fmt(v), { ...tipO, sq: "moon", extra: grouped ? null : (d) => { const z = sleepOn(d); return z && (Number(z.sleepDeepH) > 0 || Number(z.sleepRemH) > 0) ? `глубокий ${fmt(Number(z.sleepDeepH) || 0)} ч · REM ${fmt(Number(z.sleepRemH) || 0)} ч` : ""; } })}
+    ${a.stepDays ? barsCard(`Шаги ${by}`, chartKeys, gfn(stepsOn), (() => STEPS_GOAL), "шагов", "", false, null, { ...tipO, sq: "step" }) : ""}
     ${a.actTypes.length ? actKindsCard(a.actTypes) : ""}` : ""}
     <p class="foot-note" style="margin:6px 4px 0">Все записи хранятся в вашем аккаунте без ограничения по времени. Старые периоды подгружаются при выборе.</p>`;
 }
@@ -4325,6 +4326,9 @@ const SL_GLYPH = {
   ruler: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 17 3l4 4L7 21l-4-4zm4.5-3.5-1 1 2 2 1-1-2-2zm3-3-1 1 2 2 1-1-2-2zm3-3-1 1 2 2 1-1-2-2z"/></svg>`,
   bolt: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>`,
   flame: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-10z"/></svg>`,
+  drop: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c3.5 4.2 6 7.4 6 10.5a6 6 0 0 1-12 0c0-3.1 2.5-6.3 6-10.5z"/></svg>`,
+  cup: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8zm13 1h2a2 2 0 0 1 0 4h-2V9zM5 20h12v1.5H5z"/></svg>`,
+  spark: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg>`,
   step: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3c2 0 3 2 3 5 0 2-1 3-1 5H5c0-2-1-3-1-5 0-3 2-5 4-5zm9 6c2 0 3 2 3 5 0 2-1 3-1 5h-5c0-2-1-3-1-5 0-3 2-5 4-5zM6 15h4v2a2 2 0 0 1-4 0v-2zm9 6a2 2 0 0 1-2-2v-1h4v1a2 2 0 0 1-2 2z"/></svg>`,
 };
 function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
@@ -4348,7 +4352,7 @@ function barsCard(title, days, valFn, goalFn, unit, cls, overLimit, fv, o) {
   const avg = withData.length ? withData.reduce((a, b) => a + b, 0) / withData.length : 0;
   const nOver = vals.filter((v, i) => v > 0 && goalFn && v > goalFn(days[i])).length, nOk = withData.length - nOver;
   const bestI = vals.indexOf(Math.max(...vals)), best = vals[bestI] > 0 ? { d: days[bestI], v: vals[bestI] } : null;
-  return `<section class="card">${o.ic ? `<div class="card-top fl-top">${o.ic[6] ? `<span class="fl-ic sl-sq">${SL_GLYPH[o.ic[6]]}</span>` : `<span class="fl-ic ${o.ic[1]}" data-ek="${o.ic[5]}">${o.ic[0]}</span>`}<h2 class="h2">${title}</h2>${withData.length ? `<span class="pill ${o.ic[2] || ""}">${F(avg)} ${unit}${o.ic[3] || ""}</span>` : ""}</div>` : cls === "sleep" ? `<div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH.bars}</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
+  return `<section class="card">${o.ic ? `<div class="card-top fl-top">${o.ic[6] ? `<span class="fl-ic sl-sq">${SL_GLYPH[o.ic[6]]}</span>` : `<span class="fl-ic ${o.ic[1]}" data-ek="${o.ic[5]}">${o.ic[0]}</span>`}<h2 class="h2">${title}</h2>${withData.length ? `<span class="pill ${o.ic[2] || ""}">${F(avg)} ${unit}${o.ic[3] || ""}</span>` : ""}</div>` : cls === "sleep" || o.sq ? `<div class="card-top fl-top"><span class="fl-ic sl-sq">${SL_GLYPH[o.sq || "bars"]}</span><h2 class="h2">${title}</h2></div>` : `<h2 class="h2">${title}</h2>`}
     <div ${chartAttrs(days.length)}>${bars}${goal > 0 ? `<div class="goal" style="bottom:${(goal / max) * 100}%"></div>` : ""}</div>
     ${chartLabelsBox(days)}
     ${o.ic && goal > 0 && withData.length ? `<div class="dn-pl"><span>${o.ic[4] || "🎯"}</span><div>Норма <b>${F(goal)} ${unit}</b>. ${overLimit ? `Выше нормы <b>${nOver} ${nOver === 1 ? "день" : nOver >= 2 && nOver <= 4 ? "дня" : "дней"}</b> из ${withData.length} (красные).` : `В норме <b>${nOk} из ${withData.length}</b> записанных дней.${best ? ` Лучший день: <b>${esc(dayLabel(best.d))}, ${F(best.v)}</b>.` : ""}`}</div></div>` : `<p class="chart-note">${withData.length ? `В среднем за день с записями: <b>${F(avg)} ${unit}</b>.` : "Пока нет данных."}${goal > 0 ? ` Пунктир: норма (${F(goal)} ${unit}).` : ""}${overLimit ? " Красным отмечены дни выше нормы." : ""}</p>`}</section>`;

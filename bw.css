@@ -1750,3 +1750,71 @@ html body .dv.hvw.hdy .tr-feel-chart .b.over { background: linear-gradient(180de
 /* пояснение под графиком */
 html body .dv.hvw.hdy .chart-note { color: var(--sec) !important; font-size: 13px; line-height: 1.4; }
 html body .dv.hvw.hdy .tr-lab { font-size: 13px; font-weight: 500; color: var(--sec); }
+
+/* ===== v2.53: вкладка «Отчёты» в стиле iPhone. Оболочка чёрно-белая, плитки показателей и графики цветные ===== */
+html body .dv.hvw.hrp .card-top.fl-top .h2 { flex: none; white-space: nowrap; display: flex; align-items: center; gap: 10px; }
+html body .dv.hvw.hrp .card-top .pill { flex: 0 1 auto; min-width: 0; margin-left: auto; white-space: normal; text-align: right; line-height: 1.2; background: var(--fill) !important; color: var(--sec) !important; border: 0; font-weight: 600; }
+html body .dv.hvw.hrp .card-top.tog .pill { white-space: nowrap; padding: 5px 8px; font-size: 11px; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; }
+html body .dv.hvw.hrp .card-top.tog .h2 { display: flex; align-items: center; gap: 8px; white-space: nowrap; flex: none; }
+html body .dv.hvw.hrp .ai-mini-row .h2 { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; }
+html body .dv.hvw.hrp .ai-mini-row > div { min-width: 0; }
+html body .dv.hvw.hrp .h2 > .fl-ic.sl-sq { flex: none; }
+html body .dv.hvw.hrp .h2::before { display: none !important; }
+html body .dv.hvw.hrp .fl-ic.sl-sq { background: #000 !important; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.25), 0 2px 5px rgba(0,0,0,.22) !important; }
+html body .dv.hvw.hrp .fl-ic.sl-sq svg { width: 18px; height: 18px; fill: #fff; stroke: none; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .fl-ic.sl-sq { background: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .fl-ic.sl-sq svg { fill: #000; }
+/* плитки показателей: цветные, мягкая iOS-заливка без рамок */
+html body .dv.hvw.hrp .stat-grid { gap: 10px; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat { border: 0 !important; box-shadow: none !important; border-radius: 18px; padding: 12px 14px; background: var(--t) !important; background-image: none !important; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat b { color: var(--tc) !important; font-size: 22px; font-weight: 700; letter-spacing: -.035em; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat span { color: var(--sec) !important; opacity: 1 !important; font-size: 12px; line-height: 1.35; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+1) { --t: rgba(48,209,88,.15); --tc: #1E8E3E; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+2) { --t: rgba(255,159,10,.15); --tc: #B25E00; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+3) { --t: rgba(10,132,255,.15); --tc: #0A5DC2; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+4) { --t: rgba(255,55,95,.15); --tc: #C2204A; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+5) { --t: rgba(94,92,230,.15); --tc: #4240B8; }
+html body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+6) { --t: rgba(48,176,199,.15); --tc: #0E7F93; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+1) { --t: rgba(48,209,88,.22); --tc: #30D158; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+2) { --t: rgba(255,159,10,.22); --tc: #FF9F0A; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+3) { --t: rgba(10,132,255,.22); --tc: #64A8FF; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+4) { --t: rgba(255,55,95,.22); --tc: #FF6482; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+5) { --t: rgba(94,92,230,.26); --tc: #8F8DFF; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .card .stat-grid .stat.stat.stat.stat.stat:nth-child(6n+6) { --t: rgba(48,176,199,.22); --tc: #5AD1E6; }
+/* переключатели и кнопки */
+html body .dv.hvw.hrp .seg button.on { background: var(--ink) !important; color: var(--surf) !important; box-shadow: 0 2px 6px rgba(0,0,0,.25) !important; }
+html body .dv.hvw.hrp .btn.primary { background: var(--ink) !important; color: var(--surf) !important; border: 0 !important; border-radius: 14px; height: 50px; font-size: 17px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,.18), 0 8px 20px rgba(0,0,0,.16) !important; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .btn.primary { box-shadow: none !important; }
+html body .dv.hvw.hrp .btn.ghost.full.more-charts { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; border-radius: 14px; height: 48px; font-size: 16px; font-weight: 600; box-shadow: none !important; }
+/* выводы: серые группы, цвет только у точек */
+html body .dv.hvw.hrp .in-grp { background: var(--fill) !important; border: 0 !important; box-shadow: none !important; border-radius: 18px; }
+html body .dv.hvw.hrp .in-h { color: var(--ink) !important; }
+html body .dv.hvw.hrp .in-em { display: none; }
+html body .dv.hvw.hrp .in-h::before { content: ""; width: 10px; height: 10px; border-radius: 50%; flex: none; margin-right: 8px; background: #8E8E93; }
+html body .dv.hvw.hrp .in-h.k-bad::before { background: #FF453A; } html body .dv.hvw.hrp .in-h.k-warn::before { background: #FF9F0A; }
+html body .dv.hvw.hrp .in-h.k-good::before { background: #30B94D; }
+html body .dv.hvw.hrp .in-h b { background: var(--surf) !important; color: var(--sec) !important; }
+html body .dv.hvw.hrp .sum-verdict { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; }
+/* рейтинги: чёрные полосы; вода и алкоголь сохраняют цвет */
+html body .dv.hvw.hrp .rk-bar { background: var(--fill) !important; }
+html body .dv.hvw.hrp .rk-bar i { background: var(--ink) !important; box-shadow: none !important; }
+html body .dv.hvw.hrp .rk-bar i.water { background: linear-gradient(90deg,#5AC8FA,#32ADE6) !important; }
+html body .dv.hvw.hrp .rk-bar i.alc { background: #FF453A !important; }
+html body .dv.hvw.hrp .rk-bar i.prot { background: #AF52DE !important; } html body .dv.hvw.hrp .rk-bar i.fat { background: #FF9F0A !important; } html body .dv.hvw.hrp .rk-bar i.carb { background: #0A84FF !important; }
+/* нагрузки по видам */
+html body .dv.hvw.hrp .ak-ic { background: var(--fill) !important; border-radius: 14px; }
+html body .dv.hvw.hrp .ak-bar { background: var(--fill) !important; } html body .dv.hvw.hrp .ak-bar i { background: var(--ink) !important; }
+html body .dv.hvw.hrp .ak-v b { color: var(--ink) !important; }
+/* графики */
+html body .dv.hvw.hrp .chart .b { background: linear-gradient(180deg, #5DE07F, #30B94D) !important; box-shadow: 0 6px 12px rgba(48,185,77,.26); border-radius: 9px; }
+html body .dv.hvw.hrp .chart .b.over { background: linear-gradient(180deg, #FF8A80, #FF453A) !important; box-shadow: 0 6px 12px rgba(255,69,58,.26); }
+html body .dv.hvw.hrp .chart .b.sleep { background: linear-gradient(180deg, #9A98FF, #5E5CE6) !important; box-shadow: 0 6px 12px rgba(94,92,230,.28); }
+html body .dv.hvw.hrp .chart .b.water { background: linear-gradient(180deg, #7DD3FC, #32ADE6) !important; box-shadow: 0 6px 12px rgba(50,173,230,.26); }
+html body .dv.hvw.hrp .chart .b.caf { background: linear-gradient(180deg, #FFC857, #FF9F0A) !important; box-shadow: 0 6px 12px rgba(255,159,10,.26); }
+html body .dv.hvw.hrp .chart .b.zero { background: var(--fill) !important; box-shadow: none; border-radius: 3px; }
+html body .dv.hvw.hrp .chart-note { color: var(--sec) !important; font-size: 13px; line-height: 1.4; }
+html body .dv.hvw.hrp section.card svg[role="img"] { --accent: #30B94D; }
+/* детали: просто цвет цифр, без фона */
+html body .dv.hvw.hrp .dd-kcal, html body .dv.hvw.hrp .dd-kcal.ok, html body .dv.hvw.hrp .dd-kcal.near, html body .dv.hvw.hrp .dd-kcal.over { background: none !important; box-shadow: none !important; border: 0 !important; padding: 0; }
+html body .dv.hvw.hrp .dd-kcal.ok, html body .dv.hvw.hrp .dd-kcal.near { color: #1FA845 !important; } html body .dv.hvw.hrp .dd-kcal.over { color: #FF453A !important; }
+html:root[data-theme="dark"] body .dv.hvw.hrp .dd-kcal.ok, html:root[data-theme="dark"] body .dv.hvw.hrp .dd-kcal.near { color: #30D158 !important; }
