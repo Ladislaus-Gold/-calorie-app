@@ -1617,3 +1617,7 @@ html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth
   box-shadow: 0 1px 2px rgba(0,0,0,.16) !important; }
 .hvw .fl-cap .sg + .sg { box-shadow: 0 1px 2px rgba(0,0,0,.16) !important; }
 .hvw .fl-cap > i.tick { top: -5px !important; bottom: -5px !important; width: 3px !important; margin-left: -1.5px; border-radius: 2px !important; background: var(--ink) !important; opacity: .85; box-shadow: 0 0 0 1.5px var(--surf, #fff); }
+/* v2.44: без риски нормы на полоске; открыть список — нажатием на полоску или на стрелку под ней */
+.hvw .fl-cap > i.tick { display: none !important; }
+.hvw .fl-tap { justify-content: flex-end; min-height: 28px; margin-top: 2px; }
+.hvw .fl-tap:has(> span:empty) { margin-top: 0; }

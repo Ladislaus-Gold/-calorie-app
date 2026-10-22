@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 246;
-const APP_VERSION_LABEL = "2.43"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 247;
+const APP_VERSION_LABEL = "2.44"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -713,7 +713,8 @@ function fillAnim(root, base = 0) {
   const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
   root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.sg, .wkc-bar > i, .tr-prog .track > i, .tr-bar .track > i, .mb-r .track > i, .stat .sb > u").forEach((el) => {
     const w = el.style.width;
-    if (w && w !== "0%") el.animate([{ width: "0%" }, { width: w }], opt(at()));
+    // растём через transform (ускорение на GPU), а не через width: ширина каждый кадр пересчитывала раскладку и давала микрофризы на iPhone
+    if (w && w !== "0%") { el.style.transformOrigin = "0 50%"; el.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], opt(at())); }
   });
   root.querySelectorAll(".mr-svg circle[stroke-dasharray], .m-ring circle[stroke-dasharray]").forEach((el) => {
     const [a, b] = el.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
@@ -3995,7 +3996,7 @@ function viewHealth() {
       <button type="button" class="fl-cap" id="fl-cap" data-act="toggleFluid" data-noswipe aria-expanded="${fluidOpen}" aria-label="Список выпитого">
         ${dotGroups.filter((x) => x.hyd > 0).map((x) => `<i class="sg" style="width:${capPct(x.hyd)};--c:${esc(x.hex)};background-color:${esc(x.hex)}"></i>`).join("")}<i class="tick" style="left:${capPct(tg)}"></i>
       </button>
-      <button type="button" class="fl-tap" data-act="toggleFluid" data-noswipe><span>${fluidOpen ? `Выпито сегодня · ${nRec} ${nRec === 1 ? "запись" : nRec < 5 && nRec > 1 ? "записи" : "записей"}` : "Нажмите на полоску — весь список"}</span>${chev(fluidOpen)}</button>
+      <button type="button" class="fl-tap" data-act="toggleFluid" data-noswipe><span>${fluidOpen ? `Выпито сегодня · ${nRec} ${nRec === 1 ? "запись" : nRec < 5 && nRec > 1 ? "записи" : "записей"}` : ""}</span>${chev(fluidOpen)}</button>
       ${fluidOpen ? `<div class="entries flat fl-list">${fluidListRows || `<p class="foot-note" style="margin:8px 0">Пока ничего не выпито</p>`}</div>` : `<div class="fl-rows">${dotGroups.map((x) => `
         <div class="fl-rw"><i style="background:${esc(x.hex)}"></i><span>${esc(x.label)}${x.caf > 0 ? `<em class="cof">кофеин ${fmtInt(x.caf)} мг</em>` : ""}</span><b>${x.hyd < 0 ? signed(Math.round(x.hyd)) : fmtInt(Math.round(x.hyd))} мл</b></div>`).join("") || `<p class="foot-note" style="margin:8px 0">Пока ничего не выпито</p>`}</div>`}
       ${cafNotes}
