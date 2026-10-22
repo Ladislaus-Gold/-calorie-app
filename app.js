@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 244;
-const APP_VERSION_LABEL = "2.41"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 245;
+const APP_VERSION_LABEL = "2.42"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -711,9 +711,13 @@ function fillAnim(root, base = 0) {
   const D = 950; let i = 0;
   const at = () => base + Math.min(i++ * 45, 450);
   const opt = (delay) => ({ duration: D, delay, easing: FILL_EASE, fill: "backwards" });
-  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .fl-cap > i.sg, .wkc-bar > i, .tr-prog .track > i, .tr-bar .track > i, .mb-r .track > i, .stat .sb > u").forEach((el) => {
+  root.querySelectorAll(".mini-bar > i, .m-bar > i, .mcol-bar > i, .tr-banner .track > i, .wkc-bar > i, .tr-prog .track > i, .tr-bar .track > i, .mb-r .track > i, .stat .sb > u").forEach((el) => {
     const w = el.style.width;
     if (w && w !== "0%") el.animate([{ width: "0%" }, { width: w }], opt(at()));
+  });
+  root.querySelectorAll(".fl-cap > i.gfill").forEach((el) => {
+    const r = Number(el.dataset.clip);
+    if (r < 100) el.animate([{ clipPath: "inset(0 100% 0 0 round 17px)" }, { clipPath: `inset(0 ${r}% 0 0 round 17px)` }], opt(at()));
   });
   root.querySelectorAll(".mr-svg circle[stroke-dasharray], .m-ring circle[stroke-dasharray]").forEach((el) => {
     const [a, b] = el.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
@@ -3980,6 +3984,16 @@ function viewHealth() {
     items.forEach((i) => { const inf = itemDot(i); add(inf.hex, inf.label, itemHyd(i), itemCaf(i)); });
     return [...g.values()].map((x) => ({ ...x, label: Object.entries(x.labels).sort((p, q) => q[1] - p[1])[0][0] })).sort((p, q) => Math.abs(q.hyd) - Math.abs(p.hyd));
   })();
+  // сплошная полоска: один непрерывный градиент по цветам напитков (плато цвета и мягкие переходы между ними)
+  const capSegs = dotGroups.filter((x) => x.hyd > 0);
+  const capTot = Math.min(100, (capSegs.reduce((t, x) => t + x.hyd, 0) / capSc) * 100);
+  const capGrad = (() => {
+    if (!capSegs.length) return "none";
+    const stops = []; let pos = 0;
+    capSegs.forEach((x) => { const w = (x.hyd / capSc) * 100, b = Math.min(3.5, w / 3); stops.push(`${esc(x.hex)} ${(pos + b).toFixed(2)}%`, `${esc(x.hex)} ${(pos + w - b).toFixed(2)}%`); pos += w; });
+    stops[0] = `${esc(capSegs[0].hex)} 0%`; stops[stops.length - 1] = `${esc(capSegs[capSegs.length - 1].hex)} ${pos.toFixed(2)}%`;
+    return `linear-gradient(90deg,${stops.join(",")})`;
+  })();
   const fluidAll = fluidSorted;
   const fluidListRows = fluidAll.map((i) => `
     <button type="button" class="entry fl-e" data-act="editFluid" data-kind="${i.kind}" data-id="${esc(i.id)}">
@@ -3993,7 +4007,7 @@ function viewHealth() {
       <div class="big-line"><span id="fl-n" data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></div>
       <p class="fl-sub">${flStatus}</p>
       <button type="button" class="fl-cap" id="fl-cap" data-act="toggleFluid" data-noswipe aria-expanded="${fluidOpen}" aria-label="Список выпитого">
-        ${dotGroups.filter((x) => x.hyd > 0).map((x) => `<i class="sg" style="width:${capPct(x.hyd)};--c:${esc(x.hex)};background-color:${esc(x.hex)}"></i>`).join("")}<i class="tick" style="left:${capPct(tg)}"></i>
+        <i class="gfill" style="background-image:${capGrad};clip-path:inset(0 ${(100 - capTot).toFixed(2)}% 0 0 round 17px)" data-clip="${(100 - capTot).toFixed(2)}"></i><i class="tick" style="left:${capPct(tg)}"></i>
       </button>
       <button type="button" class="fl-tap" data-act="toggleFluid" data-noswipe><span>${fluidOpen ? `Выпито сегодня · ${nRec} ${nRec === 1 ? "запись" : nRec < 5 && nRec > 1 ? "записи" : "записей"}` : "Нажмите на полоску — весь список"}</span>${chev(fluidOpen)}</button>
       ${fluidOpen ? `<div class="entries flat fl-list">${fluidListRows || `<p class="foot-note" style="margin:8px 0">Пока ничего не выпито</p>`}</div>` : `<div class="fl-rows">${dotGroups.map((x) => `
