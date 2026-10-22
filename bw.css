@@ -1651,3 +1651,7 @@ html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[dat
 .nav { background: #fff; }
 :root[data-theme="dark"] .nav { background: #1C1C1E; }
 .mr-svg, .m-ring svg, .cp-rg, .th-ring, .th-ring svg { transform: translateZ(0); }
+
+/* v2.49: кольца снова заполняются дугой, как раньше. Чтобы это не давало фризов, каждое кольцо живёт в своём слое (перерисовывается только оно),
+   а у большого кольца «Баланс дня» сегментов стало 96 вместо 135 */
+.gz-svg { will-change: transform; transform: translateZ(0); }
