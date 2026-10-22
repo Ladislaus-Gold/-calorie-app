@@ -2776,3 +2776,47 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 :root[data-theme="dark"] .emo-grid button{background:rgba(255,255,255,.08)}
 :root[data-theme="dark"] .emo-grid button.on{background:rgba(255,255,255,.16)}
 :root[data-theme="dark"] .emo-row{border-color:rgba(255,255,255,.08)}
+
+/* ===== v2.25 ===== */
+/* Редактор эмодзи в стиле iPhone */
+.ios-emo .sheet{background:#F2F2F7;padding-top:8px}
+.ios-nav{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;min-height:40px}
+.ios-nav b{font-size:17px;font-weight:600}
+.ios-nav button{border:0;background:none;font:inherit;font-size:17px;color:#007AFF;padding:8px 2px;cursor:pointer}
+.ios-nav .ios-ok{font-weight:600}
+.ios-gl{font-size:13px;color:#6C6C70;text-transform:uppercase;margin:18px 16px 6px}
+.ios-grp{background:#fff;border-radius:14px;overflow:hidden}
+.ios-pad{padding:12px}
+.ios-pv{display:flex;align-items:center;gap:14px;padding:14px}
+.ios-pv b{display:block;font-size:17px;font-weight:600}
+.ios-pv small{display:block;color:#8E8E93;font-size:13px;margin-top:3px;line-height:1.3}
+.em-tw{position:relative;flex:none}
+.ios-emo .emo-big{width:72px;height:72px;border-radius:18px}
+.em-bd{position:absolute;right:-8px;top:-8px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;border:2.5px solid #fff}
+.em-bd.ok{background:#34C759}.em-bd.no{background:#FF3B30}
+.ios-size{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.ios-size .sa{font-size:12px;color:#6C6C70;font-weight:600}.ios-size .sb{font-size:22px;color:#6C6C70;font-weight:600}
+.ios-size input[type=range]{flex:1;accent-color:#007AFF}
+.ios-size em{font-style:normal;min-width:44px;text-align:right;font-size:14px;color:#6C6C70;font-variant-numeric:tabular-nums}
+.ios-cats{display:flex;gap:6px;overflow-x:auto;padding:10px 10px 8px;border-bottom:.5px solid #E5E5EA;scrollbar-width:none}
+.ios-cats::-webkit-scrollbar{display:none}
+.ios-cats button{flex:none;display:flex;align-items:center;gap:4px;padding:6px 10px;border:0;border-radius:999px;background:#F2F2F7;font:inherit;font-size:12.5px;font-weight:600;color:#3C3C43;cursor:pointer;white-space:nowrap}
+.ios-cats button.on{background:#007AFF;color:#fff}
+.ios-cats i{font-style:normal;font-size:14px}
+.ios-eg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px}
+.ios-eg button{aspect-ratio:1;border:0;background:none;font-size:26px;border-radius:10px;display:grid;place-items:center;padding:0;cursor:pointer}
+.ios-eg button.on{background:#E5F0FF;box-shadow:inset 0 0 0 2px #007AFF}
+.ios-sw{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.ios-sw button{aspect-ratio:1;border-radius:50%;border:0;padding:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.ios-sw button.on{box-shadow:0 0 0 2.5px #fff,0 0 0 4.5px #007AFF}
+.ios-cust{position:relative;aspect-ratio:1;border-radius:50%;background:conic-gradient(#f44,#fa0,#ee3,#4c4,#3cf,#74f,#f4c,#f44);display:grid;place-items:center;cursor:pointer}
+.ios-cust span{width:62%;height:62%;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:15px;color:#3C3C43}
+.ios-cust input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.ios-hint{font-size:12px;color:#8E8E93;margin-top:10px}
+.ios-reset{display:block;width:100%;margin-top:18px;padding:13px 16px;border:0;text-align:center;color:#FF3B30;font:inherit;font-size:17px;cursor:pointer}
+:root[data-theme="dark"] .ios-emo .sheet{background:#000}
+:root[data-theme="dark"] .ios-grp{background:#1C1C1E}
+:root[data-theme="dark"] .ios-cats button{background:#2C2C2E;color:#EBEBF5}
+:root[data-theme="dark"] .ios-eg button.on{background:rgba(10,132,255,.25)}
+:root[data-theme="dark"] .ios-pv b{color:#fff}
+:root[data-theme="dark"] .em-bd{border-color:#1C1C1E}

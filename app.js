@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 227;
-const APP_VERSION_LABEL = "2.24"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 228;
+const APP_VERSION_LABEL = "2.25"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -568,22 +568,62 @@ const EMO_REG = [
   ["Динамика", "dk", "Калории", "🔥", true, "g:#8FBBF7,#4F8FE8"], ["Динамика", "ds", "Сон за неделю", "😴", true, "g:#A9B1F5,#7581E6"], ["Динамика", "dst", "Шаги", "👟", true, "g:#F5A99C,#E0645A"],
 ];
 const EMO_TABS = ["Жидкость", "Тренировки", "Сон", "Динамика"];
-const EMO_COLORS = [["#6FCD9A", "#37A873"], ["#8FBBF7", "#4F8FE8"], ["#BCA6F3", "#7B52E6"], ["#6FD6C8", "#2EB8A6"], ["#F5A99C", "#E0645A"], ["#FBD98A", "#E9A92B"], ["#A9B1F5", "#7581E6"], ["#F5A9D0", "#D6478F"], ["#F7C08A", "#E08A12"], ["#C5E27A", "#6FA11A"], ["#B8C2BC", "#6F7B74"], ["#FFFFFF", "#DDE7E0"]];
-const EMO_SET = ["💧", "☕", "🍵", "🥛", "🧃", "🥤", "🍹", "🍺", "🍷", "🫖", "🧋", "🍶", "🏃", "🚶", "⚡", "🔥", "💪", "🏋️", "🧘", "🤸", "🚴", "🏊", "🧗", "⛹️", "👟", "🥇", "🏅", "🏆", "🎯", "⏱️", "📈", "📊", "📅", "🗓️", "🕘", "⚖️", "📏", "💡", "❤️", "💚", "🌙", "😴", "🛌", "🌞", "🍎", "🥗", "🍽️", "⭐", "✨", "🎒"];
+const hslHex = (h, s, l) => { const k = (n) => (n + h / 30) % 12, aa = s * Math.min(l, 1 - l), f = (n) => l - aa * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return "#" + [f(0), f(8), f(4)].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("").toUpperCase(); };
+const EMO_COLORS = (() => {
+  const L = [];
+  for (let h = 0; h < 360; h += 30) L.push([hslHex(h, 0.75, 0.76), hslHex(h, 0.62, 0.54)]);
+  for (let h = 0; h < 360; h += 30) L.push([hslHex(h, 0.8, 0.92), hslHex(h, 0.6, 0.82)]);
+  for (let h = 0; h < 360; h += 30) L.push([hslHex(h, 0.5, 0.46), hslHex(h, 0.55, 0.3)]);
+  L.push(["#FFFFFF", "#DDE7E0"], ["#E9EEEA", "#B8C2BC"], ["#B8C2BC", "#6F7B74"], ["#6F7B74", "#2B332F"], ["#4A4A4F", "#111114"], ["#FFFFFF", "#FFFFFF"]);
+  return L;
+})();
+const EMO_CATS = [
+  ["🥤", "Напитки и еда", ["💧", "☕", "🍵", "🥛", "🧃", "🥤", "🍹", "🍺", "🍷", "🫖", "🧋", "🍶", "🍎", "🍌", "🍇", "🍓", "🥑", "🥗", "🍽️", "🍞", "🥚", "🍗", "🥩", "🍣", "🍕", "🍔", "🍫", "🍪", "🥕", "🥦", "🍉", "🍋"]],
+  ["🏃", "Спорт", ["🏃", "🚶", "⚡", "🔥", "💪", "🏋️", "🧘", "🤸", "🚴", "🏊", "🧗", "⛹️", "👟", "🥇", "🏅", "🏆", "🥊", "🎾", "⚽", "🏀", "🏐", "⛷️", "🏄", "🤾", "🏓", "🥋", "🛹", "⛸️", "🚵", "🤼"]],
+  ["❤️", "Здоровье", ["❤️", "💚", "💙", "🫀", "🫁", "🧠", "🦵", "🦶", "👁️", "😴", "🛌", "🌙", "🌞", "💊", "🩺", "🩹", "🧴", "🪥", "🚿", "🛁", "😊", "😎", "🤩", "🥳", "🧘‍♀️", "🫶", "🙂", "😌"]],
+  ["📊", "Данные", ["📈", "📉", "📊", "📅", "🗓️", "🕘", "⏱️", "⏰", "⚖️", "📏", "🎯", "📌", "📝", "📋", "🧮", "🔢", "💯", "✅", "☑️", "🔔", "📍", "🧭", "💡", "🔍"]],
+  ["🌿", "Природа", ["🌿", "🍀", "🌱", "🌳", "🌴", "🌸", "🌻", "🌈", "☀️", "⛅", "🌧️", "❄️", "🌊", "🔥", "🌙", "⭐", "🌍", "🏔️", "🐶", "🐱", "🦋", "🐝", "🦉", "🐬"]],
+  ["✨", "Символы", ["✨", "⭐", "🌟", "💫", "🔥", "⚡", "💥", "🎉", "🎁", "👑", "💎", "🏁", "🚀", "🔑", "🎒", "🧩", "🎨", "🎵", "🛡️", "🔋", "⚙️", "🧪", "🪄", "🧿"]],
+];
 const emoOv = () => { try { return JSON.parse(lsGet("emoOv") || "{}") || {}; } catch { return {}; } };
 function applyEmo(root) {
   const ov = emoOv();
   (root || document).querySelectorAll("[data-ek]").forEach((el) => {
     const o = ov[el.dataset.ek];
-    if (!o) return;
+    if (!o || el.dataset.emoDone) return;
+    el.dataset.emoDone = "1";
     if (o.e) el.textContent = o.e;
+    if (o.s && o.s !== 100) el.style.fontSize = `${(parseFloat(getComputedStyle(el).fontSize) || 18) * (o.s / 100)}px`;
     if (o.c) { el.style.setProperty("background", `linear-gradient(135deg,${o.c[0]},${o.c[1]})`, "important"); el.style.setProperty("box-shadow", `0 4px 10px ${o.c[1]}66`, "important"); }
   });
 }
 const emoBg = (r, o) => (o && o.c ? `linear-gradient(135deg,${o.c[0]},${o.c[1]})` : String(r[5]).startsWith("g:") ? `linear-gradient(135deg,${r[5].slice(2)})` : r[5] || "#EEF1F4");
+const emoPair = (r, c) => (c || (String(r[5]).startsWith("g:") ? r[5].slice(2).split(",") : [r[5] || "#EEF1F4", r[5] || "#EEF1F4"]));
+// Оценка контраста: доля пикселей эмодзи, близких по цвету к фону (нужен холст; без него бейдж не показывается)
+function emoContrast(emoji, pair) {
+  try {
+    const S = 64, cv = document.createElement("canvas");
+    cv.width = cv.height = S;
+    const x = cv.getContext("2d", { willReadFrequently: true });
+    x.font = `${Math.round(S * 0.75)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    x.textAlign = "center"; x.textBaseline = "middle";
+    x.fillText(emoji, S / 2, S / 2 + 2);
+    const d = x.getImageData(0, 0, S, S).data;
+    const rgb = (h) => [1, 3, 5].map((i) => parseInt(String(h).slice(i, i + 2), 16));
+    const p = pair.map(rgb);
+    let n = 0, close = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 160) continue;
+      n++;
+      if (p.some((q) => Math.hypot(d[i] - q[0], d[i + 1] - q[1], d[i + 2] - q[2]) < 60)) close++;
+    }
+    if (n < 30) return null;
+    return { ok: close / n < 0.3, frac: close / n };
+  } catch { return null; }
+}
 function emoCardHtml() {
   const tab = EMO_TABS.includes(state.emoTab) ? state.emoTab : EMO_TABS[0], ov = emoOv();
-  const rows = EMO_REG.filter((r) => r[0] === tab).map((r) => { const o = ov[r[1]]; return `<div class="emo-row"><span class="emo-t" style="background:${emoBg(r, o)}">${esc((o && o.e) || r[3])}</span><div><b>${esc(r[2])}</b><small>${o ? "изменено" : "по умолчанию"}</small></div><button type="button" class="btn ghost sm" data-act="emoEdit" data-k="${r[1]}">Изменить</button></div>`; }).join("");
+  const rows = EMO_REG.filter((r) => r[0] === tab).map((r) => { const o = ov[r[1]]; return `<div class="emo-row"><span class="emo-t" style="background:${emoBg(r, o)}${o && o.s ? `;font-size:${Math.round(18 * o.s / 100)}px` : ""}">${esc((o && o.e) || r[3])}</span><div><b>${esc(r[2])}</b><small>${o ? "изменено" : "по умолчанию"}</small></div><button type="button" class="btn ghost sm" data-act="emoEdit" data-k="${r[1]}">Изменить</button></div>`; }).join("");
   return `<section class="card emo-card"><div class="card-top fl-top"><span class="fl-ic ic-plan">🎨</span><h2 class="h2">Редактор эмодзи</h2></div>
     <p class="foot-note" style="margin:0 0 12px">Выберите вкладку и замените эмодзи или цвет фона плитки. Изменения действуют на этом устройстве.</p>
     <div class="chips" style="margin:0 0 6px">${EMO_TABS.map((t) => `<button type="button" class="chip${t === tab ? " sel" : ""}" data-act="emoTab" data-t="${t}">${t}</button>`).join("")}</div>
@@ -594,25 +634,55 @@ function openEmoEdit(key) {
   const r = EMO_REG.find((x) => x[1] === key);
   if (!r) return;
   const cur = emoOv()[key] || {};
-  const f = { e: cur.e || r[3], c: cur.c || null };
-  const ov = openSheet(`<div class="sheet-head"><h2>${esc(r[2])}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="em-body"></div>`);
+  const f = { e: cur.e || r[3], c: cur.c || null, s: cur.s || 100, cat: 0 };
+  const ov = openSheet(`<div class="ios-nav"><button type="button" class="ios-cl" data-close>Отмена</button><b>${esc(r[2])}</b><button type="button" class="ios-ok" id="em-save">Готово</button></div><div id="em-body"></div>`);
+  ov.classList.add("ios-emo");
   const body = $("#em-body", ov);
-  const draw = () => {
-    body.innerHTML = `<div class="emo-pv"><span class="emo-big" style="background:${emoBg(r, f.c ? { c: f.c } : null)}">${esc(f.e)}</span><div><b>Так будет выглядеть</b><small>Везде, где стоит эта плитка</small></div></div>
-      <div class="emo-lb">Эмодзи</div><div class="emo-grid">${EMO_SET.map((x) => `<button type="button" class="${x === f.e ? "on" : ""}" data-em="${x}">${x}</button>`).join("")}</div>
-      ${r[4] ? `<div class="emo-lb">Цвет фона</div><div class="emo-sw">${EMO_COLORS.map((c, i) => `<button type="button" aria-label="Цвет ${i + 1}" class="${f.c && f.c[1] === c[1] ? "on" : ""}" data-ci="${i}" style="background:linear-gradient(135deg,${c[0]},${c[1]})"></button>`).join("")}</div>` : ""}
-      <div class="row" style="margin-top:14px"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="em-save">Сохранить</button></div>`;
+  const draw = (keepScroll) => {
+    const sc = keepScroll ? ov.querySelector(".sheet").scrollTop : 0;
+    const pair = emoPair(r, f.c);
+    const res = emoContrast(f.e, pair);
+    const badge = res ? `<span class="em-bd ${res.ok ? "ok" : "no"}">${res.ok ? "✓" : "✕"}</span>` : "";
+    body.innerHTML = `<div class="ios-grp ios-pv"><div class="em-tw"><span class="emo-big" style="background:${emoBg(r, f.c ? { c: f.c } : null)};font-size:${Math.round(36 * f.s / 100)}px">${esc(f.e)}</span>${badge}</div>
+        <div><b>${res ? (res.ok ? "Контрастно" : "Сливается с фоном") : "Так будет выглядеть"}</b><small>${res ? (res.ok ? "Эмодзи хорошо читается на этом фоне" : "Эмодзи почти не видно на этом фоне. Попробуйте другой цвет или эмодзи") : "Везде, где стоит эта плитка"}</small></div></div>
+      <div class="ios-gl">Размер эмодзи</div>
+      <div class="ios-grp ios-size"><span class="sa">A</span><input type="range" id="em-size" min="60" max="150" step="5" value="${f.s}"><span class="sb">A</span><em id="em-sv">${f.s}%</em></div>
+      <div class="ios-gl">Эмодзи</div>
+      <div class="ios-grp"><div class="ios-cats">${EMO_CATS.map((c, i) => `<button type="button" class="${i === f.cat ? "on" : ""}" data-cat="${i}"><i>${c[0]}</i>${c[1]}</button>`).join("")}</div>
+        <div class="ios-eg">${EMO_CATS[f.cat][2].map((x) => `<button type="button" class="${x === f.e ? "on" : ""}" data-em="${x}">${x}</button>`).join("")}</div></div>
+      ${r[4] ? `<div class="ios-gl">Цвет фона</div><div class="ios-grp ios-pad"><div class="ios-sw">${EMO_COLORS.map((c, i) => `<button type="button" aria-label="Цвет ${i + 1}" class="${f.c && f.c[1] === c[1] && f.c[0] === c[0] ? "on" : ""}" data-ci="${i}" style="background:linear-gradient(135deg,${c[0]},${c[1]})"></button>`).join("")}<label class="ios-cust" aria-label="Свой цвет"><input type="color" id="em-col" value="${esc(pair[1])}"><span>＋</span></label></div><div class="ios-hint">Своя палитра: нажмите «＋» и выберите любой цвет</div></div>` : ""}
+      ${cur.e || cur.c || cur.s ? `<button type="button" class="ios-grp ios-reset" id="em-reset">Вернуть по умолчанию</button>` : ""}`;
+    if (keepScroll) ov.querySelector(".sheet").scrollTop = sc;
   };
-  draw();
+  draw(false);
+  ov.addEventListener("input", (e) => {
+    if (e.target.id === "em-size") {
+      f.s = Number(e.target.value);
+      $("#em-sv", ov).textContent = `${f.s}%`;
+      const big = ov.querySelector(".emo-big");
+      if (big) big.style.fontSize = `${Math.round(36 * f.s / 100)}px`;
+    }
+  });
+  ov.addEventListener("change", (e) => {
+    if (e.target.id === "em-col") {
+      const hex = e.target.value, rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      const lt = "#" + rgb.map((v) => Math.round(v + (255 - v) * 0.35).toString(16).padStart(2, "0")).join("").toUpperCase();
+      f.c = [lt, hex.toUpperCase()];
+      draw(true);
+    }
+  });
   ov.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-em]"), c = e.target.closest("[data-ci]");
-    if (b) { f.e = b.dataset.em; draw(); return; }
-    if (c) { f.c = EMO_COLORS[Number(c.dataset.ci)]; draw(); return; }
+    const b = e.target.closest("[data-em]"), c = e.target.closest("[data-ci]"), t = e.target.closest("[data-cat]");
+    if (t) { f.cat = Number(t.dataset.cat); draw(true); return; }
+    if (b) { f.e = b.dataset.em; draw(true); return; }
+    if (c) { f.c = EMO_COLORS[Number(c.dataset.ci)]; draw(true); return; }
+    if (e.target.closest("#em-reset")) { const all = emoOv(); delete all[key]; lsSet("emoOv", JSON.stringify(all)); ov.close(); render(); return; }
     if (e.target.closest("#em-save")) {
       const all = emoOv();
       const o = {};
       if (f.e !== r[3]) o.e = f.e;
       if (f.c) o.c = f.c;
+      if (f.s !== 100) o.s = f.s;
       if (Object.keys(o).length) all[key] = o; else delete all[key];
       lsSet("emoOv", JSON.stringify(all));
       ov.close();
