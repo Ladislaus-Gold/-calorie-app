@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 230;
-const APP_VERSION_LABEL = "2.27"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 231;
+const APP_VERSION_LABEL = "2.28"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -887,6 +887,13 @@ function macroColsHtml(items, cls = "") {
   }).join("")}</div>`;
 }
 
+// Уведомление об обновлении: между заголовком и неделей, если на сервере версия новее
+function updateBannerHtml() {
+  const s = state.status;
+  if (!(s && s.latest > APP_VERSION)) return "";
+  return `<div class="upd" role="status"><span class="upd-t">Есть обновление${s.label ? ` до версии <b>v${esc(s.label)}</b>` : ""}</span><button type="button" class="upd-btn" data-act="reloadApp" aria-label="Обновить приложение"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button></div>`;
+}
+
 function viewDiary() {
   const day = state.date;
   const list = entriesOn(day);
@@ -957,6 +964,7 @@ function viewDiary() {
       <button type="button" class="iconbtn" data-act="prevDay" aria-label="Предыдущий день" ${day <= min ? "disabled" : ""}>${CHEV_L}</button>
       <button type="button" class="chip-btn" data-act="today">${dateShort(day)}</button>
       <button type="button" class="iconbtn" data-act="nextDay" aria-label="Следующий день">${CHEV_R}</button>`)}
+    ${updateBannerHtml()}
     <section class="card week"><div class="week-row">${weekHtml}</div><p class="streak">${streakText}</p></section>
     ${trainBannerHtml(day)}
     ${miniTiles(day)}
@@ -1089,7 +1097,7 @@ function lostDrinks() {
 function viewProducts() {
   const missing = starterMissing().length;
   const lost = lostDrinks().length;
-  return `
+  return `<div class="pvw">
     ${pageHead("Общая база", "Продукты", `
       <button type="button" class="iconbtn" data-act="scanProduct" aria-label="Сканировать штрих-код">${SCAN_SVG}</button>
       <button type="button" class="round-btn" data-act="newProduct" aria-label="Новый продукт">+</button>`)}
@@ -1106,7 +1114,7 @@ function viewProducts() {
       <h2 class="h2">Базовые продукты</h2>
       <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный, тушёный. У жареных и тушёных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
       <button type="button" class="btn ghost full" data-act="importStarter">Добавить в общую базу</button>
-    </section>` : ""}`;
+    </section>` : ""}</div>`;
 }
 
 /* ================= Отчёты ================= */
@@ -1987,7 +1995,7 @@ function reportDetailHtml(a, days) {
 async function checkStatus(force) {
   if (!state.user || state.status.busy) return;
   if (!force && state.status.ts && Date.now() - state.status.ts < 60000) return;
-  const st = { busy: true, ts: 0, server: "", rules: "", latest: 0 };
+  const st = { busy: true, ts: 0, server: "", rules: "", latest: 0, label: "" };
   state.status = st;
   if (state.tab === "me") render();
   const uid = state.user.uid;
@@ -2003,12 +2011,14 @@ async function checkStatus(force) {
   }
   try {
     const r = await fetchT(`${baseUrl()}index.html`, { cache: "no-store" }, 8000);
-    const m = /app\.js\?v=(\d+)/.exec(await r.text());
+    const html = await r.text();
+    const m = /app\.js\?v=(\d+)/.exec(html), lb = /name="app-label"\s+content="([^"]+)"/.exec(html);
     st.latest = m ? Number(m[1]) : 0;
+    st.label = lb ? lb[1] : "";
   } catch { st.latest = 0; }
   st.busy = false;
   st.ts = Date.now();
-  if (state.status === st && state.tab === "me") render();
+  if (state.status === st && (state.tab === "me" || state.tab === "diary")) render();
 }
 
 function statusHtml() {
@@ -2018,7 +2028,7 @@ function statusHtml() {
   const wait = s.busy;
   const server = wait ? [N, "Проверяю…"] : !s.server ? [N, "Не проверено"] : s.server === "ok" ? [G, "Подключён"] : [R, "Не подключён"];
   const rules = wait ? [N, "Проверяю…"] : !s.rules ? [N, "Не проверено"] : s.rules === "ok" ? [G, "Работают, доступ есть"] : s.rules === "denied" ? [R, "Блокируют доступ"] : [N, "Не проверить без связи"];
-  const ver = s.latest > APP_VERSION ? [Y, `v${APP_VERSION_LABEL}, на сервере уже новее: закройте и откройте приложение`] : s.latest ? [G, `v${APP_VERSION_LABEL}, актуальная`] : [N, `v${APP_VERSION_LABEL}`];
+  const ver = s.latest > APP_VERSION ? [Y, `v${APP_VERSION_LABEL}, доступна v${s.label || "новее"}: нажмите «Обновить» в Дневнике`] : s.latest ? [G, `v${APP_VERSION_LABEL}, актуальная`] : [N, `v${APP_VERSION_LABEL}`];
   const allReady = Object.values(state.ready).every(Boolean);
   const sync = state.error ? [R, "Ошибка загрузки"] : allReady ? [G, "Данные загружены"] : [Y, "Загружаю…"];
   return `<div style="margin-top:14px">
@@ -2029,8 +2039,6 @@ function statusHtml() {
     ${row("Версия приложения", ver[0], ver[1])}
     ${row("Синхронизация данных", sync[0], sync[1])}
     ${row("Gemini (ключ)", geminiKey() ? G : N, geminiKey() ? "Подключён" : "Не подключён")}
-    <button type="button" class="btn ghost full" style="margin-top:10px" data-act="checkStatus" ${wait ? "disabled" : ""}>${wait ? "Проверяю…" : "Проверить снова"}</button>
-    <button type="button" class="btn primary full" style="margin-top:8px" data-act="reloadApp">Обновить приложение до актуальной версии</button>
   </div>`;
 }
 
@@ -2482,7 +2490,7 @@ function openScanner(onCode) {
   ov.innerHTML = `
     <video playsinline muted autoplay></video>
     <div class="scan-frame"></div>
-    <button type="button" class="icon-btn scan-torch hidden" id="sc-torch" aria-label="Подсветка">🔦</button>
+    <button type="button" class="icon-btn scan-torch hidden" id="sc-torch" aria-label="Подсветка"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg></button>
     <button type="button" class="icon-btn scan-close" data-sc-close aria-label="Закрыть">×</button>
     <div class="scan-bottom">
       <p class="scan-hint" id="sc-hint">Запускаю камеру…</p>
@@ -2550,7 +2558,7 @@ function openScanner(onCode) {
           };
           if (!info.supported) tb.classList.add("nosup");
         }
-        if (info.dark && !tb.classList.contains("on")) setHint("Темно. Нажмите 🔦 вверху, чтобы включить подсветку.");
+        if (info.dark && !tb.classList.contains("on")) setHint("Темно. Нажмите молнию вверху, чтобы включить подсветку.");
       });
       if (done) { try { c && c(); } catch { /* ignore */ } return; }
       cleanup = c;
@@ -2570,7 +2578,7 @@ function askLinkBarcode(code) {
   return new Promise((resolve) => {
     let done = false, q = "";
     const finish = (v) => { if (done) return; done = true; resolve(v); ov.close(); };
-    const ov = openSheet(`
+    const ov = openSheetBw(`
       <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Новый штрих-код</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
       <div id="af-body" class="lm">
         <div class="note lk-note">Код ${esc(code)} не найден. Привяжите его к знакомому продукту (новая упаковка) или создайте новый.</div>
@@ -2610,11 +2618,11 @@ function chooseCardKind(code) {
     let done = false, q = "";
     const finish = (v) => { if (done) return; done = true; resolve(v); ov.close(); };
     const mine = code ? customList() : [];
-    const ov = openSheet(`
+    const ov = openSheetBw(`
       <div class="sheet-head af-head"><h2 style="flex:1;margin:0">Что создать?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
       <div class="lm">
         <div class="note lk-note">${code ? `Код ${esc(code)} не найден ни среди продуктов, ни среди напитков. ` : ""}Напиток считается как жидкость (и кофеин), а если есть калории, то и как еда. Продукт считается только как еда.</div>
-        <div class="ck-choice"><button type="button" class="ck-opt water" id="ck-drink"><span class="ck-ic">💧</span><b>Напиток</b></button><button type="button" class="ck-opt food" id="ck-prod"><span class="ck-ic">🍽️</span><b>Продукт</b></button></div>
+        <div class="ck-choice"><button type="button" class="ck-opt water" id="ck-drink"><span class="ck-ic w">${GLYPH_DROP}</span><b>Напиток</b><small>Жидкость и кофеин</small></button><button type="button" class="ck-opt food" id="ck-prod"><span class="ck-ic f"><svg viewBox="0 0 24 24" aria-hidden="true">${MEAL_GLYPH.lunch}</svg></span><b>Продукт</b><small>Только еда</small></button></div>
         ${mine.length ? `<p class="foot-note" style="margin:6px 2px 8px">Или это новая упаковка уже имеющегося напитка:</p>
         <input id="ck-q" class="input search" type="search" placeholder="Найти напиток для привязки" autocomplete="off">
         <div id="ck-list" class="plist"></div>` : ""}
@@ -2738,7 +2746,7 @@ function pickSheetMotion(ov, close) {
 
 function openSheet(html, opts = {}) {
   const ov = document.createElement("div");
-  ov.className = opts.pick ? "overlay pick-ov" : "overlay";
+  ov.className = opts.pick ? "overlay pick-ov" : opts.bw ? "overlay bw-ov" : "overlay";
   ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
   const close = () => {
     ov.classList.remove("open");
@@ -2752,6 +2760,9 @@ function openSheet(html, opts = {}) {
   requestAnimationFrame(() => ov.classList.add("open"));
   return ov;
 }
+
+// окна «Продукты / напитки / запись» — в чёрно-белом оформлении
+const openSheetBw = (html, opts = {}) => openSheet(html, { ...opts, bw: true });
 
 const mealOptions = (sel) => MEALS.map((m) => `<option value="${m.id}" ${m.id === sel ? "selected" : ""}>${m.name}</option>`).join("");
 
@@ -2768,7 +2779,7 @@ function previewHtml(per100, grams, info, replaceMg = 0) {
 /* ----- Когда я ел этот продукт: все записи дневника за всё время ----- */
 const bju = (p, f, c) => `<span class="p-macros">${macrosHtml(Number(p) || 0, Number(f) || 0, Number(c) || 0)}</span>`;
 async function openProductUsage(p) {
-  const ov = openSheet(`
+  const ov = openSheetBw(`
     <div class="sheet-head"><h2>Когда я это ел</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <p class="foot-note" style="margin:0 2px 10px"><b>${esc(p.name)}</b>${p.brand ? `, ${esc(p.brand)}` : ""}</p>
     <div id="pu-body"><div class="empty">Загружаю…</div></div>`);
@@ -2850,7 +2861,7 @@ function mealRepeat(mealId) {
 
 /* ----- Добавление еды в дневник ----- */
 function openAddFood(mealId, presetProduct) {
-  const ov = openSheet(`
+  const ov = openSheetBw(`
     <div class="sheet-head af-head"><select id="af-meal" class="input" aria-label="Приём пищи">${mealOptions(mealId)}</select><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div id="af-body"></div>`);
   ov.classList.add("top");
@@ -3137,7 +3148,7 @@ function openEditEntry(entry) {
     kcal: (entry.kcal / entry.grams) * 100, protein: (entry.protein / entry.grams) * 100,
     fat: (entry.fat / entry.grams) * 100, carbs: (entry.carbs / entry.grams) * 100,
   } : { kcal: 0, protein: 0, fat: 0, carbs: 0 });
-  const ov = openSheet(`
+  const ov = openSheetBw(`
     <div class="sheet-head"><h2>Запись</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="picked"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>
     <label class="field"><span>Приём пищи</span><select id="ee-meal" class="input">${mealOptions(entry.meal)}</select></label>
@@ -3169,7 +3180,7 @@ function openEditEntry(entry) {
 /* ----- Копирование записи дневника: другой день, приём пищи и вес ----- */
 function openCopyEntry(entry, p100, grams0, meal0) {
   const today = todayStr();
-  const ov = openSheet(`
+  const ov = openSheetBw(`
     <div class="sheet-head"><h2>Копировать запись</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="picked"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>
     <div class="field"><span>Куда скопировать: день</span>
@@ -3219,13 +3230,11 @@ const AVA_COLORS = ["#EAF7EF", "#FFE9D4", "#FFF9DB", "#FDE7E4", "#EFE7F7", "#E3F
 const AVA_DRINK_GROUPS = [["Напитки", AVA_EMOJI_GROUPS.find((g) => g[0] === "Напитки")[1]], ["Ещё", ["🥛", "🍋", "🍊", "🍎", "🍓", "🫐", "🥥", "🥕", "🍯", "🌿"]]];
 function openAvatarPicker(cur, onDone, groups = AVA_EMOJI_GROUPS) {
   const sel = { emoji: cur.emoji || groups[0][1][0], color: cur.color || AVA_COLORS[0] };
-  const ov = openSheet(`
-    <div class="sheet-head"><h2>Эмодзи и цвет</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+  const ov = openSheetBw(`
+    <div class="sheet-head"><h2>Эмодзи</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="ap-prev"><span class="pf-ava-btn" id="ap-prev-ava" style="background:${esc(sel.color)}"><span id="ap-prev-ic">${esc(sel.emoji)}</span></span></div>
     <div class="field sec-label"><span>Выбрать эмодзи</span></div>
     <div class="ap-emo-box" id="ap-emo">${groups.map(([t, list]) => `<div class="ap-gl">${t}</div><div class="ap-grid">${list.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>`).join("")}</div>
-    <div class="field sec-label"><span>Цвет фона (для контраста с эмодзи)</span></div>
-    <div class="ap-colors" id="ap-col">${AVA_COLORS.map((c) => `<button type="button" class="ap-col${c === sel.color ? " sel" : ""}" data-c="${c}" style="background:${c}" aria-label="Цвет фона"></button>`).join("")}</div>
     <button type="button" class="btn primary full" id="ap-done" style="margin-top:14px">Готово</button>`);
   const prevAva = $("#ap-prev-ava", ov), prevIc = $("#ap-prev-ic", ov);
   $("#ap-emo", ov).addEventListener("click", (e) => {
@@ -3233,12 +3242,6 @@ function openAvatarPicker(cur, onDone, groups = AVA_EMOJI_GROUPS) {
     if (!b) return;
     sel.emoji = b.dataset.em; prevIc.textContent = sel.emoji;
     ov.querySelectorAll("#ap-emo .ap-em").forEach((x) => x.classList.toggle("sel", x.dataset.em === sel.emoji));
-  });
-  $("#ap-col", ov).addEventListener("click", (e) => {
-    const b = e.target.closest("[data-c]");
-    if (!b) return;
-    sel.color = b.dataset.c; prevAva.style.background = sel.color;
-    ov.querySelectorAll("#ap-col .ap-col").forEach((x) => x.classList.toggle("sel", x.dataset.c === sel.color));
   });
   $("#ap-done", ov).addEventListener("click", () => { ov.close(); onDone(sel); });
 }
@@ -3260,7 +3263,7 @@ function openProductForm(product, onSaved, prefill = {}) {
     ? `${product.drink ? `<div class="note">Этот продукт отмечен как напиток (гидратация ${esc(val(product.hydrationPct))}%). Напитки теперь живут в своём списке: выберите категорию «Напитки» и нажмите «Продолжить».</div>` : ""}
 `
     : "";
-  const ov = openSheet(`
+  const ov = openSheetBw(`
     <div class="sheet-head"><h2>${product ? "Продукт" : "Новый продукт"}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${note ? `<div class="note">${esc(note)}</div>` : ""}
     <div class="pf-top-row">
@@ -4430,7 +4433,7 @@ function toggleFav(id) {
 
 // entry: запись, которую правим; presetId: сразу открыть напиток (из избранного)
 function openDrinkSheet(entry, presetId, presetMl, prefill) {
-  const ov = openSheet(`
+  const ov = openSheetBw(`
     <div class="sheet-head" id="dk-head"><h2>Напиток</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div id="dk-body"></div>`);
   const body = $("#dk-body", ov);
@@ -4840,7 +4843,7 @@ const actions = {
   addFood(ds) { openAddFood(ds.meal); },
   pickMeal() {
     const cur = mealByTime();
-    const ov = openSheet(`
+    const ov = openSheetBw(`
       <div class="pick-grab" aria-hidden="true"></div>
       <div class="sheet-head"><h2>Куда добавить?</h2></div>
       <div class="meal-pick">${MEALS.map((m) => { const mt = sumEntries(entriesOn(state.date).filter((e) => e.meal === m.id)); const tg = mealTarget(m.id);
@@ -4946,6 +4949,7 @@ const actions = {
   moreTrHist(ds) { state.trHistN = ds.all === "1" ? 7 : (state.trHistN || 7) + 7; render(); },
   checkStatus() { checkStatus(true); },
   async reloadApp() {
+    document.querySelectorAll(".upd-btn").forEach((b) => b.classList.add("spin"));
     try {
       if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
       if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map((r) => r.unregister())); }
@@ -5097,6 +5101,46 @@ $("#nav").addEventListener("click", (e) => {
   { const sc = document.getElementById("view"); if (sc) sc.scrollTop = 0; }
   if (state.tab === "me") checkStatus(true);
 });
+
+// Свайп влево / вправо по экрану переключает вкладки (не мешает прокрутке, строкам-свайпам и окнам)
+(() => {
+  const order = ["diary", "products", "health", "reports", "me"];
+  const view = document.getElementById("view");
+  let sx = 0, sy = 0, t0 = 0, ok = false;
+  const blocked = (el) => {
+    for (let n = el; n && n !== view; n = n.parentElement) {
+      if (n.matches && n.matches("input, textarea, select, .sw, [data-noswipe]")) return true;
+      const o = getComputedStyle(n).overflowX;
+      if ((o === "auto" || o === "scroll") && n.scrollWidth > n.clientWidth + 2) return true;
+    }
+    return false;
+  };
+  view.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    ok = e.touches.length === 1 && t.clientX > 24 && t.clientX < window.innerWidth - 24 && !document.querySelector(".overlay, .scanner") && !blocked(e.target);
+    if (ok) { sx = t.clientX; sy = t.clientY; t0 = Date.now(); }
+  }, { passive: true });
+  view.addEventListener("touchmove", (e) => { if (ok && e.touches.length > 1) ok = false; }, { passive: true });
+  view.addEventListener("touchend", (e) => {
+    if (!ok) return;
+    ok = false;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Date.now() - t0 > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    const j = order.indexOf(state.tab) + (dx < 0 ? 1 : -1);
+    if (j < 0 || j >= order.length) return;
+    state.tab = order[j];
+    render();
+    view.scrollTop = 0;
+    if (!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) && view.animate) {
+      view.animate([{ transform: `translateX(${dx < 0 ? 28 : -28}px)`, opacity: 0.35 }, { transform: "none", opacity: 1 }], { duration: 240, easing: "cubic-bezier(.22,1,.36,1)" });
+    }
+    if (state.tab === "me") checkStatus(true);
+  }, { passive: true });
+})();
+
+// Новая версия: проверяем при возвращении в приложение и раз в 10 минут
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.user && Object.values(state.ready).every(Boolean)) checkStatus(false); });
+setInterval(() => { if (!document.hidden && state.user && Object.values(state.ready).every(Boolean)) checkStatus(true); }, 600000);
 
 readLinkFromUrl();
 
