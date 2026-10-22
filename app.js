@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 243;
-const APP_VERSION_LABEL = "2.40"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 244;
+const APP_VERSION_LABEL = "2.41"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3993,7 +3993,7 @@ function viewHealth() {
       <div class="big-line"><span id="fl-n" data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></div>
       <p class="fl-sub">${flStatus}</p>
       <button type="button" class="fl-cap" id="fl-cap" data-act="toggleFluid" data-noswipe aria-expanded="${fluidOpen}" aria-label="Список выпитого">
-        ${dotGroups.filter((x) => x.hyd > 0).map((x) => `<i class="sg" style="width:${capPct(x.hyd)};background:${esc(x.hex)}"></i>`).join("")}<i class="tick" style="left:${capPct(tg)}"></i>
+        ${dotGroups.filter((x) => x.hyd > 0).map((x) => `<i class="sg" style="width:${capPct(x.hyd)};--c:${esc(x.hex)};background-color:${esc(x.hex)}"></i>`).join("")}<i class="tick" style="left:${capPct(tg)}"></i>
       </button>
       <button type="button" class="fl-tap" data-act="toggleFluid" data-noswipe><span>${fluidOpen ? `Выпито сегодня · ${nRec} ${nRec === 1 ? "запись" : nRec < 5 && nRec > 1 ? "записи" : "записей"}` : "Нажмите на полоску — весь список"}</span>${chev(fluidOpen)}</button>
       ${fluidOpen ? `<div class="entries flat fl-list">${fluidListRows || `<p class="foot-note" style="margin:8px 0">Пока ничего не выпито</p>`}</div>` : `<div class="fl-rows">${dotGroups.map((x) => `
