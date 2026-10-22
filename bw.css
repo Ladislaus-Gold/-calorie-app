@@ -1607,6 +1607,6 @@ html:root[data-theme="dark"] body .hvw .card .stat-grid .stat.stat.stat.stat:nth
 :root[data-theme="dark"] .hvw .th-hero::after { background: #F2F2F7 !important; }
 :root[data-theme="dark"] .hvw .th-hero .th-ring circle.bg { stroke: #E5E5EA !important; }
 [data-cnt] { display: inline-block; }
-/* v2.40: капля у заголовка «Жидкость» видна на светлой плитке */
-.hvw .fl-ic.g-liq svg { fill: #000 !important; }
-:root[data-theme="dark"] .hvw .fl-ic.g-liq svg { fill: #fff !important; }
+/* v2.40: капля у заголовка «Жидкость» синяя (iOS blue) */
+.hvw .fl-ic.g-liq svg { fill: #007AFF !important; }
+:root[data-theme="dark"] .hvw .fl-ic.g-liq svg { fill: #0A84FF !important; }
