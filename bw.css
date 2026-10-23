@@ -1985,3 +1985,10 @@ html:root[data-theme="dark"] body .hvw .th-hero .th-line, html:root[data-theme="
 
 /* v2.66: отступ между плитками («минут за день», «ккал») и списком тренировок */
 html body .hvw .stat-grid + .entries { margin-top: 14px; }
+
+/* v2.68 — «Начать тренировку»: при удержании кнопка больше не зеленеет, текст не выделяется */
+html body .btn.primary:active:not(.dk-new):not(.sub-ok):not([data-act="addDrink"]),
+html body .dv.hvw .btn.primary.full:active { background: #1C1C1E !important; color: #fff !important; transform: scale(.985); }
+html:root[data-theme="dark"] body .btn.primary:active:not(.dk-new):not(.sub-ok):not([data-act="addDrink"]),
+html:root[data-theme="dark"] body .dv.hvw .btn.primary.full:active { background: #E5E5EA !important; color: #000 !important; }
+html body .btn, html body button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
