@@ -1971,14 +1971,14 @@ html:root[data-theme="dark"] body .dv .mini.water .mini-bar > i { background: li
 html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg *, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg * { fill: #fff !important; stroke: none !important; color: #fff !important; }
 html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg { filter: none !important; }
 
-/* ---------- v2.66: «Шаги сегодня» — цифры и кольцо пастельно-оранжевые, подписи серые (вариант Б) ---------- */
-html body .hvw .th-hero .th-t1, html body .hvw .th-hero .th-t2, html body .hvw .th-hero .th-ring b, html body .hvw .th-hero .th-strip b { color: #FFB98A !important; }
-html body .hvw .th-hero .th-ring circle.fg { stroke: #FFB98A !important; }
+/* ---------- v2.66: «Шаги сегодня» — цифры и кольцо пастельно-янтарные (#F7BE6E, цвет плитки «Нагрузка»), подписи серые (вариант Б) ---------- */
+html body .hvw .th-hero .th-t1, html body .hvw .th-hero .th-t2, html body .hvw .th-hero .th-ring b, html body .hvw .th-hero .th-strip b { color: #F7BE6E !important; }
+html body .hvw .th-hero .th-ring circle.fg { stroke: #F7BE6E !important; }
 html body .hvw .th-hero .th-ring circle.bg { stroke: #3A3A3C !important; }
 html body .hvw .th-hero .th-t3, html body .hvw .th-hero .th-strip span, html body .hvw .th-hero .th-note { color: #9A9A9F !important; }
 html body .hvw .th-hero .th-line, html body .hvw .th-hero .th-line span { color: #fff !important; }
-html:root[data-theme="dark"] body .hvw .th-hero .th-t1, html:root[data-theme="dark"] body .hvw .th-hero .th-t2, html:root[data-theme="dark"] body .hvw .th-hero .th-ring b, html:root[data-theme="dark"] body .hvw .th-hero .th-strip b { color: #E8650A !important; }
-html:root[data-theme="dark"] body .hvw .th-hero .th-ring circle.fg { stroke: #FF8A3D !important; }
+html:root[data-theme="dark"] body .hvw .th-hero .th-t1, html:root[data-theme="dark"] body .hvw .th-hero .th-t2, html:root[data-theme="dark"] body .hvw .th-hero .th-ring b, html:root[data-theme="dark"] body .hvw .th-hero .th-strip b { color: #D9820A !important; }
+html:root[data-theme="dark"] body .hvw .th-hero .th-ring circle.fg { stroke: #F0A030 !important; }
 html:root[data-theme="dark"] body .hvw .th-hero .th-ring circle.bg { stroke: #E5E5EA !important; }
 html:root[data-theme="dark"] body .hvw .th-hero .th-t3, html:root[data-theme="dark"] body .hvw .th-hero .th-strip span, html:root[data-theme="dark"] body .hvw .th-hero .th-note { color: #6E6E73 !important; }
 html:root[data-theme="dark"] body .hvw .th-hero .th-line, html:root[data-theme="dark"] body .hvw .th-hero .th-line span { color: #000 !important; }
