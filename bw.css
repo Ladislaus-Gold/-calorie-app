@@ -2073,3 +2073,52 @@ html:root[data-theme="dark"] body .wkd-k, html:root[data-theme="dark"] body .wkd
 html:root[data-theme="dark"] body .wkd-ok { stroke: #000; }
 html:root[data-theme="dark"] body .wkd-st, html:root[data-theme="dark"] body .wkd-st > div + div { border-color: rgba(0,0,0,.14); }
 html:root[data-theme="dark"] body .wkd .wkc-dot { background: #000 !important; }
+
+/* v2.77: окно «Завершить тренировку» — чёрно-белое (светлая: чёрный акцент; тёмная: белый) */
+html body .bw-ov .fn-win { background: #000 !important; color: #fff !important; box-shadow: 0 10px 22px rgba(0,0,0,.22) !important; }
+html body .bw-ov .fn-win .tw { background: #fff !important; box-shadow: none !important; }
+html body .bw-ov .fn-win .tw, html body .bw-ov label.check.iv .ie { filter: grayscale(1); }
+html body .bw-ov .fn-win .wm b { color: #fff !important; text-shadow: none !important; }
+html body .bw-ov .fn-win .wb { background: rgba(255,255,255,.28) !important; }
+html body .bw-ov .fn-win .wb u { background: #fff !important; }
+html body .bw-ov .fn-win em { background: rgba(255,255,255,.18) !important; color: #fff !important; }
+html body .bw-ov .fn-sum { background: #F2F2F7 !important; color: #3A3A3C !important; box-shadow: none !important; }
+html body .bw-ov .fn-sum b { color: #000 !important; }
+html body .bw-ov .fn-sum .pb { background: rgba(60,60,67,.14) !important; }
+html body .bw-ov .fn-sum .pb u { background: #000 !important; }
+html body .bw-ov .field > span.lb { color: #6C6C70 !important; }
+html body .bw-ov .field > span.lb em { display: none; }
+html body .bw-ov .tr-feel button.fv { --fb: #F2F2F7; --ft: #000; background: #F2F2F7 !important; border: 1.5px solid transparent !important; box-shadow: none !important; transform: none !important; }
+html body .bw-ov .tr-feel button.fv b { color: #000 !important; }
+html body .bw-ov .tr-feel button.fv small { color: #6C6C70 !important; }
+html body .bw-ov .tr-feel button.fv.on { background: #000 !important; border-color: #000 !important; }
+html body .bw-ov .tr-feel button.fv.on b, html body .bw-ov .tr-feel button.fv.on small { color: #fff !important; }
+html body .bw-ov label.check.iv { background: #F2F2F7 !important; border: 1.5px solid transparent !important; box-shadow: none !important; }
+html body .bw-ov label.check.iv:has(input:checked) { background: #F2F2F7 !important; border-color: #000 !important; }
+html body .bw-ov label.check.iv .ie { background: #fff !important; box-shadow: none !important; }
+html body .bw-ov label.check.iv .cb { background: #fff !important; border: 2px solid rgba(60,60,67,.3) !important; }
+html body .bw-ov label.check.iv:has(input:checked) .cb { background: #000 !important; border: 0 !important; box-shadow: none !important; }
+html body .bw-ov #fn-body .btn.ghost { background: #F2F2F7 !important; border: 0 !important; color: #000 !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-win { background: #fff !important; color: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-win .tw { background: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-win .wm b { color: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-win .wb { background: rgba(0,0,0,.18) !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-win .wb u { background: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-win em { background: rgba(0,0,0,.1) !important; color: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-sum { background: #2C2C2E !important; color: #AEAEB2 !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-sum b { color: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-sum .pb { background: rgba(255,255,255,.14) !important; }
+html:root[data-theme="dark"] body .bw-ov .fn-sum .pb u { background: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov .field > span.lb { color: #AEAEB2 !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv { background: #2C2C2E !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv b { color: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv small { color: #AEAEB2 !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv.on { background: #fff !important; border-color: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv.on b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv.on small { color: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov label.check.iv { background: #2C2C2E !important; }
+html:root[data-theme="dark"] body .bw-ov label.check.iv:has(input:checked) { background: #2C2C2E !important; border-color: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov label.check.iv .ie { background: #3A3A3C !important; }
+html:root[data-theme="dark"] body .bw-ov label.check.iv .cb { background: #1C1C1E !important; border-color: rgba(255,255,255,.3) !important; }
+html:root[data-theme="dark"] body .bw-ov label.check.iv:has(input:checked) .cb { background: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov label.check.iv:has(input:checked) .cb svg { stroke: #000; }
+html:root[data-theme="dark"] body .bw-ov #fn-body .btn.ghost { background: #2C2C2E !important; color: #fff !important; }

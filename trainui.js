@@ -1220,12 +1220,12 @@ function openTrainFinish(date) {
   const list = have.map((id) => TR.EQUIP.find((e) => e.id === id)).filter(Boolean);
   const eff = (id) => Number(cfg.bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
   const { k, n } = trainProgress(date, ses);
-  const ov = openSheet(`<div class="sheet-head"><h2>Завершить тренировку</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="fn-body"></div>`);
+  const ov = openSheet(`<div class="sheet-head"><h2>Завершить тренировку</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="fn-body"></div>`, { bw: true });
   const body = $("#fn-body", ov);
   const draw = () => {
     const band = f.used.has("tube") || f.used.has("loop");
     body.innerHTML = `
-      ${n > 0 && k >= n ? `<div class="fn-win"><span class="tw">🏆</span><div class="wm"><b>Тренировка выполнена! 🎉</b><div class="wb"><u></u></div></div><em>${k}/${n}</em></div>` : `<div class="fn-sum">Выполнено упражнений: <b>${k} из ${n}</b><div class="pb"><u style="width:${n ? Math.max(4, Math.round((k / n) * 100)) : 0}%"></u></div><p>Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p></div>`}
+      ${n > 0 && k >= n ? `<div class="fn-win"><span class="tw">🏆</span><div class="wm"><b>Тренировка выполнена!</b><div class="wb"><u></u></div></div><em>${k}/${n}</em></div>` : `<div class="fn-sum">Выполнено упражнений: <b>${k} из ${n}</b><div class="pb"><u style="width:${n ? Math.max(4, Math.round((k / n) * 100)) : 0}%"></u></div><p>Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p></div>`}
       <div class="field"><span class="lb"><em>💭</em>Как вы себя чувствуете?</span>
         <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="fv fv${v}${f.feel === v ? " on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div>
         <small class="foot-note" style="margin:2px 4px 0">1 — совсем легко, 5 — на пределе.</small></div>
