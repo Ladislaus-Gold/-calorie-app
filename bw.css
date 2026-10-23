@@ -19,7 +19,7 @@ html:has(.dv), body:has(.dv) { background: #fff; background-image: none; }
 
 .dv {
   --ink: #000; --sec: #6E6E73; --hair: rgba(60, 60, 67, .12); --fill: #F2F2F7;
-  --cardsh: 0 1px 3px rgba(0, 0, 0, .07), 0 10px 30px rgba(0, 0, 0, .12);
+  --cardsh: 0 1px 3px rgba(0, 0, 0, .07), 0 10px 30px rgba(0, 0, 0, .03);
 }
 :root[data-theme="dark"] .dv {
   --ink: #fff; --sec: #8E8E93; --hair: rgba(255, 255, 255, .10); --fill: #2C2C2E;
@@ -217,7 +217,7 @@ html:has(.dv), body:has(.dv) { background: #fff; background-image: none; }
    ============================================================ */
 .pvw, .bw-ov {
   --ink: #000; --sec: #6E6E73; --sec2: #8E8E93; --hair: rgba(60, 60, 67, .14); --fill: #F2F2F7; --surf: #fff;
-  --cardsh: 0 1px 3px rgba(0, 0, 0, .07), 0 10px 30px rgba(0, 0, 0, .12);
+  --cardsh: 0 1px 3px rgba(0, 0, 0, .07), 0 10px 30px rgba(0, 0, 0, .03);
   --btnsh: 0 3px 6px rgba(0, 0, 0, .2), 0 10px 24px rgba(0, 0, 0, .26);
 }
 :root[data-theme="dark"] .pvw, :root[data-theme="dark"] .bw-ov {
