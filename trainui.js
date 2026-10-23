@@ -562,7 +562,7 @@ function openTrainWorkout(date) {
     const el = e.target.closest("[data-g]");
     if (!el) { g = null; return; }
     g = { k: el.dataset.g, el, x: e.clientX, y: e.clientY, pid: e.pointerId, lp: 0, picker: null, moved: false };
-    if (g.k === "pl") { const G = g; G.lp = setTimeout(() => { if (g === G && !G.moved) openPicker(G); }, 420); }
+    if (g.k === "pl") { const G = g; G.lp = setTimeout(() => { if (g === G && !G.moved) openPicker(G); }, 600); }
   });
   ov.addEventListener("pointermove", (e) => {
     if (!g || e.pointerId !== g.pid) return;
@@ -572,12 +572,16 @@ function openTrainWorkout(date) {
       if (v !== P.sel) { P.sel = v; wheel(g); }
       return;
     }
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) { g.moved = true; clearTimeout(g.lp); }
+    if (Math.abs(dx) > TAP_PX || Math.abs(dy) > TAP_PX) { g.moved = true; clearTimeout(g.lp); }
   });
+  // Палец на экране слегка «плывёт»: допуск на тап 22 px (раньше 10 — тап засчитывался как свайп и подход не отмечался)
+  const TAP_PX = 22;
+  let lastEnd = 0;
   const endG = (e, cancel) => {
     if (!g || e.pointerId !== g.pid) return;
     const G = g; g = null; clearTimeout(G.lp);
-    const dx = e.clientX - G.x, dy = e.clientY - G.y, tap = Math.abs(dx) < 10 && Math.abs(dy) < 10;
+    const dx = e.clientX - G.x, dy = e.clientY - G.y, tap = Math.abs(dx) < TAP_PX && Math.abs(dy) < TAP_PX;
+    lastEnd = Date.now();
     if (G.picker) { G.picker.box.remove(); if (!cancel) pick(G.picker.i, G.picker.sel); return; }
     if (cancel) return;
     const it = items[idx];
@@ -594,6 +598,16 @@ function openTrainWorkout(date) {
   };
   ov.addEventListener("pointerup", (e) => endG(e, false));
   ov.addEventListener("pointercancel", (e) => endG(e, true));
+  // Запасной путь: если pointerup не пришёл (iOS иногда его теряет), но браузер выдал обычный click по плашке — засчитываем нажатие
+  ov.addEventListener("click", (e) => {
+    const pl = e.target.closest('[data-g="pl"]');
+    if (!pl || Date.now() - lastEnd < 700 || g) return;
+    const it = items[idx];
+    if (!it || review || phase !== "work") return;
+    lastEnd = Date.now();
+    if (it.reps) { if (Number(pl.dataset.i) === setNo) setDone(); }
+    else if (isMinIt(it)) recMin(it, mins); else { markDone(it); next(); }
+  });
   ov.addEventListener("click", (e) => {
     const b = e.target.closest("[data-w]");
     if (!b) return;
