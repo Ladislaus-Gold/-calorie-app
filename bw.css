@@ -1894,8 +1894,8 @@ html body .dv.hvw.hme .me-num2 b { display: block; font-size: 30px; font-weight:
 html body .dv.hvw.hme .me-lr { width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 0; border: 0; border-top: .5px solid var(--hair); border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; font-weight: 500; text-align: left; box-shadow: none; }
 html body .dv.hvw.hme .me-lr > span:nth-child(2) { flex: 1; } html body .dv.hvw.hme .me-lr i { font-style: normal; color: var(--sec); font-size: 20px; }
 html body .dv.hvw.hme .me-out { width: 100%; padding: 14px; margin: 4px 0 14px; border: 0; border-radius: 16px; background: rgba(255,69,58,.1); color: #FF453A; font: inherit; font-size: 17px; font-weight: 600; box-shadow: none; }
-/* кнопка «+» в дневнике: белое кольцо и мягкое свечение, чтобы не сливалась с чёрной карточкой «Баланс дня» */
-html:root:not([data-theme="dark"]) body .dv .fab { box-shadow: 0 0 22px 8px rgba(255,255,255,.9), 0 0 46px 14px rgba(255,255,255,.45), 0 6px 14px rgba(0,0,0,.25) !important; }
+/* кнопка «+» в дневнике: тонкое белое кольцо (без широкого свечения), чтобы не сливалась с чёрной карточкой «Баланс дня» */
+html:root:not([data-theme="dark"]) body .dv .fab { box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 8px 2px rgba(255,255,255,.35), 0 6px 14px rgba(0,0,0,.25) !important; }
 html body .dv.hvw.hme .me-sys .cv { background: none !important; box-shadow: none !important; border: 0 !important; width: auto; height: auto; }
 html body .dv.hvw.hme .me-ml b { white-space: nowrap; flex: none; } html body .dv.hvw.hme .me-ml span { min-width: 0; }
 
