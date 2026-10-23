@@ -1959,3 +1959,14 @@ html:root[data-theme="dark"] body .dv.hvw.hdy .wt-seg button.on, html:root[data-
 .offline-bar.on { visibility: visible; opacity: 1; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); transition: transform .2s ease, opacity .2s ease, visibility 0s; }
 .bw-ov .sheet { box-shadow: 0 -4px 12px rgba(0, 0, 0, .1), 0 -14px 44px rgba(0, 0, 0, .2); }
 :root[data-theme="dark"] .bw-ov .sheet { box-shadow: 0 -1px 0 rgba(255, 255, 255, .08), 0 -14px 44px rgba(0, 0, 0, .7); }
+
+/* ---------- v2.65: плитки «Жидкость» (синяя) и «Нагрузка» (оранжевая) в дневнике ---------- */
+html body .dv .mini.water .mini-ic.sq { background: linear-gradient(180deg, #4DA3FF, #0A84FF) !important; color: #fff; box-shadow: 0 2px 6px rgba(10,132,255,.35) !important; }
+html body .dv .mini.act .mini-ic.sq { background: linear-gradient(180deg, #FFB340, #FF9500) !important; color: #fff; box-shadow: 0 2px 6px rgba(255,149,0,.38) !important; }
+html body .dv .mini.act .mini-bar > i, html:root[data-theme="dark"] body .dv .mini.act .mini-bar > i { background: linear-gradient(90deg, #FF9500, #FFB340) !important; }
+html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq { background: linear-gradient(180deg, #4DA3FF, #0A84FF) !important; color: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq { background: linear-gradient(180deg, #FFB340, #FF9500) !important; color: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg { color: #fff !important; fill: currentColor; }
+html:root[data-theme="dark"] body .dv .mini.water .mini-bar > i { background: linear-gradient(90deg, #0A84FF, #5AC8FA) !important; }
+html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg *, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg * { fill: #fff !important; stroke: none !important; color: #fff !important; }
+html:root[data-theme="dark"] body .dv .mini.water .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg { filter: none !important; }
