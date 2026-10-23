@@ -113,11 +113,20 @@ function painIds(d) {
   for (const l of state.trainLog) if (l.date >= from && l.date < d && l.pain) for (const [id, v] of Object.entries(l.pain)) if (v) (days[id] = days[id] || new Set()).add(l.date);
   return Object.keys(days).filter((id) => days[id].size >= 2);
 }
-const trainSession = (d, extraAvoid) => {
+// Группа мышц «не восстановилась» (журнал дня, поле skipMg): убираем упражнения на эту группу и те, где она заметно работает
+const SKIP_ALSO = { triceps: ["pushup", "chestpress", "floorpress", "shoulderpress", "dips"], chest: ["dips"], biceps: ["pullup", "pulldown", "row", "bentrow"], shoulders: ["pushup"], glutes: ["squat", "lunge", "stepup"] };
+const skipOf = (d) => { const l = trainLogOn(d); return l && Array.isArray(l.skipMg) ? l.skipMg.filter((g) => TR.MG[g]) : []; };
+const skipHit = (it, sk) => it.group === "main" && sk.some((g) => it.mg === g || (SKIP_ALSO[g] || []).includes(it.id));
+const trainSession = (d, extraAvoid, noSkip) => {
   if (!state.trainCfg) return null;
   const adv = d >= todayStr() ? trainAdvice(d) : null;
   const avoid = [...(adv ? adv.avoid : []), ...(d >= todayStr() ? painIds(d) : []), ...(((trainLogOn(d) || {}).swapped) || []), ...(extraAvoid || [])];
-  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid);
+  let base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid);
+  const sk = noSkip ? [] : skipOf(d);
+  if (base && sk.length) {
+    const gone = base.items.filter((i) => skipHit(i, sk));
+    if (gone.length) base = { ...base, items: base.items.filter((i) => !gone.includes(i)), est: Math.max(1, base.est - Math.round(gone.reduce((t, i) => t + (i.est || 0), 0) / 60)), skipped: gone.map((i) => i.id) };
+  }
   const cs = customItems(d);
   if (!cs.length) return base;
   const rank = { warm: 0, main: 1, cardio: 2, cool: 3 };
@@ -248,6 +257,7 @@ function trainCardHtml(day) {
     body = `
       <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
         ${ses.customOnly ? "" : `<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button>`}</div>
+      ${ses.customOnly ? "" : `<button type="button" class="tr-skip${skipOf(day).length ? " on" : ""}" data-act="trainSkip" data-date="${day}"><span>${skipOf(day).length ? `Не тренируем: ${esc(skipOf(day).map((g) => TR.MG[g].toLowerCase()).join(", "))}` : "Болят мышцы?"}</span><b>${skipOf(day).length ? "Изменить" : "Пропустить группу"}</b></button>`}
       ${ses.customOnly ? "" : `<div class="tr-segl"><span>Сколько времени есть</span><span>мин</span></div><div class="tr-seg">${TR.TIMES.map((t) => `<button type="button" class="${t === m ? "on" : ""}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>`}
       ${k >= n && n > 0 ? "" : `<div class="tr-prog"><div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><b>${k}/${n}</b></div>`}
       ${ses.bump || (ses.swapped && ses.swapped.length) ? `<p class="foot-note tr-adapt" style="margin:8px 2px 0">Подстроено по вашим итогам:${ses.bump ? ` повторы ${ses.bump > 0 ? "+" : "−"}${Math.abs(ses.bump)}` : ""}${ses.swapped && ses.swapped.length ? `${ses.bump ? "," : ""} ${ses.swapped.map((s) => `вместо «${esc(TR.EXERCISES[s.from].name.toLowerCase())}» — «${esc(TR.EXERCISES[s.to].name.toLowerCase())}»`).join(", ")}` : ""}.</p>` : ""}
@@ -775,7 +785,7 @@ function openTrainExercise(date, key) {
 function openTrainForm() {
   const cur = trainCfg();
   const f = { place: cur.place, days: new Set(cur.days), equip: JSON.parse(JSON.stringify(cur.equip)), minutes: cur.minutes, level: cur.level, limits: new Set(cur.limits), kg: cur.dumbbellKg ? String(cur.dumbbellKg).replace(".", ",") : "" };
-  const ov = openSheet(`<div class="sheet-head"><h2>Анкета тренировок</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="tf-body"></div>`);
+  const ov = openSheet(`<div class="sheet-head"><h2>Анкета тренировок</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="tf-body"></div>`, { bw: true });
   const body = $("#tf-body", ov);
   const draw = () => {
     const eq = new Set(f.equip[f.place]);
@@ -833,6 +843,29 @@ function openTrainForm() {
       }).catch(writeFail);
       ov.close();
     }
+  });
+}
+
+// Пропуск групп мышц в тренировке одного дня (болят, не восстановились)
+function openTrainSkip(day) {
+  const sel = new Set(skipOf(day));
+  const ov = openSheet(`<div class="sheet-head"><h2>Что не восстановилось</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <p class="foot-note" style="margin:-4px 2px 12px">Выберите группы мышц, которые сегодня нагружать не нужно. Уберём упражнения на них и те, где они заметно работают (например, жимы и отжимания при трицепсах). Действует только на эту тренировку.</p>
+    <div class="tr-skg" id="sk-grid"></div><p class="foot-note" id="sk-cnt" style="margin:10px 2px 12px"></p>
+    <div class="row"><button type="button" class="btn ghost" id="sk-reset">Сбросить</button><button type="button" class="btn primary grow" id="sk-ok">Применить</button></div>`, { bw: true });
+  const grid = $("#sk-grid", ov), cnt = $("#sk-cnt", ov);
+  const draw = () => {
+    grid.innerHTML = Object.entries(TR.MG).map(([g, t]) => `<button type="button" class="tr-skb${sel.has(g) ? " on" : ""}" data-g="${g}" aria-pressed="${sel.has(g)}">${esc(t)}</button>`).join("");
+    const base = trainSession(day, null, true);
+    const n = base ? base.items.filter((i) => skipHit(i, [...sel])).length : 0;
+    cnt.textContent = sel.size ? `Из тренировки уйдёт упражнений: ${n}.` : "Ничего не выбрано: тренировка по плану.";
+  };
+  draw();
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-g]");
+    if (b) { const g = b.dataset.g; if (sel.has(g)) sel.delete(g); else sel.add(g); draw(); return; }
+    if (e.target.closest("#sk-reset")) { sel.clear(); draw(); return; }
+    if (e.target.closest("#sk-ok")) { saveTrainLog(day, { skipMg: [...sel] }); ov.close(); render(); }
   });
 }
 
@@ -1243,5 +1276,5 @@ async function resetTrainProgress() {
   } catch (e) { writeFail(e); }
 }
 
-  return { W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
+  return { W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
 }

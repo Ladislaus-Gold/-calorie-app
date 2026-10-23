@@ -1996,3 +1996,44 @@ html body .btn, html body button { -webkit-user-select: none; user-select: none;
 /* v2.69 — новые иллюстрации: родное соотношение сторон, точки только когда картинок две */
 .ex-ph-imgs img, .hvw .ex-ph-imgs img, .overlay .ex-ph-imgs img { aspect-ratio: auto !important; object-fit: contain; background: transparent !important; }
 .ex-ph[data-n="1"] .ex-ph-dots { display: none; }
+
+/* v2.70 — «Мышцы не восстановились?» в плане и окно выбора групп; анкета тренировок в чёрно-белом стиле */
+html body .dv.hvw .tr-skip { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; margin: 10px 0 0; padding: 10px 14px; border: 0; border-radius: 12px; background: var(--fill); color: var(--ink); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+html body .dv.hvw .tr-skip span { min-width: 0; color: var(--sec); }
+html body .dv.hvw .tr-skip b { flex: none; font-weight: 600; color: var(--ink); }
+html body .dv.hvw .tr-skip.on { background: #000; color: #fff; }
+html body .dv.hvw .tr-skip.on span, html body .dv.hvw .tr-skip.on b { color: #fff; }
+html:root[data-theme="dark"] body .dv.hvw .tr-skip.on { background: #fff; color: #000; }
+html:root[data-theme="dark"] body .dv.hvw .tr-skip.on span, html:root[data-theme="dark"] body .dv.hvw .tr-skip.on b { color: #000; }
+.bw-ov .tr-skg { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.bw-ov .tr-skb { min-height: 46px; padding: 0 6px; border: 0; border-radius: 12px; background: var(--fill); color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.bw-ov .tr-skb.on { background: #000; color: #fff; }
+:root[data-theme="dark"] .bw-ov .tr-skb.on { background: #fff; color: #000; }
+html body .bw-ov .tf-sec { background: transparent !important; border: 1px solid var(--hair) !important; box-shadow: none !important; border-radius: 16px; }
+html body .bw-ov .tf-st .fl-ic { background: var(--fill) !important; filter: grayscale(1); box-shadow: none !important; }
+html body .bw-ov .tf-hint, html body .bw-ov .tf-hint.amb { background: var(--fill) !important; color: var(--ink) !important; }
+html body .bw-ov .tf-iv { background: var(--fill) !important; border: 1.5px solid transparent !important; box-shadow: none !important; }
+html body .bw-ov .tf-iv.on { background: var(--fill) !important; border-color: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-iv.on { border-color: #fff !important; }
+html body .bw-ov .tf-iv.on s { background: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-iv.on s { background: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-iv.on s::after { color: #000; }
+html body .bw-ov .tf-iv i { filter: grayscale(1); }
+html body .bw-ov .tf-warn { background: var(--fill) !important; border: 0 !important; color: var(--ink) !important; }
+html body .bw-ov .tf-sec .chips .chip { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; box-shadow: none !important; }
+html body .bw-ov .tf-sec .chips .chip.sel { background: #000 !important; color: #fff !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-sec .chips .chip.sel { background: #fff !important; color: #000 !important; }
+html body .bw-ov .tf-sec .seg.full { background: var(--fill) !important; }
+html body .bw-ov .row .btn.ghost { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; box-shadow: none !important; }
+.bw-ov #tf-save { font-size: 16px; padding: 0 10px; }
+
+.bw-ov #tf-save { font-size: 16px; padding: 0 10px; }
+html:root[data-theme="dark"] body .bw-ov .tf-sec { background: transparent !important; border: 1px solid var(--hair) !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-st .fl-ic { background: var(--fill) !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-hint, html:root[data-theme="dark"] body .bw-ov .tf-hint.amb { background: var(--fill) !important; color: var(--ink) !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-iv { background: var(--fill) !important; border: 1.5px solid transparent !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-iv.on { background: var(--fill) !important; border-color: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-warn { background: var(--fill) !important; border: 0 !important; color: var(--ink) !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-sec .chips .chip { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-sec .chips .chip.sel { background: #fff !important; color: #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .row .btn.ghost { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; }
