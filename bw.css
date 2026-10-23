@@ -1982,3 +1982,6 @@ html:root[data-theme="dark"] body .hvw .th-hero .th-ring circle.fg { stroke: #F0
 html:root[data-theme="dark"] body .hvw .th-hero .th-ring circle.bg { stroke: #E5E5EA !important; }
 html:root[data-theme="dark"] body .hvw .th-hero .th-t3, html:root[data-theme="dark"] body .hvw .th-hero .th-strip span, html:root[data-theme="dark"] body .hvw .th-hero .th-note { color: #6E6E73 !important; }
 html:root[data-theme="dark"] body .hvw .th-hero .th-line, html:root[data-theme="dark"] body .hvw .th-hero .th-line span { color: #000 !important; }
+
+/* v2.66: отступ между плитками («минут за день», «ккал») и списком тренировок */
+html body .hvw .stat-grid + .entries { margin-top: 14px; }
