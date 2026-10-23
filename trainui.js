@@ -718,9 +718,9 @@ function openTrainExercise(date, key) {
     <ol class="ex-list">${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
     <h3 class="ex-h">Частые ошибки</h3>
     <ul class="ex-list ex-bad">${ex.mistakes.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
-    <p class="foot-note" style="margin:14px 2px 12px">Рисунки схематичные: слева начало движения, справа конец. При боли в суставах, головокружении или боли в груди остановитесь.</p>
+    <p class="foot-note" style="margin:14px 2px 12px">При боли в суставах, головокружении или боли в груди остановитесь.</p>
     ${it.custom ? `<button type="button" class="more-btn red" id="ex-del" style="margin:0 0 10px">Убрать из тренировки</button>` : it.group === "main" ? `<button type="button" class="more-btn" id="ex-swap" style="margin:0 0 10px">Заменить упражнение</button><p class="foot-note" id="ex-swap-msg" style="margin:0 2px 10px"></p>` : ""}
-    <button type="button" class="btn primary full" id="tx-done">${isDone() ? "Снять отметку" : "Отметить выполненным"}</button>`);
+    <button type="button" class="btn primary full" id="tx-done">${isDone() ? "Снять отметку" : "Отметить выполненным"}</button>`, { bw: true });
   $("#tx-done", ov).addEventListener("click", () => {
     if (selBand.length && !isDone() && (((trainLogOn(date) || {}).ebands) || {})[it.id] !== comboKey(selBand)) {
       const cur = { ...(((trainLogOn(date) || {}).ebands) || {}), [it.id]: comboKey(selBand) };

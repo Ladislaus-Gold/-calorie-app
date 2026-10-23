@@ -2037,3 +2037,6 @@ html:root[data-theme="dark"] body .bw-ov .tf-warn { background: var(--fill) !imp
 html:root[data-theme="dark"] body .bw-ov .tf-sec .chips .chip { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; box-shadow: none !important; }
 html:root[data-theme="dark"] body .bw-ov .tf-sec .chips .chip.sel { background: #fff !important; color: #000 !important; }
 html:root[data-theme="dark"] body .bw-ov .row .btn.ghost { background: var(--fill) !important; color: var(--ink) !important; border: 0 !important; }
+
+/* v2.72 — окно упражнения: в тёмной теме рамки кнопок резинок серые, без зелёного оттенка */
+html:root[data-theme="dark"] body .bw-ov .ex-bd:not(.on) { border-color: rgba(255,255,255,.14) !important; }
