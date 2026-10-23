@@ -73,6 +73,10 @@ const SND = {
   start() { sndUnlock(); tone(659, 0, 0.2, 0.12); tone(880, 0.13, 0.32, 0.12); },
   // отдых закончился, пора делать подход: три ноты, последняя выше и длиннее
   end() { sndUnlock(); tone(784, 0, 0.16, 0.17, "triangle"); tone(784, 0.2, 0.16, 0.17, "triangle"); tone(1047, 0.4, 0.55, 0.2, "triangle"); },
+  // старт таймера упражнения (растяжка, кардио): два чётких коротких «пик-пик» + вибрация
+  go() { sndUnlock(); tone(988, 0, 0.14, 0.32, "square"); tone(1319, 0.2, 0.24, 0.32, "square"); try { if (navigator.vibrate) navigator.vibrate(60); } catch { /* ignore */ } },
+  // конец таймера упражнения: три громких сигнала + вибрация
+  stop() { sndUnlock(); [0, 0.25, 0.5].forEach((t, i) => tone(i < 2 ? 1175 : 1568, t, i < 2 ? 0.18 : 0.5, 0.34, "square")); try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch { /* ignore */ } },
   // тренировка завершена: «па-бам»
   win() {
     sndUnlock();
@@ -370,7 +374,7 @@ function openTrainWorkout(date) {
     if (t) t.textContent = fmtT(l);
     if (bar && total) bar.style.width = `${Math.round(((total - l) / total) * 100)}%`;
     if (l <= 0 && !tmDone) {
-      tmDone = true; endAt = 0; SND.end();
+      tmDone = true; endAt = 0; if (phase === "run") SND.stop(); else SND.end();
       if (phase === "rest") { phase = "work"; setNo++; draw(); }
       else if (phase === "restx") next();
       else if (phase === "run") finishRun(false);
@@ -487,7 +491,7 @@ function openTrainWorkout(date) {
     const it = items[idx];
     const len = isMinIt(it) ? mins * 60 : secv;
     if (!it || it.reps || review || len <= 0) return;
-    phase = "run"; startTimer(len); runStart = Date.now(); SND.start(); draw();
+    phase = "run"; startTimer(len); runStart = Date.now(); SND.go(); draw();
   };
   const finishRun = (early) => {
     const it = items[idx];
