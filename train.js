@@ -1138,7 +1138,7 @@ export const typeShort = (t) => (BLUEPRINT[t] ? BLUEPRINT[t].short : "");
 
 // Группа мышц для разделения плана: основная нагрузка упражнения
 export const MG = { legs: "Ноги", glutes: "Ягодицы", back: "Спина", chest: "Грудь", shoulders: "Плечи", biceps: "Бицепс", triceps: "Трицепс", forearms: "Предплечья", core: "Кор" };
-const MG_OF = {
+export const MG_OF = {
   squat: "legs", lunge: "legs", stepup: "legs", calf: "legs",
   rdl: "glutes", bridge: "glutes", donkey: "glutes",
   row: "back", bentrow: "back", pulldown: "back", pullup: "back", superman: "back", facepull: "shoulders",
@@ -1268,7 +1268,9 @@ function jointWarm(mainItems, ctx, count) {
   return chosen.map((id) => itemFor(EXERCISES[id], ctx, "warm", 1, 0));
 }
 
-export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds) {
+// Чем заменять упражнения пропущенной группы мышц (по типу тренировки): берём ближайшую подходящую группу, где ещё есть что делать
+const SKIP_REPL = { A: ["legs", "glutes", "core", "back"], B: ["back", "legs", "core", "glutes"], C: ["core", "chest", "back", "legs"] };
+export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds, skip) {
   const cfg = normCfg(cfgRaw, date);
   const type = sessionType(cfg, date);
   if (!type) return null;
@@ -1299,9 +1301,23 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   const d0 = movedFrom(cfg, date) || date;
   const cnt = weekNo(d0) * cfg.days.length + Math.max(0, cfg.days.indexOf(dowOf(d0)));
   const rot = Math.floor(cnt / 3);
-  for (const slot of bp.slots) {
-    const okId = (id) => !used.has(id) && usable(EXERCISES[id], ctx);
-    const cands = ((typeof slot === "string" ? GROUP_LIST[slot] : slot) || []).filter(okId);
+  const skipIds = new Set((skip && skip.ids) || []), skipG = new Set((skip && skip.groups) || []);
+  const hasSkip = skipIds.size > 0 || skipG.size > 0;
+  const repl = SKIP_REPL[type] || SKIP_REPL.A;
+  let ri = 0;
+  const okId = (id) => !used.has(id) && !skipIds.has(id) && usable(EXERCISES[id], ctx);
+  const candsOf = (slot) => ((typeof slot === "string" ? GROUP_LIST[slot] : slot) || []).filter(okId);
+  for (let slot of bp.slots) {
+    let cands = typeof slot === "string" && skipG.has(slot) ? [] : candsOf(slot);
+    // слот пропущенной группы заменяем упражнением другой группы, чтобы тренировка не стала короче выбранного времени
+    if (!cands.length && hasSkip) {
+      for (let n = 0; n < repl.length && !cands.length; n++) {
+        const g = repl[(ri + n) % repl.length];
+        if (skipG.has(g)) continue;
+        const c = candsOf(g);
+        if (c.length) { cands = c; slot = g; ri = ri + n + 1; }
+      }
+    }
     if (!cands.length) continue;
     const k = ((rot % cands.length) + cands.length) % cands.length;
     const ordered = [...cands.slice(k), ...cands.slice(0, k)];

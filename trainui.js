@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=13";
+import * as TR from "./train.js?v=14";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -116,17 +116,14 @@ function painIds(d) {
 // Группа мышц «не восстановилась» (журнал дня, поле skipMg): убираем упражнения на эту группу и те, где она заметно работает
 const SKIP_ALSO = { triceps: ["pushup", "chestpress", "floorpress", "shoulderpress", "dips"], chest: ["dips"], biceps: ["pullup", "pulldown", "row", "bentrow"], shoulders: ["pushup"], glutes: ["squat", "lunge", "stepup"] };
 const skipOf = (d) => { const l = trainLogOn(d); return l && Array.isArray(l.skipMg) ? l.skipMg.filter((g) => TR.MG[g]) : []; };
+const skipIds = (sk) => Object.keys(TR.EXERCISES).filter((id) => sk.some((g) => TR.MG_OF[id] === g || (SKIP_ALSO[g] || []).includes(id)));
 const skipHit = (it, sk) => it.group === "main" && sk.some((g) => it.mg === g || (SKIP_ALSO[g] || []).includes(it.id));
 const trainSession = (d, extraAvoid, noSkip) => {
   if (!state.trainCfg) return null;
   const adv = d >= todayStr() ? trainAdvice(d) : null;
   const avoid = [...(adv ? adv.avoid : []), ...(d >= todayStr() ? painIds(d) : []), ...(((trainLogOn(d) || {}).swapped) || []), ...(extraAvoid || [])];
-  let base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid);
   const sk = noSkip ? [] : skipOf(d);
-  if (base && sk.length) {
-    const gone = base.items.filter((i) => skipHit(i, sk));
-    if (gone.length) base = { ...base, items: base.items.filter((i) => !gone.includes(i)), est: Math.max(1, base.est - Math.round(gone.reduce((t, i) => t + (i.est || 0), 0) / 60)), skipped: gone.map((i) => i.id) };
-  }
+  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null);
   const cs = customItems(d);
   if (!cs.length) return base;
   const rank = { warm: 0, main: 1, cardio: 2, cool: 3 };
@@ -850,7 +847,7 @@ function openTrainForm() {
 function openTrainSkip(day) {
   const sel = new Set(skipOf(day));
   const ov = openSheet(`<div class="sheet-head"><h2>Что не восстановилось</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-    <p class="foot-note" style="margin:-4px 2px 12px">Выберите группы мышц, которые сегодня нагружать не нужно. Уберём упражнения на них и те, где они заметно работают (например, жимы и отжимания при трицепсах). Действует только на эту тренировку.</p>
+    <p class="foot-note" style="margin:-4px 2px 12px">Выберите группы мышц, которые сегодня нагружать не нужно. Уберём упражнения на них и те, где они заметно работают (например, жимы и отжимания при трицепсах), и заменим другими, чтобы уложиться в выбранное время. Действует только на эту тренировку.</p>
     <div class="tr-skg" id="sk-grid"></div><p class="foot-note" id="sk-cnt" style="margin:10px 2px 12px"></p>
     <div class="row"><button type="button" class="btn ghost" id="sk-reset">Сбросить</button><button type="button" class="btn primary grow" id="sk-ok">Применить</button></div>`, { bw: true });
   const grid = $("#sk-grid", ov), cnt = $("#sk-cnt", ov);
@@ -858,7 +855,7 @@ function openTrainSkip(day) {
     grid.innerHTML = Object.entries(TR.MG).map(([g, t]) => `<button type="button" class="tr-skb${sel.has(g) ? " on" : ""}" data-g="${g}" aria-pressed="${sel.has(g)}">${esc(t)}</button>`).join("");
     const base = trainSession(day, null, true);
     const n = base ? base.items.filter((i) => skipHit(i, [...sel])).length : 0;
-    cnt.textContent = sel.size ? `Из тренировки уйдёт упражнений: ${n}.` : "Ничего не выбрано: тренировка по плану.";
+    cnt.textContent = sel.size ? `Заменим упражнений: ${n}. Подберём другие группы под выбранное время.` : "Ничего не выбрано: тренировка по плану.";
   };
   draw();
   ov.addEventListener("click", (e) => {
