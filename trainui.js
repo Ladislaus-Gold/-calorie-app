@@ -3,15 +3,18 @@
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
 import * as TR from "./train.js?v=13";
 
-/* Готовые картинки упражнений (папка img/): `${id}-${vk}-p.webp` профиль, `-f.webp` анфас.
-   Есть картинка для пары (упражнение, вариант) — показываем её с переключателем «Профиль / Анфас», иначе рисунок-схему. */
-const PHOTOS = new Set(["squat:db", "squat:band", "squat:bw", "lunge:db", "lunge:bw", "rdl:db", "rdl:band"]);
+/* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
+   Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
+const PHOTOS = new Map([["shoulderpress:band", 1], ["deadbug:bw", 1], ["pulldown:band", 2], ["pushup:bw", 1]]);
+const hasPhoto = (id, vk) => PHOTOS.has(`${id}:${vk}`);
 function exFig(id, vk) {
-  if (!PHOTOS.has(`${id}:${vk}`)) return TR.illustration(id, vk);
+  const n = PHOTOS.get(`${id}:${vk}`);
+  if (!n) return "";
   const b = `img/${id}-${vk}`;
-  return `<div class="ex-ph" data-i="0" data-id="${id}" data-vk="${vk}">
-    <div class="ex-ph-imgs"><img src="${b}-p.webp" alt="Профиль" decoding="async"><img src="${b}-f.webp" alt="Анфас" decoding="async"></div>
-    <div class="ex-ph-dots"><i></i><i></i></div></div>`;
+  const imgs = Array.from({ length: n }, (_, i) => `<img src="${b}-${i + 1}.webp" alt="Иллюстрация упражнения" decoding="async">`).join("");
+  return `<div class="ex-ph" data-i="0" data-n="${n}" data-id="${id}" data-vk="${vk}">
+    <div class="ex-ph-imgs">${imgs}</div>
+    <div class="ex-ph-dots">${"<i></i>".repeat(n)}</div></div>`;
 }
 // Листание картинок свайпом (scroll-snap), точки показывают текущий вид (профиль / анфас): слушатель на документе, перерисовка ему не мешает
 if (typeof document !== "undefined" && !window.__exPh) {
@@ -21,10 +24,10 @@ if (typeof document !== "undefined" && !window.__exPh) {
     if (!s || !s.classList || !s.classList.contains("ex-ph-imgs")) return;
     s.parentElement.dataset.i = s.scrollLeft > s.clientWidth / 2 ? "1" : "0";
   }, true);
-  // нет файла картинки (например, папка img/ не загружена) — вместо сломанной рамки показываем рисунок-схему
+  // нет файла картинки (например, папка img/ не загружена) — убираем сломанную рамку
   document.addEventListener("error", (e) => {
     const im = e.target, box = im && im.closest && im.closest(".ex-ph");
-    if (box) box.outerHTML = TR.illustration(box.dataset.id, box.dataset.vk);
+    if (box) box.remove();
   }, true);
 }
 
@@ -416,7 +419,7 @@ function openTrainWorkout(date) {
     let nxHtml = "";
     if (nx && phase === "restx") {
       const nex = TR.EXERCISES[nx.id] || {};
-      nxHtml = `<div class="wk-nxc"><div class="th">${PHOTOS.has(`${nx.id}:${nx.vk}`) ? `<img src="img/${nx.id}-${nx.vk}-p.webp" alt="">` : nex.frames ? TR.illustration(nx.id, nx.vk) : ""}</div><div><small>Следом</small><div class="n">${esc(nx.name)}</div><div class="v">${esc([varOf(nx), planOf(nx)].filter(Boolean).join(" · "))}</div></div></div>`;
+      nxHtml = `<div class="wk-nxc">${hasPhoto(nx.id, nx.vk) ? `<div class="th"><img src="img/${nx.id}-${nx.vk}-1.webp" alt=""></div>` : ""}<div><small>Следом</small><div class="n">${esc(nx.name)}</div><div class="v">${esc([varOf(nx), planOf(nx)].filter(Boolean).join(" · "))}</div></div></div>`;
     } else if (nx) {
       nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
     }
@@ -464,7 +467,7 @@ function openTrainWorkout(date) {
     }
     winOn = false;
     const it = items[idx], ex = TR.EXERCISES[it.id] || {};
-    const fig = ex.frames ? `<div class="ex-fig wk-fig${PHOTOS.has(`${it.id}:${it.vk}`) ? " wk-ph" : ""}">${exFig(it.id, it.vk)}</div>` : "";
+    const fig = hasPhoto(it.id, it.vk) ? `<div class="ex-fig wk-fig wk-ph">${exFig(it.id, it.vk)}</div>` : "";
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
     const head = bandHtml(it.name, sub);
@@ -697,7 +700,7 @@ function openTrainExercise(date, key) {
   const bandsBlock = () => `<span class="ex-vars-t">Какой резинкой${!((((trainLogOn(date) || {}).ebands) || {})[it.id]) && lastB && comboKey(selBand) === comboKey(comboIds(lastB)) ? " · как в прошлый раз, можно сменить" : ""}${selBand.length ? ` · около ${fmt(comboKg(selBand))} кг` : ""}</span><div class="ex-bandrow">${TR.BAND_COLORS.map((c) => `<button type="button" class="ex-bd${selBand.includes(c.id) ? " on" : ""}" data-eb="${c.id}" style="--c:${c.hex}" aria-pressed="${selBand.includes(c.id)}"><i></i>${c.t}</button>`).join("")}</div><span class="ex-vars-t" style="margin-top:6px;font-weight:500">Можно выбрать несколько цветов: трубки складываются.</span>${upHint()}`;
   const ov = openSheet(`
     <div class="sheet-head"><h2>${nameVar(it.name, it.vlabel)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-    <div class="ex-fig">${exFig(it.id, it.vk)}</div>
+    ${hasPhoto(it.id, it.vk) ? `<div class="ex-fig">${exFig(it.id, it.vk)}</div>` : ""}
     <div class="ex-meta"><span class="pill">${esc(ex.muscles)}</span></div>
     ${it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : ""}
     ${ex.variants && ex.variants.length > 1 ? `<div class="ex-vars"><span class="ex-vars-t">Как выполнять сейчас</span><div class="chips" style="margin:0">${[["", "Авто"], ...ex.variants.map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div></div>` : ""}

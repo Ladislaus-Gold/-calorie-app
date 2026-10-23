@@ -1992,3 +1992,7 @@ html body .dv.hvw .btn.primary.full:active { background: #1C1C1E !important; col
 html:root[data-theme="dark"] body .btn.primary:active:not(.dk-new):not(.sub-ok):not([data-act="addDrink"]),
 html:root[data-theme="dark"] body .dv.hvw .btn.primary.full:active { background: #E5E5EA !important; color: #000 !important; }
 html body .btn, html body button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* v2.69 — новые иллюстрации: родное соотношение сторон, точки только когда картинок две */
+.ex-ph-imgs img, .hvw .ex-ph-imgs img, .overlay .ex-ph-imgs img { aspect-ratio: auto !important; object-fit: contain; background: transparent !important; }
+.ex-ph[data-n="1"] .ex-ph-dots { display: none; }
