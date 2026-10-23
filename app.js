@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 278;
-const APP_VERSION_LABEL = "2.75"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 279;
+const APP_VERSION_LABEL = "2.76"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4084,6 +4084,14 @@ function viewHealth() {
   const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span></div>` : "";
   const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
   const wkLeft = Math.max(0, wt.minutes - wkMin);
+  // Неделя закрыта: выполнены обе цели (минуты и силовые)
+  const wkClosed = wkMin >= wt.minutes && wkStr >= wt.strength;
+  const wkKc = Math.round(wk.reduce((t, d) => t + actOn(d).reduce((q, a) => q + (Number(a.kcal) || 0), 0) + wkKcal(d), 0));
+  const wkTime = wkMin >= 60 ? `${Math.floor(wkMin / 60)} ч ${String(Math.round(wkMin % 60)).padStart(2, "0")}` : `${Math.round(wkMin)} мин`;
+  const wkComment = wkStr > wt.strength && wkMin >= wt.minutes * 1.5 ? `Силовых больше плана и минут заметно больше нормы: сильная неделя. Дай мышцам восстановиться, сон и белок сейчас важнее новых нагрузок.`
+    : wkStr > wt.strength ? `Силовых больше плана: отличная неделя. Следи за восстановлением, сном и белком.`
+    : wkMin >= wt.minutes * 1.5 ? `Минут почти в полтора раза больше нормы, силовые по плану. Хороший темп, не забывай про отдых.`
+    : `Обе цели недели выполнены: ${wt.strength} силовых и ${wt.minutes} минут нагрузки. Так держать.`;
   const pTrain = `
     ${hd ? `<section class="th-hero">
       <div class="th-top">
@@ -4101,12 +4109,24 @@ function viewHealth() {
       <div class="card-top fl-top"><span class="fl-ic ic-shoe" data-ek="act">👟</span><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
       <p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>
     </section>`}
-    <section class="card wkc">
+    ${wkClosed ? `<section class="card wkc wkd">
+      <div class="wkd-hd">
+        <span class="wkd-medal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v4M8.5 20h7M10 17h4"/></svg></span>
+        <div class="wkd-tt"><div class="wkd-k">НЕДЕЛЯ ЗАКРЫТА</div><div class="wkd-h">План выполнен</div></div>
+        <svg class="wkd-ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.8l4.2 4.2L18.5 7.8"/></svg>
+      </div>
+      <div class="wkd-st">
+        <div><b>${esc(wkTime)}</b><span>тренировок<br>за неделю</span></div>
+        <div><b>${wkStr}${wkStr > wt.strength ? ` <em>из ${wt.strength}</em>` : ""}</b><i>${Array.from({ length: Math.max(Number(wt.strength) || 0, wkStr) }, () => `<span class="wkc-dot"></span>`).join("")}</i><span>силовых</span></div>
+        <div><b>${wkKc ? fmtInt(wkKc) : "—"}</b><span>ккал<br>сожжено</span></div>
+      </div>
+      <p class="wkd-cm">${esc(wkComment)}</p>
+    </section>` : `<section class="card wkc">
       <div class="wkc-r1"><span class="fl-ic ic-cal" data-ek="wk">🗓️</span><h2 class="h2">Неделя</h2><span class="wkc-v${wkMin >= wt.minutes ? " ok" : ""}">${fmtInt(wkMin)} из ${wt.minutes} мин${wkMin >= wt.minutes ? " ✓" : ""}</span></div>
       <div class="wkc-bar"><i style="width:${Math.min(100, (wkMin / wt.minutes) * 100)}%"></i></div>
       <div class="wkc-r2">${wkDots}<span>Силовых: ${wkStr} из ${wt.strength}${wkLeft > 0 ? ` · осталось ${fmtInt(wkLeft)} мин` : ""}</span></div>
       ${wt.text ? `<p class="wkc-note">${esc(wt.text)}</p>` : ""}
-    </section>
+    </section>`}
     <section class="card trc">
       <div class="card-top fl-top"><span class="fl-ic ic-run" data-ek="trn">⚡</span><h2 class="h2">Тренировки</h2></div>
       <div class="stat-grid">
