@@ -3398,15 +3398,36 @@ function openEditEntry(entry) {
     kcal: (entry.kcal / entry.grams) * 100, protein: (entry.protein / entry.grams) * 100,
     fat: (entry.fat / entry.grams) * 100, carbs: (entry.carbs / entry.grams) * 100,
   } : { kcal: 0, protein: 0, fat: 0, carbs: 0 });
+  // Напиток из дневника: та же шапка, что у напитка в списке (эмодзи, цвет, звёздочка, карандаш к карточке напитка)
+  const dk = entry.drink ? (drinkById(String(entry.productId || "").replace(/^drink:/, "")) || foodDrinkOf(entry.name)) : null;
+  const dkd = dk && dk.id ? dk : null;
   const ov = openSheetBw(`
     <div class="sheet-head"><h2>Запись</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-    <div class="picked"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>
+    ${dkd ? `<div class="picked pk-row"><span class="pk-ava">${esc(drinkIcon(dkd))}</span><div class="pk-tx"><div class="p-name">${esc(entry.name)}</div></div><button type="button" class="dk-dot" id="ee-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(dkd.id))}"><i></i></button><button type="button" class="star pk-star ${state.fav.includes(dkd.id) ? "on" : ""}" id="ee-star" aria-label="В избранное">${STAR_SVG}</button><button type="button" class="pk-edit" id="ee-card" aria-label="Карточка напитка">✎</button></div>
+    <div class="dk-pal hidden" id="ee-pal" data-noswipe>${DOT_PAL.map((h) => `<button type="button" data-hex="${h}" style="background:${h}" aria-label="Цвет ${h}"></button>`).join("")}</div>` : `<div class="picked"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>`}
     <label class="field"><span>Приём пищи</span><select id="ee-meal" class="input">${mealOptions(entry.meal)}</select></label>
     <label class="field"><span>${entry.drink ? "Объём, мл" : "Вес, г"}</span><input id="ee-g" class="input big" inputmode="decimal" value="${String(entry.grams).replace(".", ",")}" autocomplete="off"></label>
     <div class="preview" id="ee-prev"></div>
     <button type="button" class="btn ghost full" id="ee-copy" style="margin-bottom:12px">Копировать запись</button>
     <div class="row"><button type="button" class="btn ghost sub-mini" id="ee-sub" aria-label="Изменить вес: плюс или минус">±</button><button type="button" class="btn danger" id="ee-del">Удалить</button><button type="button" class="btn primary grow" id="ee-save">Сохранить</button></div>`);
   const input = $("#ee-g", ov);
+  if (dkd) {
+    const dotB = $("#ee-dot", ov), pal = $("#ee-pal", ov);
+    dotB.addEventListener("click", () => pal.classList.toggle("hidden"));
+    pal.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-hex]");
+      if (!b) return;
+      setDot(dkd.id, b.dataset.hex);
+      dotB.style.setProperty("--c", b.dataset.hex);
+      pal.querySelectorAll(".on").forEach((x) => x.classList.remove("on"));
+      b.classList.add("on");
+      pal.classList.add("hidden");
+    });
+    const cur = String(dotOf(dkd.id)).toUpperCase();
+    pal.querySelectorAll("[data-hex]").forEach((x) => x.classList.toggle("on", x.dataset.hex.toUpperCase() === cur));
+    $("#ee-star", ov).addEventListener("click", (e) => { toggleFav(dkd.id); e.currentTarget.classList.toggle("on", state.fav.includes(dkd.id)); });
+    $("#ee-card", ov).addEventListener("click", () => openDrinkSheet(null, null, 0, { editId: dkd.id }));
+  }
   const oldCaf = entry.drink ? (Number(entry.grams) * Number(entry.drink.caf100)) / 100 : 0;
   const upd = () => { $("#ee-prev", ov).innerHTML = previewHtml(p100, num(input.value), entry.drink || null, oldCaf); };
   upd();
@@ -3935,8 +3956,10 @@ const bcConflict = (code, ig = {}) => {
   return "";
 };
 const saveCustomDrinks = (extra = {}) => setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { custom: state.customDrinks, ...extra }, { merge: true }).catch(writeFail);
-const allDrinks = () => [...DRINKS, ...customList()];
-const drinkById = (id) => DRINK_BY_ID[id] || customList().find((x) => x.id === id) || null;
+// Встроенный напиток можно поправить: тогда в общей базе (drinkdb) появляется карточка с тем же id и она главнее встроенной
+const drinkOvr = (id) => customList().find((x) => x.id === id) || null;
+const allDrinks = () => { const cl = customList(), by = new Map(cl.map((x) => [x.id, x])); return [...DRINKS.map((d) => by.get(d.id) || d), ...cl.filter((x) => !DRINK_BY_ID[x.id])]; };
+const drinkById = (id) => (DRINK_BY_ID[id] ? drinkOvr(id) || DRINK_BY_ID[id] : customList().find((x) => x.id === id) || null);
 // Значок напитка: свой эмодзи (если задан), иначе по категории
 const CAT_EMO = { tea: "🍵", coffee: "☕", milk: "🥛", sugar: "🥤", fruit: "🧃", active: "⚡", mock: "🍹", alc: "🍺", other: "💧" };
 const drinkIcon = (d) => (d && d.e) ? d.e : (d ? (CAT_EMO[d.cat] || "💧") : "💧");
@@ -4822,24 +4845,26 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
   const body = $("#dk-body", ov);
   // В окне объёма шапка как у продуктов: приём пищи слева, закрыть справа
   const headEl = $("#dk-head", ov);
+  const editing = !!entry;
   const setHead = (meal) => {
     headEl.className = meal ? "sheet-head af-head dk-head" : "sheet-head";
-    headEl.innerHTML = `${meal ? `<select id="dk-meal" class="input" aria-label="Приём пищи">${mealOptions(mealByTime())}</select>` : "<h2>Добавить напиток</h2>"}<button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button>`;
+    headEl.innerHTML = `${meal ? `<select id="dk-meal" class="input" aria-label="Приём пищи">${mealOptions(mealByTime())}</select>` : `<h2>${editing || st.ed ? "Изменить напиток" : "Добавить напиток"}</h2>`}<button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button>`;
   };
-  const st = { q: "", cat: "all" };
+  const st = { q: "", cat: "all", ed: false };
 
   const rowHtml = (d) => {
     const sub = [d.k > 0 ? `${d.k} ккал/100 мл` : "", d.c > 0 ? `${d.c} мг кофеина` : "", d.a].filter(Boolean).join(", ");
     return `<div class="drow">
       <button type="button" class="d-main dk-main" data-did="${d.id}"><span class="d-ava" style="--c:${esc(dotOf(d.id))}">${esc(drinkIcon(d))}</span><span class="d-tx"><span class="p-name">${esc(d.n)}</span>${sub ? `<span class="p-sub">${esc(sub)}</span>` : ""}</span></button>
       <span class="d-pct ${d.h < 0 ? "neg" : ""}">${d.h}%</span>
-      ${DRINK_BY_ID[d.id] ? "" : `<button type="button" class="d-edit" data-dedit="${d.id}" aria-label="Изменить напиток">✎</button>`}
+      <button type="button" class="d-edit" data-dedit="${d.id}" aria-label="Изменить напиток">✎</button>
       <button type="button" class="star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>
     </div>`;
   };
 
   function showList() {
     const favs = favDrinks();
+    st.ed = false;
     setHead(false);
     body.innerHTML = `
       <div id="dk-pickbox"></div>
@@ -4971,6 +4996,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const alcOpts = [["Слабый алкоголь", "Слабый (пиво, сидр)"], ["Легкий алкоголь", "Лёгкий"], ["Умеренный алкоголь", "Умеренный"], ["Средний алкоголь", "Средний (вино, вермут)"], ["Крепкий алкоголь", "Крепкий (водка, виски, коньяк)"]];
     const hideN = !isNew && ![d.k, d.p, d.f, d.cb].some((x) => Number(x) > 0), hideB = !isNew && bcs.length === 0;
     const alcSel0 = alcOpts.some((o) => o[0] === d.a) ? d.a : "Средний алкоголь";
+    st.ed = !isNew;
     setHead(false);
     body.innerHTML = `
       <div class="pf-top-row">
@@ -4979,7 +5005,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         ${isNew ? "" : `<button type="button" class="star pk-star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>`}
       </div>
       ${from ? `<div class="note">Продукт «${esc(from.name)}» переносится в напитки. Проверьте категорию и гидратацию и сохраните: из продуктов он исчезнет.</div>` : ""}
-      <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}${isNew ? "" : `<option value="__prod__">🍽️ Продукты (перенести в продукты)</option>`}</select></label>
+      <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}${isNew || DRINK_BY_ID[d.id] ? "" : `<option value="__prod__">🍽️ Продукты (перенести в продукты)</option>`}</select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
       <p class="note" id="dc-hint" style="margin-top:-4px"></p>
       <div class="field-grid">
@@ -5002,7 +5028,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
         <div class="inline"><input id="dc-bc-in" class="input" inputmode="numeric" maxlength="20" placeholder="Штрих-код" autocomplete="off"><button type="button" class="icon-btn" id="dc-bc-scan" aria-label="Сканировать штрих-код">${SCAN_SVG}</button></div>
         <p class="foot-note" style="margin:6px 2px 0">Код добавится сам: после сканирования, при выходе из поля и при «Сохранить».</p>
       </div>
-      <div class="row">${isNew ? `<button type="button" class="btn ghost" id="dc-back">Назад</button>` : `<button type="button" class="btn danger" id="dc-del">Удалить</button>`}<button type="button" class="btn primary grow" id="dc-save">Сохранить</button></div>`;
+      <div class="row">${isNew ? `<button type="button" class="btn ghost" id="dc-back">Назад</button>` : (DRINK_BY_ID[d.id] && !drinkOvr(d.id)) ? "" : `<button type="button" class="btn danger" id="dc-del">${DRINK_BY_ID[d.id] ? "Сбросить" : "Удалить"}</button>`}<button type="button" class="btn primary grow" id="dc-save">Сохранить</button></div>`;
     body.querySelectorAll("[data-reveal]").forEach((b) => b.addEventListener("click", () => {
       const w = document.getElementById(b.dataset.reveal);
       if (w) { w.style.display = ""; const x = w.querySelector("input"); if (x) x.focus(); }
@@ -5081,7 +5107,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     };
     const del = $("#dc-del", ov);
     if (del) del.addEventListener("click", () => {
-      if (!confirm(`Удалить «${d.n}» из списка напитков? Прошлые записи останутся.`)) return;
+      if (!confirm(DRINK_BY_ID[d.id] ? `Вернуть «${d.n}» к стандартным значениям?` : `Удалить «${d.n}» из списка напитков? Прошлые записи останутся.`)) return;
       removeFromList();
       showList();
     });
@@ -5140,7 +5166,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const lastMl = existing ? existing.ml : (presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250));
     setHead(!existing);
     body.innerHTML = `
-      ${isCustom ? `<div class="picked"><div class="p-name">${existing ? "Свой напиток" : "Новый напиток"}</div></div>` : `<div class="picked pk-row"><span class="pk-ava">${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div></div><button type="button" class="dk-dot" id="dk-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(d.id))}"><i></i></button><button type="button" class="star pk-star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button>${existing ? "" : `<button type="button" class="pk-edit" id="dk-card" aria-label="Карточка напитка">✎</button>`}</div>`}
+      ${isCustom ? `<div class="picked"><div class="p-name">${existing ? "Свой напиток" : "Новый напиток"}</div></div>` : `<div class="picked pk-row"><span class="pk-ava">${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div></div><button type="button" class="dk-dot" id="dk-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(d.id))}"><i></i></button><button type="button" class="star pk-star ${state.fav.includes(d.id) ? "on" : ""}" data-star="${d.id}" aria-label="В избранное">${STAR_SVG}</button><button type="button" class="pk-edit" id="dk-card" aria-label="Карточка напитка">✎</button></div>`}
       ${isCustom ? `${existing ? "" : `<label class="field"><span>Категория</span><select id="dk-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}</select></label>
         <label class="field hidden" id="dk-alc-box"><span>Крепость</span><select id="dk-alc" class="input"><option value="Слабый алкоголь">Слабый (пиво, сидр)</option><option value="Легкий алкоголь">Лёгкий</option><option value="Умеренный алкоголь">Умеренный</option><option value="Средний алкоголь" selected>Средний (вино, вермут)</option><option value="Крепкий алкоголь">Крепкий (водка, виски, коньяк)</option></select></label>`}
         <label class="field"><span>Название</span><input id="dk-name" class="input" maxlength="60" value="${existing ? esc(existing.name) : ""}" autocomplete="off" placeholder="Например, Матэ"></label>
@@ -5222,7 +5248,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       pal.querySelectorAll("[data-hex]").forEach((x) => x.classList.toggle("on", x.dataset.hex.toUpperCase() === String(cur).toUpperCase()));
     }
     const cardBtn = $("#dk-card", ov);
-    if (cardBtn) cardBtn.addEventListener("click", () => showCard(d, false));
+    if (cardBtn) cardBtn.addEventListener("click", () => showCard(drinkById(d.id) || d, false));
     if (!existing) $("#dk-back", ov).addEventListener("click", showList);
     $("#dk-save", ov).addEventListener("click", () => {
       const r = read();
@@ -5278,7 +5304,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     showDetail(entry.drinkId === "custom" || !base
       ? { id: "custom", n: entry.name, h: Number(entry.pct), c: 0, a: "", cat: "other" }
       : { id: base.id, n: entry.name, h: Number(entry.pct), c: (Number(entry.caf100) * 240) / 100, a: entry.alc || "", cat: base.cat }, entry);
-  } else if (prefill && prefill.card) showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [], ...prefill }, true, prefill.from);
+  } else if (prefill && prefill.editId && drinkById(prefill.editId)) showCard(drinkById(prefill.editId), false);
+  else if (prefill && prefill.card) showCard({ n: "", h: 90, c: 0, a: "", cat: "other", k: 0, p: 0, f: 0, cb: 0, bc: [], ...prefill }, true, prefill.from);
   else if (presetId && drinkById(presetId)) { showList(); showInline(drinkById(presetId)); }
   else showList();
 }
