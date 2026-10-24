@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 295;
-const APP_VERSION_LABEL = "2.92"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 296;
+const APP_VERSION_LABEL = "2.93"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1072,12 +1072,16 @@ function productsForTab() {
 }
 
 const COMMON_CATS = ["🍎 Фрукты", "🥦 Овощи", "🍗 Мясо", "🐟 Рыба", "🥛 Молочка", "🍲 Готовые блюда", "🍞 Выпечка"];
+// Стандартные категории, которые пользователь убрал из списка (хранится на устройстве)
+const catHiddenGet = () => { try { return JSON.parse(lsGet("cat_hidden") || "[]"); } catch { return []; } };
+const catHide = (c) => { const h = catHiddenGet(); if (!h.includes(fold(c))) { h.push(fold(c)); lsSet("cat_hidden", JSON.stringify(h)); } };
+const commonCats = () => { const h = catHiddenGet(); return COMMON_CATS.filter((c) => !h.includes(fold(c))); };
 function prodCategoryOptions() {
   const set = new Set();
   state.products.forEach((p) => { const c = (p.category || "").trim(); if (c) set.add(c); });
   const used = [...set].sort((a, b) => a.localeCompare(b, "ru"));
   const usedFold = new Set(used.map((c) => fold(c)));
-  const suggest = COMMON_CATS.filter((c) => !usedFold.has(fold(c)));
+  const suggest = commonCats().filter((c) => !usedFold.has(fold(c)));
   return [...used, ...suggest].map((c) => `<option value="${esc(c)}">`).join("");
 }
 
@@ -1088,7 +1092,7 @@ function catSelectOptions(cur) {
   if (cur) set.add(cur);
   const used = [...set].sort((a, b) => a.localeCompare(b, "ru"));
   const usedFold = new Set(used.map((c) => fold(c)));
-  const all = [...used, ...COMMON_CATS.filter((c) => !usedFold.has(fold(c)))];
+  const all = [...used, ...commonCats().filter((c) => !usedFold.has(fold(c)))];
   return `<option value="">Без категории</option>` + all.map((c) => `<option value="${esc(c)}"${c === cur ? " selected" : ""}>${esc(c)}</option>`).join("");
 }
 
@@ -3713,7 +3717,7 @@ function openProductForm(product, onSaved, prefill = {}) {
     const usedMap = () => { const m = new Map(); state.products.forEach((x) => { const c = (x.category || "").trim(); if (c) m.set(fold(c), c); }); return m; };
     const allCats = () => {
       const list = [...usedMap().values()];
-      [...extra, ...COMMON_CATS].forEach((c) => { if (!list.some((x) => fold(x) === fold(c))) list.push(c); });
+      [...extra, ...commonCats()].forEach((c) => { if (!list.some((x) => fold(x) === fold(c))) list.push(c); });
       return list.sort((a, b) => a.localeCompare(b, "ru"));
     };
     const DRINK_CAT = "__drink__";
@@ -3725,7 +3729,7 @@ function openProductForm(product, onSaved, prefill = {}) {
     const drawMenu = () => {
       const used = usedMap(), cur = hid.value;
       menu.innerHTML = `<button type="button" class="cat-opt${cur === "" ? " sel" : ""}" data-cv="">Без категории</button><button type="button" class="cat-opt cat-drink${cur === DRINK_CAT ? " sel" : ""}" data-cv="${DRINK_CAT}">🥤 Напитки <small>перенести в напитки</small></button>`
-        + allCats().map((c) => `<div class="cat-opt-row"><button type="button" class="cat-opt${c === cur ? " sel" : ""}" data-cv="${esc(c)}">${esc(c)}</button>${used.has(fold(c)) ? `<button type="button" class="cat-x" data-cx="${esc(c)}" aria-label="Удалить категорию">×</button>` : ""}</div>`).join("");
+        + allCats().map((c) => `<div class="cat-opt-row"><button type="button" class="cat-opt${c === cur ? " sel" : ""}" data-cv="${esc(c)}">${esc(c)}</button><button type="button" class="cat-ed" data-ce2="${esc(c)}" aria-label="Изменить категорию">✎</button><button type="button" class="cat-x" data-cx="${esc(c)}" aria-label="Удалить категорию">×</button></div>`).join("");
     };
     const closeMenu = () => { menu.hidden = true; trg.classList.remove("open"); };
     trg.addEventListener("click", () => {
@@ -3734,7 +3738,8 @@ function openProductForm(product, onSaved, prefill = {}) {
     });
     const delCat = (c) => {
       const ids = state.products.filter((x) => fold((x.category || "").trim()) === fold(c)).map((x) => x.id);
-      if (!confirm(`Удалить категорию «${c}»? Она будет снята у продуктов: ${ids.length}. Сами продукты останутся.`)) return;
+      if (!confirm(ids.length ? `Удалить категорию «${c}»? Она будет снята у продуктов: ${ids.length}. Сами продукты останутся.` : `Убрать категорию «${c}» из списка?`)) return;
+      catHide(c);
       for (let i = 0; i < ids.length; i += 400) {
         const b = writeBatch(db);
         ids.slice(i, i + 400).forEach((id) => b.update(prodDoc(id), { category: "", updatedAt: serverTimestamp() }));
@@ -3749,9 +3754,37 @@ function openProductForm(product, onSaved, prefill = {}) {
     menu.addEventListener("click", (e) => {
       const x = e.target.closest("[data-cx]");
       if (x) { delCat(x.dataset.cx); return; }
+      const pe = e.target.closest("[data-ce2]");
+      if (pe) { startEdit(pe.dataset.ce2); return; }
       const o = e.target.closest("[data-cv]");
       if (o) { setVal(o.dataset.cv); closeMenu(); }
     });
+    let editing = null; // название категории, которую сейчас переименовываем
+    const EMO_RE = /^((?:\p{Extended_Pictographic}\uFE0F?(?:\u200D\p{Extended_Pictographic}\uFE0F?)*))\s+(.*)$/u;
+    const startEdit = (c) => {
+      const m = EMO_RE.exec(c);
+      editing = c; pickEmo = m ? m[1] : "";
+      closeMenu(); catNew.style.display = "block";
+      catIn.value = m ? m[2] : c;
+      $("#pf-cat-ok", ov).textContent = "Сохранить";
+      drawEmo(); catIn.focus();
+      catNew.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    };
+    const renameCat = (oldC, newC) => {
+      if (newC === oldC) return;
+      const ids = state.products.filter((x) => fold((x.category || "").trim()) === fold(oldC)).map((x) => x.id);
+      for (let i = 0; i < ids.length; i += 400) {
+        const b = writeBatch(db);
+        ids.slice(i, i + 400).forEach((id) => b.update(prodDoc(id), { category: newC, updatedAt: serverTimestamp() }));
+        b.commit().catch(writeFail);
+      }
+      state.products.forEach((x) => { if (fold((x.category || "").trim()) === fold(oldC)) x.category = newC; });
+      extra = extra.filter((x) => fold(x) !== fold(oldC));
+      if (!allCats().some((x) => fold(x) === fold(newC))) extra.push(newC);
+      catHide(oldC);
+      if (fold(hid.value) === fold(oldC)) setVal(newC);
+      if (state.prodCat && fold(state.prodCat) === fold(oldC)) state.prodCat = newC;
+    };
     emoRow.addEventListener("click", (e) => {
       const b = e.target.closest("[data-ce]");
       if (!b) return;
@@ -3760,16 +3793,19 @@ function openProductForm(product, onSaved, prefill = {}) {
     });
     const catCommit = () => {
       const name = catIn.value.trim().slice(0, 36);
-      if (name) {
+      if (name && editing) {
+        renameCat(editing, ((pickEmo ? pickEmo + " " : "") + name).slice(0, 40));
+      } else if (name) {
         const v = ((pickEmo ? pickEmo + " " : "") + name).slice(0, 40);
         const ex = allCats().find((x) => fold(x) === fold(v));
         if (!ex) extra.push(v);
         setVal(ex || v);
       }
-      catNew.style.display = "none"; pickEmo = "";
+      catNew.style.display = "none"; pickEmo = ""; editing = null;
+      $("#pf-cat-ok", ov).textContent = "Готово";
       drawEmo();
     };
-    $("#pf-cat-add", ov).addEventListener("click", () => { closeMenu(); catNew.style.display = "block"; catIn.value = ""; drawEmo(); catIn.focus(); });
+    $("#pf-cat-add", ov).addEventListener("click", () => { closeMenu(); editing = null; pickEmo = ""; $("#pf-cat-ok", ov).textContent = "Готово"; catNew.style.display = "block"; catIn.value = ""; drawEmo(); catIn.focus(); });
     $("#pf-cat-ok", ov).addEventListener("click", catCommit);
     catIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); catCommit(); } });
   }
