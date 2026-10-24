@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 293;
-const APP_VERSION_LABEL = "2.90"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 294;
+const APP_VERSION_LABEL = "2.91"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3420,14 +3420,13 @@ function openEditEntry(entry) {
   const dk = entry.drink ? (drinkById(String(entry.productId || "").replace(/^drink:/, "")) || foodDrinkOf(entry.name)) : null;
   const dkd = dk && dk.id ? dk : null;
   const ov = openSheetBw(`
-    <div class="sheet-head"><h2>Запись</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <div class="sheet-head"><h2>Запись</h2><button type="button" class="ee-cp" id="ee-copy" aria-label="Копировать запись"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></div>
     ${dkd ? `<div class="picked pk-row"><span class="pk-ava">${esc(drinkIcon(dkd))}</span><div class="pk-tx"><div class="p-name">${esc(entry.name)}</div></div><button type="button" class="dk-dot" id="ee-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(dkd.id))}"><i></i></button><button type="button" class="star pk-star ${state.fav.includes(dkd.id) ? "on" : ""}" id="ee-star" aria-label="В избранное">${STAR_SVG}</button><button type="button" class="pk-edit" id="ee-card" aria-label="Карточка напитка">✎</button></div>
-    <div class="dk-pal hidden" id="ee-pal" data-noswipe>${DOT_PAL.map((h) => `<button type="button" data-hex="${h}" style="background:${h}" aria-label="Цвет ${h}"></button>`).join("")}</div>` : `<div class="picked"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>`}
+    <div class="dk-pal hidden" id="ee-pal" data-noswipe>${DOT_PAL.map((h) => `<button type="button" data-hex="${h}" style="background:${h}" aria-label="Цвет ${h}"></button>`).join("")}</div>` : `<div class="picked pk-row"><span class="pk-ava">${entryAva(entry).replace(/^<span[^>]*>|<\/span>$/g, "")}</span><div class="pk-tx"><div class="p-name">${esc(entry.name)}</div>${entry.brand ? `<div class="p-sub">${esc(entry.brand)}</div>` : ""}</div>${entry.drink ? "" : `<button type="button" class="pk-edit" id="ee-prod" aria-label="Карточка продукта">✎</button>`}</div>`}
     <label class="field"><span>Приём пищи</span><select id="ee-meal" class="input">${mealOptions(entry.meal)}</select></label>
-    <label class="field"><span>${entry.drink ? "Объём, мл" : "Вес, г"}</span><input id="ee-g" class="input big" inputmode="decimal" value="${String(entry.grams).replace(".", ",")}" autocomplete="off"></label>
+    <div class="ee-fr" id="ee-fr"><label class="field"><span>${entry.drink ? "Объём, мл" : "Вес, г"}</span><input id="ee-g" class="input big" inputmode="decimal" value="${String(entry.grams).replace(".", ",")}" autocomplete="off"></label><button type="button" class="btn ghost sub-mini" id="ee-sub" aria-label="Изменить вес: плюс или минус">±</button></div>
     <div class="preview" id="ee-prev"></div>
-    <button type="button" class="btn ghost full" id="ee-copy" style="margin-bottom:12px">Копировать запись</button>
-    <div class="row"><button type="button" class="btn ghost sub-mini" id="ee-sub" aria-label="Изменить вес: плюс или минус">±</button><button type="button" class="btn danger" id="ee-del">Удалить</button><button type="button" class="btn primary grow" id="ee-save">Сохранить</button></div>`);
+    <div class="row"><button type="button" class="btn danger" id="ee-del">Удалить</button><button type="button" class="btn primary grow" id="ee-save">Сохранить</button></div>`);
   const input = $("#ee-g", ov);
   if (dkd) {
     const dotB = $("#ee-dot", ov), pal = $("#ee-pal", ov);
@@ -3450,7 +3449,12 @@ function openEditEntry(entry) {
   const upd = () => { $("#ee-prev", ov).innerHTML = previewHtml(p100, num(input.value), entry.drink || null, oldCaf); };
   upd();
   input.addEventListener("input", upd);
-  attachSubtract(input.closest(".field"), input, entry.drink ? "мл" : "г", upd, $("#ee-sub", ov));
+  attachSubtract($("#ee-fr", ov), input, entry.drink ? "мл" : "г", upd, $("#ee-sub", ov));
+  const eep = $("#ee-prod", ov);
+  if (eep) eep.addEventListener("click", () => {
+    const p = state.products.find((x) => x.id === String(entry.productId || "")) || state.products.find((x) => fold(x.name) === fold(entry.name));
+    if (p) openProductForm(p); else toast("Карточки этого продукта нет в базе");
+  });
   $("#ee-save", ov).addEventListener("click", () => {
     const grams = num(input.value);
     if (!(grams > 0)) { toast("Введите вес в граммах"); return; }

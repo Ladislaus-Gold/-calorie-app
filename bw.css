@@ -2204,3 +2204,10 @@ html body .entry.ea { grid-template-columns: auto 1fr auto; gap: 11px; }
 html body .e-ava { flex: none; width: 36px; height: 36px; border-radius: 11px; background: #F2F2F7; display: grid; place-items: center; font-size: 19px; line-height: 1; font-weight: 700; color: #8E8E93; }
 html body .e-ava.emo { color: inherit; }
 html:root[data-theme="dark"] body .e-ava { background: #2C2C2E; color: #A1A1A6; }
+
+/* v2.91: окно записи — иконка копирования в шапке, ± рядом с полем */
+html body .bw-ov .ee-cp { flex: none; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #F2F2F7; color: #000; display: grid; place-items: center; padding: 0; }
+html:root[data-theme="dark"] body .bw-ov .ee-cp { background: #2C2C2E; color: #fff; }
+html body .bw-ov .ee-fr { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+html body .bw-ov .ee-fr .field { flex: 1; min-width: 0; margin: 0; }
+html body .bw-ov .ee-fr .sub-mini { flex: none; width: 52px; height: 52px; border-radius: 14px; }
