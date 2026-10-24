@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 291;
-const APP_VERSION_LABEL = "2.88"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 292;
+const APP_VERSION_LABEL = "2.89"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1047,6 +1047,7 @@ const emptyProducts = `<div class="empty"><b>Продуктов пока нет<
 function productsForTab() {
   let list = state.products;
   if (state.prodCat === "mine") list = list.filter((p) => state.user && p.createdBy === state.user.uid);
+  else if (state.prodCat === NO_CAT) list = list.filter((p) => !(p.category || "").trim());
   else if (state.prodCat !== "all") list = list.filter((p) => fold((p.category || "").trim()) === fold(state.prodCat));
   const words = fold(state.prodSearch).split(/\s+/).filter(Boolean);
   if (!words.length) return list;
@@ -1077,13 +1078,16 @@ function catSelectOptions(cur) {
   return `<option value="">Без категории</option>` + all.map((c) => `<option value="${esc(c)}"${c === cur ? " selected" : ""}>${esc(c)}</option>`).join("");
 }
 
+const NO_CAT = "__nocat__";
 function prodCatChips() {
   const counts = new Map();
   state.products.forEach((p) => { const c = (p.category || "").trim(); if (c) counts.set(c, (counts.get(c) || 0) + 1); });
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map((x) => x[0]);
+  const noCatN = state.products.filter((p) => !(p.category || "").trim()).length;
+  if (!noCatN && state.prodCat === NO_CAT) state.prodCat = "all";
   const mineN = state.user ? state.products.filter((p) => p.createdBy === state.user.uid).length : 0;
   const chip = (id, label) => `<button type="button" class="chip${state.prodCat === id ? " sel" : ""}" data-pcat="${esc(id)}">${esc(label)}</button>`;
-  return `<div class="chips cats" id="prod-cats">${chip("all", "Все")}${mineN ? chip("mine", "⭐ Мои") : ""}${top.map((c) => chip(c, c)).join("")}</div>`;
+  return `<div class="chips cats" id="prod-cats">${chip("all", "Все")}${noCatN ? chip(NO_CAT, "Без категории") : ""}${mineN ? chip("mine", "⭐ Мои") : ""}${top.map((c) => chip(c, c)).join("")}</div>`;
 }
 
 function productListHtml() {
