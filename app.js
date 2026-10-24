@@ -10,7 +10,7 @@ import {
   onSnapshot, query, where, serverTimestamp, writeBatch, increment,
   getDocFromServer, getDocsFromServer, limit,
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-import { STARTER } from "./starter.js?v=50";
+import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=16";
 import { createTrainUI } from "./trainui.js?v=44";
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 284;
-const APP_VERSION_LABEL = "2.81"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 285;
+const APP_VERSION_LABEL = "2.82"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1119,7 +1119,6 @@ function lostDrinks() {
 }
 
 function viewProducts() {
-  const missing = starterMissing().length;
   const lost = lostDrinks().length;
   return `<div class="pvw">
     ${pageHead("Общая база", "Продукты", `
@@ -1134,11 +1133,7 @@ function viewProducts() {
     ${prodCatChips()}
     <section class="card list-card"><div id="plist" class="plist">${productListHtml()}</div></section>
     <p class="foot-note">Продукты видят все пользователи. Править и удалять продукты может любой пользователь.</p>
-    ${missing ? `<section class="card">
-      <h2 class="h2">Базовые продукты</h2>
-      <p class="foot-note" style="margin:0 0 12px">Овощи, мясо, рыба, яйца, крупы, молочные продукты и фрукты: ${missing} позиций со справочными значениями на 100 г. Многие есть в нескольких видах: сырой, варёный, запечённый, жареный, тушёный. У жареных и тушёных значения ориентировочные и уже включают типичное количество масла. После добавления их увидят все.</p>
-      <button type="button" class="btn ghost full" data-act="importStarter">Добавить в общую базу</button>
-    </section>` : ""}</div>`;
+</div>`;
 }
 
 /* ================= Отчёты ================= */
@@ -2150,6 +2145,7 @@ function viewMe() {
     ${planGoalCardHtml()}
     <section class="card">${meHead("box", "Общая база продуктов")}
       <div class="me-num2"><div><b>${state.products.length}</b><span>продуктов в базе</span></div><div><b>${state.products.filter((p) => p.createdBy === u.uid).length}</b><span>добавили вы</span></div></div>
+      <button type="button" class="me-lr" data-act="starterPick"><span class="fl-ic sl-sq">${ME_GLYPH.box}</span><span>Каталог базовых продуктов<small class="me-sub">Овощи, мясо, крупы и другое: выберите нужное</small></span><i>›</i></button>
       <p class="foot-note" style="margin:10px 2px 0">Дневник и цель видите только вы.</p>
     </section>
     <section class="card">${meHead("save", "Мои данные")}
@@ -2836,10 +2832,75 @@ async function processBarcode(code, onOwn, onSaved, onDrink) {
 
 // Переименованные позиции базового набора: если у человека уже есть старое название, новое не предлагаем второй раз
 const STARTER_OLD = { "Яйцо куриное (жареное, глазунья)": "Яичница-глазунья", "Яйцо куриное (болтунья)": "Яичница-болтунья" };
-const starterMissing = () => {
-  const have = new Set(state.products.map((p) => fold(p.name)));
-  return STARTER.filter((x) => !have.has(fold(x[0])) && !(STARTER_OLD[x[0]] && have.has(fold(STARTER_OLD[x[0]]))));
-};
+
+// Каталог базовых продуктов: добавляется только то, что отметил сам человек; ничего не навязывается и не возвращается после удаления
+function openStarterPicker() {
+  const f = { cat: -1, q: "", sel: new Set() };
+  const haveSet = () => {
+    const have = new Set(state.products.map((p) => fold(p.name)));
+    return (x) => have.has(fold(x[0])) || !!(STARTER_OLD[x[0]] && have.has(fold(STARTER_OLD[x[0]])));
+  };
+  const catOf = (i) => { let c = 0; STARTER_CATS.forEach((k, j) => { if (i >= k[1]) c = j; }); return c; };
+  const EMO = ["🥔", "🥦", "🍎", "🍗", "🥩", "🐟", "🥚", "🧀", "🍚", "🍞", "🫘", "🥜", "🥤", "🍲"];
+  const ov = openSheetBw(`<div class="sheet-head"><h2>Базовые продукты</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    <p class="foot-note" style="margin:-4px 2px 10px">Значения на 100 г. Отметьте нужное, остальное не добавится.</p>
+    <input id="sp-q" class="input search" type="search" placeholder="Найти продукт" autocomplete="off">
+    <div class="chips sp-cats" id="sp-cats"></div>
+    <div id="sp-list" class="sp-list"></div>
+    <div class="sp-foot"><button type="button" class="btn primary full" id="sp-add" disabled>Выберите продукты</button><p class="foot-note" style="margin:8px 2px 0;text-align:center">Добавленное увидят все пользователи</p></div>`);
+  const $o = (q) => ov.querySelector(q);
+  const draw = () => {
+    const have = haveSet();
+    const q = fold(f.q.trim());
+    const rows = STARTER.map((x, i) => ({ x, i, c: catOf(i) })).filter((r) => (f.cat < 0 || r.c === f.cat) && (!q || fold(r.x[0]).includes(q)));
+    const nHave = (c) => STARTER.filter((x, i) => catOf(i) === c && have(x)).length;
+    $o("#sp-cats").innerHTML = `<button type="button" class="chip${f.cat < 0 ? " sel" : ""}" data-spc="-1">Все</button>` + STARTER_CATS.map((k, j) => `<button type="button" class="chip${f.cat === j ? " sel" : ""}" data-spc="${j}">${EMO[j]} ${esc(k[0])}</button>`).join("");
+    let out = "", last = -1;
+    rows.forEach((r) => {
+      if (r.c !== last) {
+        last = r.c;
+        const free = rows.filter((z) => z.c === r.c && !have(z.x));
+        const all = free.length && free.every((z) => f.sel.has(z.i));
+        out += `<div class="sp-gh"><span>${EMO[r.c]} ${esc(STARTER_CATS[r.c][0])}</span>${free.length ? `<button type="button" class="sp-ga" data-spg="${r.c}">${all ? "Снять все" : "Выбрать все"}</button>` : `<em>всё в базе</em>`}</div>`;
+      }
+      const h = have(r.x), on = f.sel.has(r.i);
+      out += `<button type="button" class="sp-row${h ? " have" : ""}${on ? " on" : ""}" data-spi="${r.i}"${h ? " disabled" : ""}>
+        <span class="sp-ck">${h || on ? CHECK : ""}</span>
+        <span class="sp-tx"><b>${esc(r.x[0])}</b><small>${fmtInt(r.x[1])} ккал · Б ${fmt(r.x[2])} · Ж ${fmt(r.x[3])} · У ${fmt(r.x[4])}</small></span>${h ? `<em>в базе</em>` : ""}</button>`;
+    });
+    $o("#sp-list").innerHTML = out || `<p class="foot-note" style="margin:18px 2px;text-align:center">Ничего не найдено</p>`;
+    const n = f.sel.size, b = $o("#sp-add");
+    b.disabled = !n;
+    b.textContent = n ? `Добавить в базу: ${n}` : "Выберите продукты";
+  };
+  $o("#sp-q").addEventListener("input", (e) => { f.q = e.target.value; draw(); });
+  ov.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-spc]"), r = e.target.closest("[data-spi]"), g = e.target.closest("[data-spg]");
+    if (c) { f.cat = Number(c.dataset.spc); draw(); $o("#sp-list").scrollTop = 0; return; }
+    if (r) { const i = Number(r.dataset.spi); f.sel.has(i) ? f.sel.delete(i) : f.sel.add(i); draw(); return; }
+    if (g) {
+      const have = haveSet(), cc = Number(g.dataset.spg);
+      const ids = STARTER.map((x, i) => i).filter((i) => catOf(i) === cc && !have(STARTER[i]) && (!f.q.trim() || fold(STARTER[i][0]).includes(fold(f.q.trim()))));
+      const all = ids.every((i) => f.sel.has(i));
+      ids.forEach((i) => (all ? f.sel.delete(i) : f.sel.add(i)));
+      draw(); return;
+    }
+    if (e.target.closest("#sp-add") && f.sel.size) {
+      const items = [...f.sel].map((i) => STARTER[i]);
+      const batch = writeBatch(db);
+      items.forEach(([name, kcal, protein, fat, carbs, meta]) => {
+        batch.set(prodDoc(`s_${fnv(fold(name))}`), {
+          name, brand: "", barcode: "", kcal, protein, fat, carbs,
+          drink: !!meta, hydrationPct: meta ? meta[0] : 0, caffeineMg100: meta ? meta[1] : 0,
+          source: "starter", ...authorFields(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        });
+      });
+      batch.commit().then(() => toast(`Добавлено продуктов: ${items.length}`)).catch(writeFail);
+      ov.close();
+    }
+  });
+  draw();
+}
 
 /* ================= Окна снизу ================= */
 /* v2.26: окно «Куда добавить?» вылетает из кнопки «+» и закрывается свайпом вниз или нажатием на фон */
@@ -5308,20 +5369,7 @@ const actions = {
     toast((await copyText(url)) ? "Ссылка скопирована" : "Не удалось скопировать ссылку");
   },
   scanProduct() { openScanner((code) => processBarcode(code, (p) => openProductForm(p), null)); },
-  importStarter() {
-    const items = starterMissing();
-    if (!items.length) { toast("Все базовые продукты уже добавлены"); return; }
-    if (!confirm(`Добавить ${items.length} базовых продуктов в общую базу? Их увидят все пользователи.`)) return;
-    const batch = writeBatch(db);
-    items.forEach(([name, kcal, protein, fat, carbs, meta]) => {
-      batch.set(prodDoc(`s_${fnv(fold(name))}`), {
-        name, brand: "", barcode: "", kcal, protein, fat, carbs,
-        drink: !!meta, hydrationPct: meta ? meta[0] : 0, caffeineMg100: meta ? meta[1] : 0,
-        source: "starter", ...authorFields(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-      });
-    });
-    batch.commit().then(() => toast(`Добавлено продуктов: ${items.length}`)).catch(writeFail);
-  },
+  starterPick() { openStarterPicker(); },
   repDays(ds) {
     const v = Number(ds.n);
     state.repDays = REP_PRESETS.includes(v) ? v : 7;
