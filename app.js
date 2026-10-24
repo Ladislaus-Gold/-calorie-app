@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 294;
-const APP_VERSION_LABEL = "2.91"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 295;
+const APP_VERSION_LABEL = "2.92"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3509,29 +3509,45 @@ function openCopyEntry(entry, p100, grams0, meal0) {
 /* ----- Эмодзи и цвет аватара продукта/напитка ----- */
 // Эмодзи для аватара продукта по группам (v2.3); первый — эмодзи по умолчанию, повторов между группами нет
 const AVA_EMOJI_GROUPS = [
-  ["Блюда", ["🍜", "🥘", "🍚", "🍝", "🍲", "🍱", "🍛", "🍣", "🥗", "🍳", "🥞", "🧇", "🥟", "🍥", "🍢", "🍙", "🍘", "🥡", "🥣", "🫕", "🥠", "🍴"]],
-  ["Фастфуд", ["🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🫔", "🥙", "🧆", "🍿"]],
-  ["Мясо, рыба, яйца", ["🍗", "🍖", "🥩", "🥓", "🦃", "🐟", "🐠", "🍤", "🦐", "🦞", "🦀", "🦑", "🐙", "🦪", "🥚"]],
-  ["Овощи и грибы", ["🥦", "🥑", "🍅", "🥕", "🌽", "🥒", "🥔", "🍠", "🍆", "🥬", "🍄", "🧄", "🧅", "🫑", "🫛", "🫘", "🥜", "🌰", "🌱", "🌿"]],
-  ["Фрукты и ягоды", ["🍇", "🍎", "🍏", "🍌", "🍉", "🍊", "🍋", "🍓", "🍒", "🍑", "🍍", "🥭", "🥝", "🍐", "🍈", "🫐", "🥥"]],
-  ["Молочное и выпечка", ["🧀", "🥛", "🧈", "🍞", "🥖", "🥨", "🥯", "🥐", "🫓"]],
-  ["Сладости", ["🍰", "🎂", "🧁", "🥧", "🍩", "🍪", "🍫", "🍬", "🍭", "🍮", "🍦", "🍨", "🍧", "🍡", "🥮", "🍯"]],
-  ["Соусы, приправы, посуда", ["🥫", "🧂", "🌶️", "🫒", "🫙", "🥄", "🍽️", "🥢"]],
-  ["Напитки", ["☕", "🍵", "🫖", "🧃", "🥤", "🧋", "🍺", "🍻", "🍷", "🥂", "🍸", "🍹", "🥃", "🍾", "🧉", "🍼", "💧", "🧊", "🫗", "🍶"]],
+  ["Блюда", ["🍜", "🥘", "🍚", "🍝", "🍲", "🍱", "🍛", "🍣", "🥗", "🍳", "🥞", "🧇", "🥟", "🍥", "🍢", "🍙", "🍘", "🥡", "🥣", "🫕", "🥠", "🍴"], "блюдо обед ужин завтрак суп борщ лапша рис паста спагетти плов салат каша яичница блины вафли пельмени суши ролы бенто горячее готовое"],
+  ["Фастфуд", ["🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🫔", "🥙", "🧆", "🍿"], "фастфуд фаст фуд бургер гамбургер картошка фри пицца хот дог сэндвич бутерброд шаурма шаверма тако буррито кебаб попкорн"],
+  ["Мясо, рыба, яйца", ["🍗", "🍖", "🥩", "🥓", "🦃", "🐟", "🐠", "🍤", "🦐", "🦞", "🦀", "🦑", "🐙", "🦪", "🥚"], "мясо курица птица индейка говядина свинина стейк бекон колбаса сосиски рыба морепродукты креветки краб кальмар осьминог устрицы яйца яйцо"],
+  ["Овощи и грибы", ["🥦", "🥑", "🍅", "🥕", "🌽", "🥒", "🥔", "🍠", "🍆", "🥬", "🍄", "🧄", "🧅", "🫑", "🫛", "🫘", "🥜", "🌰", "🌱", "🌿"], "овощи овощ грибы гриб картофель картошка морковь свёкла свекла огурец помидор томат капуста брокколи кукуруза авокадо лук чеснок перец баклажан бобовые фасоль горох орехи орех арахис зелень"],
+  ["Фрукты и ягоды", ["🍇", "🍎", "🍏", "🍌", "🍉", "🍊", "🍋", "🍓", "🍒", "🍑", "🍍", "🥭", "🥝", "🍐", "🍈", "🫐", "🥥"], "фрукты фрукт ягоды ягода яблоко банан апельсин лимон виноград арбуз клубника вишня персик ананас манго киви груша черника кокос"],
+  ["Молочное и выпечка", ["🧀", "🥛", "🧈", "🍞", "🥖", "🥨", "🥯", "🥐", "🫓"], "молочное молоко сыр творог йогурт кефир сметана масло сливочное хлеб выпечка булка багет круассан батон мука тесто лаваш"],
+  ["Сладости", ["🍰", "🎂", "🧁", "🥧", "🍩", "🍪", "🍫", "🍬", "🍭", "🍮", "🍦", "🍨", "🍧", "🍡", "🥮", "🍯"], "сладости сладкое десерт торт пирожное кекс пирог пончик печенье шоколад конфеты мороженое мёд мед карамель леденец"],
+  ["Соусы, приправы, посуда", ["🥫", "🧂", "🌶️", "🫒", "🫙", "🥄", "🍽️", "🥢"], "соус соусы кетчуп майонез горчица уксус масло оливковое оливки специи приправа соль перец консервы банка заправка посуда ложка тарелка палочки"],
+  ["Напитки", ["☕", "🍵", "🫖", "🧃", "🥤", "🧋", "🍺", "🍻", "🍷", "🥂", "🍸", "🍹", "🥃", "🍾", "🧉", "🍼", "💧", "🧊", "🫗", "🍶"], "напитки напиток кофе чай сок вода кола газировка лимонад смузи пиво вино шампанское коктейль виски алкоголь молоко какао лёд лед"],
 ];
 
 const AVA_EMOJIS = AVA_EMOJI_GROUPS.flatMap((g) => g[1]);
+// Поиск эмодзи по категории: «соусы» → только группа с соусами. Пустой запрос → все группы; нет совпадений → [].
+function emoGroupsFor(groups, q) {
+  const toks = fold(String(q || "")).split(/[^a-zа-яё0-9]+/).filter(Boolean);
+  if (!toks.length) return groups;
+  return groups.filter((g) => {
+    const hay = fold(g[0] + " " + (g[2] || "")).split(/[^a-zа-яё0-9]+/);
+    return toks.every((t) => { const p = t.length >= 5 ? t.slice(0, t.length - 2) : t; return hay.some((w) => w.startsWith(p)); });
+  });
+}
 const AVA_COLORS = ["#EAF7EF", "#FFE9D4", "#FFF9DB", "#FDE7E4", "#EFE7F7", "#E3F2FD", "#FDEBDD", "#F2F2F2", "#FCE4EC", "#E0F7F4"];
 // Наборы эмодзи только для напитков (в карточке напитка)
-const AVA_DRINK_GROUPS = [["Напитки", AVA_EMOJI_GROUPS.find((g) => g[0] === "Напитки")[1]], ["Ещё", ["🥛", "🍋", "🍊", "🍎", "🍓", "🫐", "🥥", "🥕", "🍯", "🌿"]]];
+const AVA_DRINK_GROUPS = [AVA_EMOJI_GROUPS.find((g) => g[0] === "Напитки"), ["Ещё", ["🥛", "🍋", "🍊", "🍎", "🍓", "🫐", "🥥", "🥕", "🍯", "🌿"]]];
 function openAvatarPicker(cur, onDone, groups = AVA_EMOJI_GROUPS) {
   const sel = { emoji: cur.emoji || groups[0][1][0], color: cur.color || AVA_COLORS[0] };
+  const gridHtml = (q) => {
+    const m = emoGroupsFor(groups, q);
+    const list = m.length ? m : groups;
+    return (m.length || !String(q || "").trim() ? "" : '<div class="ap-none">Такой категории нет, показаны все эмодзи</div>')
+      + list.map(([t, l]) => `<div class="ap-gl">${t}</div><div class="ap-grid">${l.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>`).join("");
+  };
   const ov = openSheetBw(`
     <div class="sheet-head"><h2>Эмодзи</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     <div class="ap-prev"><span class="pf-ava-btn" id="ap-prev-ava" style="background:${esc(sel.color)}"><span id="ap-prev-ic">${esc(sel.emoji)}</span></span></div>
-    <div class="field sec-label"><span>Выбрать эмодзи</span></div>
-    <div class="ap-emo-box" id="ap-emo">${groups.map(([t, list]) => `<div class="ap-gl">${t}</div><div class="ap-grid">${list.map((em) => `<button type="button" class="ap-em${em === sel.emoji ? " sel" : ""}" data-em="${em}">${em}</button>`).join("")}</div>`).join("")}</div>
+    <input id="ap-q" class="input search" type="search" placeholder="Категория: соусы, фрукты, напитки…" autocomplete="off">
+    <div class="ap-emo-box" id="ap-emo">${gridHtml("")}</div>
     <button type="button" class="btn primary full" id="ap-done" style="margin-top:14px">Готово</button>`);
+  $("#ap-q", ov).addEventListener("input", (e) => { $("#ap-emo", ov).innerHTML = gridHtml(e.target.value); });
   const prevAva = $("#ap-prev-ava", ov), prevIc = $("#ap-prev-ic", ov);
   $("#ap-emo", ov).addEventListener("click", (e) => {
     const b = e.target.closest("[data-em]");
@@ -3687,8 +3703,13 @@ function openProductForm(product, onSaved, prefill = {}) {
     const catNew = $("#pf-cat-new", ov), catIn = $("#pf-cat-in", ov), emoRow = $("#pf-cat-emo", ov);
     let extra = hid.value ? [hid.value] : []; // новые категории, которых пока нет ни у одного продукта
     let pickEmo = "";
-    const CAT_EMO_PICK = ["🍎", "🥦", "🍗", "🐟", "🥛", "🍲", "🍞", "🥤", "🍫", "🥚", "🧀", "🍝", "🍚", "🥗", "🍰", "🍯", "🥩", "🍌", "🥕", "🍳", "🍅", "🥜", "🍿", "🌶️", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🫔", "🥙", "🧆", "🍖", "🥓", "🍤", "🍣", "🍱", "🍙", "🍘", "🍥", "🥟", "🥠", "🥡", "🍜", "🍛", "🍢", "🍡", "🍧", "🍨", "🍦", "🥧", "🧁", "🎂", "🍮", "🍭", "🍬", "🍩", "🍪", "🌰", "🥐", "🥖", "🫓", "🥨", "🥯", "🥞", "🧇", "🧈", "🥫", "🫕", "🥘", "🍠", "🥔", "🌽", "🥒", "🥬", "🫑", "🧄", "🧅", "🍄", "🫘", "🫛", "🍆", "🥑", "🥥", "🥝", "🍇", "🍈", "🍉", "🍊", "🍋", "🍍", "🥭", "🍏", "🍐", "🍑", "🍒", "🍓", "🫐", "🫒", "🍼", "☕", "🫖", "🍵", "🧃", "🧋", "🍶", "🍺", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🍾", "🧉", "🧊", "🥄", "🍴", "🍽️", "🥢", "🧂", "🫙"];
-    emoRow.innerHTML = CAT_EMO_PICK.map((e) => `<button type="button" class="cat-emo" data-ce="${e}">${e}</button>`).join("");
+    const drawEmo = () => {
+      const m = emoGroupsFor(AVA_EMOJI_GROUPS, catIn.value);
+      const list = m.length ? m : AVA_EMOJI_GROUPS;
+      emoRow.innerHTML = list.map(([t, l]) => `<div class="ap-gl">${t}</div><div class="cat-emo-grid">${l.map((e) => `<button type="button" class="cat-emo${e === pickEmo ? " sel" : ""}" data-ce="${e}">${e}</button>`).join("")}</div>`).join("");
+    };
+    drawEmo();
+    catIn.addEventListener("input", drawEmo);
     const usedMap = () => { const m = new Map(); state.products.forEach((x) => { const c = (x.category || "").trim(); if (c) m.set(fold(c), c); }); return m; };
     const allCats = () => {
       const list = [...usedMap().values()];
@@ -3746,9 +3767,9 @@ function openProductForm(product, onSaved, prefill = {}) {
         setVal(ex || v);
       }
       catNew.style.display = "none"; pickEmo = "";
-      emoRow.querySelectorAll(".cat-emo").forEach((z) => z.classList.remove("sel"));
+      drawEmo();
     };
-    $("#pf-cat-add", ov).addEventListener("click", () => { closeMenu(); catNew.style.display = "block"; catIn.value = ""; catIn.focus(); });
+    $("#pf-cat-add", ov).addEventListener("click", () => { closeMenu(); catNew.style.display = "block"; catIn.value = ""; drawEmo(); catIn.focus(); });
     $("#pf-cat-ok", ov).addEventListener("click", catCommit);
     catIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); catCommit(); } });
   }
