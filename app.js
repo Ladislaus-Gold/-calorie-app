@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 285;
-const APP_VERSION_LABEL = "2.82"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 286;
+const APP_VERSION_LABEL = "2.83"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2833,9 +2833,14 @@ async function processBarcode(code, onOwn, onSaved, onDrink) {
 // Переименованные позиции базового набора: если у человека уже есть старое название, новое не предлагаем второй раз
 const STARTER_OLD = { "Яйцо куриное (жареное, глазунья)": "Яичница-глазунья", "Яйцо куриное (болтунья)": "Яичница-болтунья" };
 
-// Каталог базовых продуктов: добавляется только то, что отметил сам человек; ничего не навязывается и не возвращается после удаления
+// Каталог базовых продуктов: галочка = продукт в общей базе. Поставили и сохранили: добавится, сняли и сохранили: удалится. Само ничего не добавляется и не возвращается
 function openStarterPicker() {
-  const f = { cat: -1, q: "", sel: new Set() };
+  const f = { cat: -1, q: "", add: new Set(), rm: new Set() };
+  const baseIds = (x) => {
+    const names = [fold(x[0])];
+    if (STARTER_OLD[x[0]]) names.push(fold(STARTER_OLD[x[0]]));
+    return state.products.filter((p) => names.includes(fold(p.name))).map((p) => p.id);
+  };
   const haveSet = () => {
     const have = new Set(state.products.map((p) => fold(p.name)));
     return (x) => have.has(fold(x[0])) || !!(STARTER_OLD[x[0]] && have.has(fold(STARTER_OLD[x[0]])));
@@ -2843,59 +2848,62 @@ function openStarterPicker() {
   const catOf = (i) => { let c = 0; STARTER_CATS.forEach((k, j) => { if (i >= k[1]) c = j; }); return c; };
   const EMO = ["🥔", "🥦", "🍎", "🍗", "🥩", "🐟", "🥚", "🧀", "🍚", "🍞", "🫘", "🥜", "🥤", "🍲"];
   const ov = openSheetBw(`<div class="sheet-head"><h2>Базовые продукты</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
-    <p class="foot-note" style="margin:-4px 2px 10px">Значения на 100 г. Отметьте нужное, остальное не добавится.</p>
+    <p class="foot-note" style="margin:-4px 2px 10px">Значения на 100 г. Галочка значит, что продукт в общей базе. Поставьте, чтобы добавить, снимите, чтобы убрать, и нажмите кнопку внизу.</p>
     <input id="sp-q" class="input search" type="search" placeholder="Найти продукт" autocomplete="off">
     <div class="chips sp-cats" id="sp-cats"></div>
     <div id="sp-list" class="sp-list"></div>
-    <div class="sp-foot"><button type="button" class="btn primary full" id="sp-add" disabled>Выберите продукты</button><p class="foot-note" style="margin:8px 2px 0;text-align:center">Добавленное увидят все пользователи</p></div>`);
+    <div class="sp-foot"><button type="button" class="btn primary full" id="sp-add" disabled>Нет изменений</button><p class="foot-note" style="margin:8px 2px 0;text-align:center">Изменения видят все пользователи. Записи в дневнике сохраняются.</p></div>`);
   const $o = (q) => ov.querySelector(q);
+  // отмечен ли продукт сейчас: в базе и не снят, либо выбран к добавлению
+  const checked = (i, h) => (h ? !f.rm.has(i) : f.add.has(i));
+  const toggle = (i, h) => { const set = h ? f.rm : f.add; set.has(i) ? set.delete(i) : set.add(i); };
   const draw = () => {
     const have = haveSet();
     const q = fold(f.q.trim());
-    const rows = STARTER.map((x, i) => ({ x, i, c: catOf(i) })).filter((r) => (f.cat < 0 || r.c === f.cat) && (!q || fold(r.x[0]).includes(q)));
-    const nHave = (c) => STARTER.filter((x, i) => catOf(i) === c && have(x)).length;
+    const rows = STARTER.map((x, i) => ({ x, i, c: catOf(i), h: have(x) })).filter((r) => (f.cat < 0 || r.c === f.cat) && (!q || fold(r.x[0]).includes(q)));
     $o("#sp-cats").innerHTML = `<button type="button" class="chip${f.cat < 0 ? " sel" : ""}" data-spc="-1">Все</button>` + STARTER_CATS.map((k, j) => `<button type="button" class="chip${f.cat === j ? " sel" : ""}" data-spc="${j}">${EMO[j]} ${esc(k[0])}</button>`).join("");
     let out = "", last = -1;
     rows.forEach((r) => {
       if (r.c !== last) {
         last = r.c;
-        const free = rows.filter((z) => z.c === r.c && !have(z.x));
-        const all = free.length && free.every((z) => f.sel.has(z.i));
-        out += `<div class="sp-gh"><span>${EMO[r.c]} ${esc(STARTER_CATS[r.c][0])}</span>${free.length ? `<button type="button" class="sp-ga" data-spg="${r.c}">${all ? "Снять все" : "Выбрать все"}</button>` : `<em>всё в базе</em>`}</div>`;
+        const grp = rows.filter((z) => z.c === r.c);
+        const all = grp.every((z) => checked(z.i, z.h));
+        out += `<div class="sp-gh"><span>${EMO[r.c]} ${esc(STARTER_CATS[r.c][0])}</span><button type="button" class="sp-ga" data-spg="${r.c}">${all ? "Снять все" : "Выбрать все"}</button></div>`;
       }
-      const h = have(r.x), on = f.sel.has(r.i);
-      out += `<button type="button" class="sp-row${h ? " have" : ""}${on ? " on" : ""}" data-spi="${r.i}"${h ? " disabled" : ""}>
-        <span class="sp-ck">${h || on ? CHECK : ""}</span>
-        <span class="sp-tx"><b>${esc(r.x[0])}</b><small>${fmtInt(r.x[1])} ккал · Б ${fmt(r.x[2])} · Ж ${fmt(r.x[3])} · У ${fmt(r.x[4])}</small></span>${h ? `<em>в базе</em>` : ""}</button>`;
+      const on = checked(r.i, r.h), chg = r.h ? f.rm.has(r.i) : f.add.has(r.i);
+      out += `<button type="button" class="sp-row${on ? " on" : ""}${chg ? " chg" : ""}" data-spi="${r.i}">
+        <span class="sp-ck">${on ? CHECK : ""}</span>
+        <span class="sp-tx"><b>${esc(r.x[0])}</b><small>${fmtInt(r.x[1])} ккал · Б ${fmt(r.x[2])} · Ж ${fmt(r.x[3])} · У ${fmt(r.x[4])}</small></span>${chg ? `<em>${r.h ? "уберётся" : "добавится"}</em>` : r.h ? `<em class="hv">в базе</em>` : ""}</button>`;
     });
     $o("#sp-list").innerHTML = out || `<p class="foot-note" style="margin:18px 2px;text-align:center">Ничего не найдено</p>`;
-    const n = f.sel.size, b = $o("#sp-add");
-    b.disabled = !n;
-    b.textContent = n ? `Добавить в базу: ${n}` : "Выберите продукты";
+    const na = f.add.size, nr = f.rm.size, b = $o("#sp-add");
+    b.disabled = !na && !nr;
+    b.textContent = !na && !nr ? "Нет изменений" : na && nr ? `Сохранить: добавить ${na}, убрать ${nr}` : na ? `Добавить в базу: ${na}` : `Убрать из базы: ${nr}`;
   };
   $o("#sp-q").addEventListener("input", (e) => { f.q = e.target.value; draw(); });
   ov.addEventListener("click", (e) => {
     const c = e.target.closest("[data-spc]"), r = e.target.closest("[data-spi]"), g = e.target.closest("[data-spg]");
     if (c) { f.cat = Number(c.dataset.spc); draw(); $o("#sp-list").scrollTop = 0; return; }
-    if (r) { const i = Number(r.dataset.spi); f.sel.has(i) ? f.sel.delete(i) : f.sel.add(i); draw(); return; }
+    if (r) { const i = Number(r.dataset.spi); toggle(i, haveSet()(STARTER[i])); draw(); return; }
     if (g) {
       const have = haveSet(), cc = Number(g.dataset.spg);
-      const ids = STARTER.map((x, i) => i).filter((i) => catOf(i) === cc && !have(STARTER[i]) && (!f.q.trim() || fold(STARTER[i][0]).includes(fold(f.q.trim()))));
-      const all = ids.every((i) => f.sel.has(i));
-      ids.forEach((i) => (all ? f.sel.delete(i) : f.sel.add(i)));
+      const ids = STARTER.map((x, i) => i).filter((i) => catOf(i) === cc && (!f.q.trim() || fold(STARTER[i][0]).includes(fold(f.q.trim()))));
+      const all = ids.every((i) => checked(i, have(STARTER[i])));
+      ids.forEach((i) => { const h = have(STARTER[i]); if (checked(i, h) === all) toggle(i, h); });
       draw(); return;
     }
-    if (e.target.closest("#sp-add") && f.sel.size) {
-      const items = [...f.sel].map((i) => STARTER[i]);
+    if (e.target.closest("#sp-add") && (f.add.size || f.rm.size)) {
       const batch = writeBatch(db);
-      items.forEach(([name, kcal, protein, fat, carbs, meta]) => {
+      [...f.add].map((i) => STARTER[i]).forEach(([name, kcal, protein, fat, carbs, meta]) => {
         batch.set(prodDoc(`s_${fnv(fold(name))}`), {
           name, brand: "", barcode: "", kcal, protein, fat, carbs,
           drink: !!meta, hydrationPct: meta ? meta[0] : 0, caffeineMg100: meta ? meta[1] : 0,
           source: "starter", ...authorFields(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
         });
       });
-      batch.commit().then(() => toast(`Добавлено продуктов: ${items.length}`)).catch(writeFail);
+      [...f.rm].forEach((i) => baseIds(STARTER[i]).forEach((id) => batch.delete(prodDoc(id))));
+      const na = f.add.size, nr = f.rm.size;
+      batch.commit().then(() => toast(na && nr ? `Добавлено ${na}, убрано ${nr}` : na ? `Добавлено продуктов: ${na}` : `Убрано продуктов: ${nr}`)).catch(writeFail);
       ov.close();
     }
   });
