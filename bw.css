@@ -318,7 +318,7 @@ html:has(.pvw), body:has(.pvw) { background: #fff; background-image: none; }
 .bw-ov .cat-new { min-width: 0; max-width: 100%; }
 .bw-ov .cat-new-row { min-width: 0; }
 .bw-ov .cat-new-row .btn { min-height: 44px; padding: 0 18px; border-radius: 12px; font-size: 15px; }
-.bw-ov .cat-emo-row { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; overflow: visible; padding: 10px 0 2px; }
+.bw-ov .cat-emo-row { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; overflow-x: hidden; overflow-y: auto; max-height: 196px; -webkit-overflow-scrolling: touch; padding: 10px 0 4px; }
 .bw-ov .cat-emo { width: auto; height: 38px; border-radius: 12px; background: var(--fill); font-size: 21px; border: 2px solid transparent; }
 .bw-ov .cat-emo.sel { border-color: #000; background: var(--surf); }
 :root[data-theme="dark"] .bw-ov .cat-emo.sel { border-color: #fff; }
