@@ -6,6 +6,8 @@ import * as TR from "./train.js?v=16";
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
 const PHOTOS = new Map([["bentrow:band", 2], ["birddog:bw", 1], ["bridge:bw", 1], ["calf:bw", 1], ["chestpress:band", 1], ["crunch:bw", 1], ["curl:band", 1], ["deadbug:bw", 1], ["donkey:bw", 1], ["facepull:band", 2], ["frontraise:band", 1], ["legraise:bw", 1], ["lunge:bw", 1], ["march:bw", 1], ["mob_ankle:bw", 1], ["mob_arm:bw", 1], ["mob_catcow:bw", 1], ["mob_elbow:bw", 1], ["mob_hip:bw", 1], ["mob_knee:bw", 1], ["mob_legswing:bw", 1], ["mob_neck:bw", 1], ["mob_shoulder:bw", 1], ["mob_twist:bw", 1], ["mob_wrist:bw", 1], ["mtnclimber:bw", 1], ["plank:bw", 1], ["pulldown:band", 2], ["pushdown:band", 1], ["pushup:bw", 1], ["rdl:band", 2], ["row:band", 2], ["run_tm:bw", 1], ["shoulderpress:band", 1], ["squat:band", 2], ["squat:bw", 2], ["st_calf:bw", 1], ["st_child:bw", 1], ["st_ham:band", 1], ["st_quad:bw", 1], ["superman:bw", 1], ["triext:band", 1], ["walk_out:bw", 1], ["walk_tm:bw", 1], ["wristcurl:band", 1], ["wristext:band", 1]]);
+// Первая иллюстрация упражнения для списков (любой вариант, лучше без инвентаря)
+const thumbOf = (id) => { for (const vk of ["bw", "band", "bandf", "db", "cable"]) if (PHOTOS.has(`${id}:${vk}`)) return `img/${id}-${vk}-1.webp`; return ""; };
 const hasPhoto = (id, vk) => PHOTOS.has(`${id}:${vk}`);
 function exFig(id, vk) {
   const n = PHOTOS.get(`${id}:${vk}`);
@@ -636,14 +638,14 @@ function openTrainAdd(date) {
   const cats = [["all", "Все"], ["main", "💪 Силовые"], ["cardio", "🏃 Кардио"], ["cool", "🧘 Растяжка"]];
   const GRP_BADGE = { warm: ["Разминка", "wm"], main: ["Силовое", "mn"], cardio: ["Кардио", "cd"], cool: ["Растяжка", "cl"] };
   const groups = [["warm", "Разминка"], ["main", "Основная часть"], ["cardio", "Кардио"], ["cool", "Растяжка"]];
-  const ov = openSheet(`<div class="sheet-head"><h2>Добавить упражнение</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="ta-body"></div>`);
+  const ov = openSheet(`<div class="sheet-head"><h2>Добавить упражнение</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="ta-body"></div>`, { bw: true });
   const body = $("#ta-body", ov);
   const draw = () => {
     if (!f.id) {
       const list = Object.values(TR.EXERCISES).filter((e) => f.cat === "all" || TR.GROUP_OF(e) === f.cat);
       body.innerHTML = `<p class="foot-note" style="margin:-4px 2px 10px">${esc(trainDayName(date)).replace(/\.$/, "")}. Выберите упражнение, а категорию и объём зададите дальше.</p>
         <div class="chips ta-cats" style="margin:0 0 12px">${cats.map(([v, t]) => `<button type="button" class="chip${f.cat === v ? " sel" : ""}" data-ta-cat="${v}">${t}</button>`).join("")}</div>
-        <div class="ta-list">${list.map((e) => `<button type="button" class="ta-row ${(GRP_BADGE[TR.GROUP_OF(e)] || GRP_BADGE.main)[1]}" data-ta-id="${esc(e.id)}"><span class="ta-tx"><b>${esc(e.name)}</b><small>${esc(e.muscles)}</small></span><em class="ta-bd">${(GRP_BADGE[TR.GROUP_OF(e)] || GRP_BADGE.main)[0]}</em><i class="ta-pl">+</i></button>`).join("")}</div>`;
+        <div class="tb-list">${list.map((e) => { const gb = GRP_BADGE[TR.GROUP_OF(e)] || GRP_BADGE.main, th = thumbOf(e.id); return `<button type="button" class="tb-row ${gb[1]}" data-ta-id="${esc(e.id)}"><span class="tb-im">${th ? `<img src="${th}" alt="" loading="lazy" decoding="async">` : `<i>${esc(String(e.name).slice(0, 1))}</i>`}</span><span class="tb-tx"><b>${esc(e.name)}</b><small>${esc(e.muscles)}</small><em class="tb-bd">${gb[0]}</em></span><i class="tb-pl">+</i></button>`; }).join("")}</div>`;
       return;
     }
     const ex = TR.EXERCISES[f.id], cardio = ex.kind === "cardio", stretch = ex.kind === "stretch", timed = !cardio && !stretch && !ex.reps;
