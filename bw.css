@@ -2198,3 +2198,9 @@ html:root[data-theme="dark"] body .bw-ov .sp-foot .btn:disabled { background:#2C
 html body .bw-ov .sp-row em { flex:none; white-space:nowrap; border:0; background:none; padding:0; margin:0; box-shadow:none; text-decoration:none; }
 html body .bw-ov .sp-row { box-sizing:border-box; }
 html body .bw-ov .sp-row .sp-tx { flex:1 1 0; }
+
+/* v2.90: плашка продукта в записях дневника */
+html body .entry.ea { grid-template-columns: auto 1fr auto; gap: 11px; }
+html body .e-ava { flex: none; width: 36px; height: 36px; border-radius: 11px; background: #F2F2F7; display: grid; place-items: center; font-size: 19px; line-height: 1; font-weight: 700; color: #8E8E93; }
+html body .e-ava.emo { color: inherit; }
+html:root[data-theme="dark"] body .e-ava { background: #2C2C2E; color: #A1A1A6; }

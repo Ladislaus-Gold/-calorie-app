@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 292;
-const APP_VERSION_LABEL = "2.89"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 293;
+const APP_VERSION_LABEL = "2.90"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -965,8 +965,8 @@ function viewDiary() {
     }
     const rows = shown.map((e) => `
       <div class="sw" data-sw="${esc(e.id)}"><div class="sw-bg"><span class="sw-edit">✎ Граммы</span><span class="sw-del">Удалить 🗑</span></div>
-      <button type="button" class="entry" data-act="editEntry" data-id="${esc(e.id)}">
-        <span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
+      <button type="button" class="entry ea" data-act="editEntry" data-id="${esc(e.id)}">
+        ${entryAva(e)}<span class="e-main"><span class="e-name">${esc(e.name)}</span><span class="e-sub">${fmt(e.grams)} ${e.drink ? "мл" : "г"}${e.drink && e.drink.caf100 > 0 ? `, кофеин ${fmtInt((e.grams * e.drink.caf100) / 100)} мг` : ""}${e.brand ? `, ${esc(e.brand)}` : ""}</span></span>
         <span class="e-kcal">${fmtInt(e.kcal)}<small>ккал</small></span>
       </button></div>`).join("");
     const over = target > 0 && mt.kcal > target;
@@ -1021,6 +1021,20 @@ function filterProducts(q) {
 function prodAva(p) {
   const hue = parseInt(fnv(fold(p.name)), 36) % 360, ch = (String(p.name || "?").trim()[0] || "?").toUpperCase();
   return { emo: !!p.emoji, style: p.emoji ? `background:${esc(p.color || "#EAF7EF")}` : `background:hsl(${hue} 55% 92%);color:hsl(${hue} 45% 30%)`, inner: p.emoji ? esc(p.emoji) : esc(ch) };
+}
+
+// Плашка продукта в дневнике: эмодзи продукта (или напитка), иначе первая буква
+function entryAva(e) {
+  let emo = "";
+  const pid = String(e.productId || "");
+  if (pid.startsWith("drink:")) { const d = drinkById(pid.slice(6)); if (d) emo = drinkIcon(d); }
+  if (!emo) {
+    const p = state.products.find((x) => x.id === pid) || state.products.find((x) => fold(x.name) === fold(e.name));
+    if (p && p.emoji) emo = p.emoji;
+  }
+  if (!emo && e.drink) { const d = foodDrinkOf(e.name); if (d) emo = drinkIcon(d); }
+  const ch = (String(e.name || "?").trim()[0] || "?").toUpperCase();
+  return `<span class="e-ava${emo ? " emo" : ""}" aria-hidden="true">${esc(emo || ch)}</span>`;
 }
 
 function productRow(p, attr, withPlus) {
