@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 288;
-const APP_VERSION_LABEL = "2.85"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 289;
+const APP_VERSION_LABEL = "2.86"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -3940,9 +3940,25 @@ const drinkById = (id) => DRINK_BY_ID[id] || customList().find((x) => x.id === i
 // Значок напитка: свой эмодзи (если задан), иначе по категории
 const CAT_EMO = { tea: "🍵", coffee: "☕", milk: "🥛", sugar: "🥤", fruit: "🧃", active: "⚡", mock: "🍹", alc: "🍺", other: "💧" };
 const drinkIcon = (d) => (d && d.e) ? d.e : (d ? (CAT_EMO[d.cat] || "💧") : "💧");
+// Напиток из дневника питания: ищем по названию среди встроенных и своих/общих напитков (цвет и эмодзи берём оттуда), иначе определяем категорию по слову
+function foodDrinkOf(name) {
+  const nm = String(name || "").trim().toLowerCase();
+  if (!nm) return null;
+  const all = allDrinks();
+  let d = all.find((x) => String(x.n || "").trim().toLowerCase() === nm) || all.find((x) => nm.includes(String(x.n || "").trim().toLowerCase()) && String(x.n || "").trim().length > 3);
+  if (!d) {
+      const cat = /кофе|эспрессо|американо|капучино|латте|флэт|раф\b|макиато|мокко/.test(nm) ? "coffee" : /чай|матча|мате|каркаде/.test(nm) ? "tea" : /молок|кефир|йогурт|айран|ряженк|какао|коктейль молоч/.test(nm) ? "milk" : /сок|нектар|морс|смузи|компот/.test(nm) ? "fruit" : /пиво|вино|водка|виски|ром\b|джин|коньяк|шампан|сидр|ликёр|ликер/.test(nm) ? "alc" : /лимонад|кола|пепси|фанта|спрайт|газиров/.test(nm) ? "sugar" : /энергет|изотоник|протеин/.test(nm) ? "active" : /^вод|минерал/.test(nm) ? "other" : "";
+    if (cat) d = { id: "", n: name, cat };
+  }
+  return d || null;
+}
 const fluidIconHtml = (i) => {
-  const d = i.kind === "drink" ? drinkById(i.drinkId) : null;
-  return `<span class="fl-ico" style="--c:${i.kind === "food" ? "#B58CFF" : dotOf(i.drinkId)}">${esc(i.kind === "food" ? "🥤" : drinkIcon(d))}</span>`;
+  if (i.kind === "food") {
+    const d = foodDrinkOf(i.name);
+    return `<span class="fl-ico" style="--c:${d ? (d.id ? dotOf(d.id) : defDot(d)) : "#B58CFF"}">${esc(d ? drinkIcon(d) : "🥤")}</span>`;
+  }
+  const d = drinkById(i.drinkId);
+  return `<span class="fl-ico" style="--c:${dotOf(i.drinkId)}">${esc(drinkIcon(d))}</span>`;
 };
 // Цвет точки напитка: свой (из палитры) либо по виду напитка
 const DOT_PAL = (() => {
@@ -4110,13 +4126,7 @@ function viewHealth() {
   const flStatus = left > 0 ? `Осталось ${fmtInt(left)} мл · норма ${fmtInt(tg)} мл` : `Норма ${fmtInt(tg)} мл выполнена · ${Math.round((ml / tg) * 100)}%`;
   const itemDot = (i) => {
     if (i.kind === "food") {
-      // напиток из дневника питания разбираем по названию: находим такой же в каталоге напитков, иначе определяем категорию по слову
-      const nm = String(i.name || "").trim().toLowerCase();
-      let d = DRINKS.find((x) => String(x.n || "").toLowerCase() === nm) || DRINKS.find((x) => nm && (nm.includes(String(x.n || "").toLowerCase()) && String(x.n || "").length > 3));
-      if (!d) {
-        const cat = /кофе|эспрессо|американо|капучино|латте|флэт|раф\b|макиато|мокко/.test(nm) ? "coffee" : /чай|матча|мате|каркаде/.test(nm) ? "tea" : /молок|кефир|йогурт|айран|ряженк|какао|коктейль молоч/.test(nm) ? "milk" : /сок|нектар|морс|смузи|компот/.test(nm) ? "fruit" : /пиво|вино|водка|виски|ром\b|джин|коньяк|шампан|сидр|ликёр|ликер/.test(nm) ? "alc" : /лимонад|кола|пепси|фанта|спрайт|газиров/.test(nm) ? "sugar" : /энергет|изотоник|протеин/.test(nm) ? "active" : /^вод|минерал/.test(nm) ? "other" : "";
-        if (cat) d = { id: "", n: i.name, cat };
-      }
+      const d = foodDrinkOf(i.name);
       if (d) return { hex: d.id ? dotOf(d.id) : defDot(d), label: dotLabel(d, i.name) };
       return { hex: "#B58CFF", label: i.name || "Из дневника питания" };
     }
