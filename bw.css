@@ -2122,3 +2122,19 @@ html:root[data-theme="dark"] body .bw-ov label.check.iv .cb { background: #1C1C1
 html:root[data-theme="dark"] body .bw-ov label.check.iv:has(input:checked) .cb { background: #fff !important; }
 html:root[data-theme="dark"] body .bw-ov label.check.iv:has(input:checked) .cb svg { stroke: #000; }
 html:root[data-theme="dark"] body .bw-ov #fn-body .btn.ghost { background: #2C2C2E !important; color: #fff !important; }
+
+/* v2.79: «Анкета тренировок»: чёрно-белая, но иконки и эмодзи цветные; переключатели (где/уровень) — серая плашка, выбранный чёрный с белым текстом; редактор резинок */
+html body .bw-ov .tf-st .fl-ic, html:root[data-theme="dark"] body .bw-ov .tf-st .fl-ic { filter: none !important; }
+html body .bw-ov .tf-iv i, html:root[data-theme="dark"] body .bw-ov .tf-iv i { filter: none !important; }
+html body .bw-ov .tf-sec .seg.full button.on { background: #000 !important; color: #fff !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .bw-ov .tf-sec .seg.full button.on { background: #fff !important; color: #000 !important; }
+.tf-bands { display: flex; flex-direction: column; gap: 8px; }
+.tf-bd { display: flex; align-items: center; gap: 8px; }
+.tf-bc { flex: none; width: 40px; height: 40px; padding: 0; border: 2px solid rgba(255,255,255,.9); border-radius: 50%; background: none; box-shadow: 0 0 0 1px rgba(60,60,67,.25); -webkit-appearance: none; appearance: none; overflow: hidden; cursor: pointer; }
+.tf-bc::-webkit-color-swatch-wrapper { padding: 0; }
+.tf-bc::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.tf-bc::-moz-color-swatch { border: 0; border-radius: 50%; }
+.tf-bd .tf-bn { flex: 1; min-width: 0; }
+.tf-bd .tf-bk { flex: none; width: 74px; text-align: right; }
+.tf-bd > span { flex: none; font-size: 14px; color: var(--sec, #6C6C70); width: 18px; }
+.tf-reset { margin-top: 10px; border: 0; background: transparent; color: var(--ink, #000); font: inherit; font-size: 14px; font-weight: 700; padding: 6px 2px; cursor: pointer; text-decoration: underline; }

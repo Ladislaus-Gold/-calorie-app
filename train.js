@@ -221,6 +221,15 @@ export const BAND_COLORS = [
   { id: "black", t: "Чёрная", hex: "#2B2B2B" },
 ];
 // Ориентир сопротивления трубок по цветам: типовой набор из 5 трубок «до 100 фунтов» (жёлтая 10, красная 15, синяя 20, зелёная 25, чёрная 30 фунтов). У разных продавцов цвета могут идти иначе, вес можно поправить.
+// Свои цвет и название резинок из анкеты (поверх набора выше): { id: { t, hex } }
+const BAND_BASE = BAND_COLORS.map((c) => ({ ...c }));
+export function applyBandStyle(st) {
+  BAND_COLORS.forEach((c, i) => {
+    const o = st && st[c.id];
+    c.t = o && o.t ? o.t : BAND_BASE[i].t;
+    c.hex = o && o.hex ? o.hex : BAND_BASE[i].hex;
+  });
+}
 export const BAND_DEFAULT_KG = { yellow: 4.5, red: 6.8, blue: 9.1, green: 11.3, black: 13.6 };
 export const FEEL = ["", "Очень легко", "Легко", "Нормально", "Тяжело", "Очень тяжело"];
 export const EQUIP = [
@@ -1041,6 +1050,16 @@ function cleanBands(b) {
   if (b && typeof b === "object") for (const c of BAND_COLORS) { const n = Number(b[c.id]); if (n > 0) o[c.id] = n; }
   return o;
 }
+function cleanBandStyle(b) {
+  const o = {};
+  if (b && typeof b === "object") for (const c of BAND_BASE) {
+    const v = b[c.id];
+    if (!v || typeof v !== "object") continue;
+    const t = String(v.t || "").trim().slice(0, 16), hex = /^#[0-9a-f]{6}$/i.test(String(v.hex || "")) ? String(v.hex) : "";
+    if ((t && t !== c.t) || (hex && hex.toLowerCase() !== c.hex.toLowerCase())) o[c.id] = { ...(t ? { t } : {}), ...(hex ? { hex } : {}) };
+  }
+  return o;
+}
 export const mgOf = (id) => MG_OF[id] || "";
 // Ручной выбор варианта упражнения: { id упражнения: ключ варианта }
 function cleanVpref(v) {
@@ -1067,6 +1086,7 @@ export function normCfg(raw, today) {
     limits: Array.isArray(r.limits) ? r.limits.filter((x) => LIMITS.some((l) => l.id === x)) : [],
     dumbbellKg: Number(r.dumbbellKg) > 0 ? Number(r.dumbbellKg) : 0,
     bandKg: cleanBands(r.bandKg),
+    bandStyle: cleanBandStyle(r.bandStyle),
     startedAt: /^\d{4}-\d{2}-\d{2}$/.test(r.startedAt || "") ? r.startedAt : today,
     moves: cleanMoves(r.moves),
     vpref: cleanVpref(r.vpref),
