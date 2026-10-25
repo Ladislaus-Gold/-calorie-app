@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 297;
-const APP_VERSION_LABEL = "2.94"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 298;
+const APP_VERSION_LABEL = "2.95"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2152,21 +2152,6 @@ function planGoalCardHtml() {
   }
   return `<section class="card">${meHead("target", "План и цель")}${planHtml}${plan ? `<div class="me-div"></div>` : `<div class="me-div"></div>`}${goalHead}${goalHtml}${tiles}</section>`;
 }
-function cafCardHtml() {
-  const edit = !!state.cafEdit, custom = cafCustom(), auto = cafAuto(), cur = cafLimit();
-  const head = `<div class="me-sh"><span>Норма в день</span><button type="button" class="me-pill" data-act="toggleCafEdit">${edit ? "Отмена" : "Изменить"}</button></div>`;
-  let body;
-  if (edit) {
-    body = `<label class="field big"><span>Кофеин, мг в день</span><input id="caf-input" class="input" inputmode="numeric" value="${cur}" autocomplete="off"></label>
-      <p class="foot-note" style="margin:2px 0 12px">Для здоровых взрослых безопасно до 400 мг в день (примерно 4 чашки кофе). Расчёт по вашему весу: ${fmtInt(auto)} мг.</p>
-      <button type="button" class="btn primary full" data-act="saveCaf">Сохранить</button>
-      ${custom ? `<button type="button" class="btn full" style="margin-top:8px" data-act="resetCaf">Вернуть расчёт по весу</button>` : ""}`;
-  } else {
-    body = `<div class="me-gl"><b>${fmtInt(cur)}<small>мг</small></b><div class="me-pm"><button type="button" aria-label="Меньше" data-act="cafStep" data-d="-50">−</button><button type="button" aria-label="Больше" data-act="cafStep" data-d="50">+</button></div></div>
-      <p class="foot-note" style="margin:6px 0 0">${custom ? `Ваша норма. Расчёт по весу: ${fmtInt(auto)} мг.` : "Расчёт по вашему весу. Нажмите «Изменить» или «+» и «−», чтобы задать свою."}</p>`;
-  }
-  return `<section class="card">${meHead("cup", "Кофеин")}${head}${body}</section>`;
-}
 function viewMe() {
   const u = state.user || {};
   const initial = esc((u.displayName || u.email || "?").trim().charAt(0).toUpperCase());
@@ -2181,7 +2166,6 @@ function viewMe() {
       ${sysOpen ? statusHtml() : ""}</section>
     ${themeCardHtml()}
     ${planGoalCardHtml()}
-    ${cafCardHtml()}
     <section class="card">${meHead("box", "Общая база продуктов")}
       <div class="me-num2"><div><b>${state.products.length}</b><span>продуктов в базе</span></div><div><b>${state.products.filter((p) => p.createdBy === u.uid).length}</b><span>добавили вы</span></div></div>
       <button type="button" class="me-lr" data-act="starterPick"><span class="fl-ic sl-sq">${ME_GLYPH.box}</span><span>Каталог базовых продуктов<small class="me-sub">Овощи, мясо, крупы и другое: выберите нужное</small></span><i>›</i></button>
@@ -4707,6 +4691,8 @@ function openProfile(first) {
     </div>
     <div class="field"><span>Цель</span>${seg("goal", GOALS, st.goal)}</div>
     <label class="field"><span>Образ жизни</span><select id="pr-level" class="input">${LEVELS.map((l) => `<option value="${l.v}" ${l.v === (pr.activity || "light") ? "selected" : ""}>${l.t}</option>`).join("")}</select></label>
+    <label class="field"><span>Кофеин, мг в день</span><input id="pr-caf" class="input" inputmode="numeric" value="${cafLimit()}" autocomplete="off"></label>
+    <p class="foot-note" id="pr-caf-note" style="margin:-6px 2px 14px"></p>
     <div class="preview" id="pr-prev"></div>
     <div class="row">${first ? `<button type="button" class="btn ghost" id="pr-skip">Позже</button>` : ""}<button type="button" class="btn primary grow" id="pr-save">Рассчитать и сохранить</button></div>`, { bw: true });
 
@@ -4720,6 +4706,28 @@ function openProfile(first) {
   upd();
   ov.addEventListener("input", upd);
   ov.addEventListener("change", upd);
+
+  // Норма кофеина: пока вы её не меняли руками, она сама пересчитывается по введённому весу
+  let cafTouched = false;
+  const cafInput = $("#pr-caf", ov);
+  const cafAutoFor = () => { const w = num($("#pr-w", ov).value); return Number.isFinite(w) && w > 0 ? Math.round(Math.min(400, 5.7 * w)) : cafAuto(); };
+  const updCafNote = () => {
+    const auto = cafAutoFor(), v = num(cafInput.value), same = Math.round(v) === auto;
+    $("#pr-caf-note", ov).innerHTML = `Для здоровых взрослых безопасно до 400 мг в день (около 4 чашек кофе). Расчёт по весу: ${fmtInt(auto)} мг.${same ? "" : ` <button type="button" class="me-pill sm" id="pr-caf-reset">Вернуть расчёт</button>`}`;
+  };
+  if (!cafCustom()) cafInput.value = cafAutoFor();
+  updCafNote();
+  ov.addEventListener("input", (e) => {
+    if (e.target === cafInput) cafTouched = true;
+    else if (e.target.id === "pr-w" && !cafTouched && !cafCustom()) cafInput.value = cafAutoFor();
+    updCafNote();
+  });
+  ov.addEventListener("click", (e) => {
+    if (!e.target.closest("#pr-caf-reset")) return;
+    cafInput.value = cafAutoFor();
+    cafTouched = true;
+    updCafNote();
+  });
   ov.addEventListener("click", (e) => {
     const b = e.target.closest("[data-seg] [data-v]");
     if (!b) return;
@@ -4731,11 +4739,17 @@ function openProfile(first) {
   $("#pr-save", ov).addEventListener("click", () => {
     const d = read(), plan = computePlan(d);
     if (!plan) { toast(Number.isFinite(d.age) && d.age < 18 ? "Расчёт сделан для взрослых, от 18 лет" : "Заполните пол, возраст, рост, вес и цель"); return; }
-    setDoc(docRef("settings", "profile"), {
+    const data = {
       sex: d.sex, age: d.age, heightCm: d.heightCm, weightKg: d.weightKg, goal: d.goal, activity: d.activity,
       goalKcal: plan.kcal, goalProtein: plan.protein, goalFat: plan.fat, goalCarbs: plan.carbs, waterBaseMl: plan.water,
       planUpdatedAt: serverTimestamp(),
-    }, { merge: true }).catch(writeFail);
+    };
+    if (cafTouched) {
+      const cv = num(cafInput.value);
+      if (!(cv >= 50 && cv <= 1000)) { toast("Норма кофеина: от 50 до 1000 мг"); return; }
+      data.cafLimitMg = Math.round(cv) === cafAutoFor() ? 0 : Math.round(cv); // 0 = считать по весу
+    }
+    setDoc(docRef("settings", "profile"), data, { merge: true }).catch(writeFail);
     ov.close();
     toast("План рассчитан и сохранён");
   });
@@ -5545,25 +5559,6 @@ const actions = {
   goalStep(ds) {
     const g = Math.min(10000, Math.max(500, Math.round(state.goal) + Number(ds.d)));
     setDoc(docRef("settings", "profile"), { goalKcal: g }, { merge: true }).catch(writeFail);
-  },
-  toggleCafEdit() { state.cafEdit = !state.cafEdit; render(); },
-  cafStep(ds) {
-    const v = Math.min(1000, Math.max(50, cafLimit() + Number(ds.d)));
-    setDoc(docRef("settings", "profile"), { cafLimitMg: v }, { merge: true }).catch(writeFail);
-  },
-  saveCaf() {
-    const v = num($("#caf-input").value);
-    if (!(v >= 50 && v <= 1000)) { toast("Введите норму от 50 до 1000 мг"); return; }
-    setDoc(docRef("settings", "profile"), { cafLimitMg: Math.round(v) }, { merge: true }).catch(writeFail);
-    state.cafEdit = false;
-    toast("Норма кофеина сохранена");
-    render();
-  },
-  resetCaf() {
-    setDoc(docRef("settings", "profile"), { cafLimitMg: 0 }, { merge: true }).catch(writeFail);
-    state.cafEdit = false;
-    toast("Норма снова считается по весу");
-    render();
   },
   trainDayTog() { state.trainDayOpen = !state.trainDayOpen; render(); },
   trainDayTap(ds) { state.trainDayOpen = true; if (ds.date !== state.date) actions.pickDay(ds); else render(); },
