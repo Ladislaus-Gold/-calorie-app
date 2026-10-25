@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 296;
-const APP_VERSION_LABEL = "2.93"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 297;
+const APP_VERSION_LABEL = "2.94"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2092,6 +2092,7 @@ const ME_GLYPH = {
   box: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2z"/></svg>`,
   save: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l4 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>`,
   dl: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.2l3.6-3.6L17 11l-5 5-5-5 1.4-1.4L11 13.2V3h1zM5 18h14v2H5z"/></svg>`,
+  cup: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8zm13 1h1.5a2.5 2.5 0 0 1 0 5H17v-2h1.5a.5.5 0 0 0 0-1H17V9zM7 2h2v3H7zm4 0h2v3h-2z"/></svg>`,
 };
 const meHead = (g, title, right = "") => `<div class="card-top fl-top"><span class="fl-ic sl-sq">${ME_GLYPH[g]}</span><h2 class="h2">${title}</h2>${right}</div>`;
 // Общее состояние для строки «Всё работает»: подробности по каждому пункту раскрываются по нажатию
@@ -2151,6 +2152,21 @@ function planGoalCardHtml() {
   }
   return `<section class="card">${meHead("target", "План и цель")}${planHtml}${plan ? `<div class="me-div"></div>` : `<div class="me-div"></div>`}${goalHead}${goalHtml}${tiles}</section>`;
 }
+function cafCardHtml() {
+  const edit = !!state.cafEdit, custom = cafCustom(), auto = cafAuto(), cur = cafLimit();
+  const head = `<div class="me-sh"><span>Норма в день</span><button type="button" class="me-pill" data-act="toggleCafEdit">${edit ? "Отмена" : "Изменить"}</button></div>`;
+  let body;
+  if (edit) {
+    body = `<label class="field big"><span>Кофеин, мг в день</span><input id="caf-input" class="input" inputmode="numeric" value="${cur}" autocomplete="off"></label>
+      <p class="foot-note" style="margin:2px 0 12px">Для здоровых взрослых безопасно до 400 мг в день (примерно 4 чашки кофе). Расчёт по вашему весу: ${fmtInt(auto)} мг.</p>
+      <button type="button" class="btn primary full" data-act="saveCaf">Сохранить</button>
+      ${custom ? `<button type="button" class="btn full" style="margin-top:8px" data-act="resetCaf">Вернуть расчёт по весу</button>` : ""}`;
+  } else {
+    body = `<div class="me-gl"><b>${fmtInt(cur)}<small>мг</small></b><div class="me-pm"><button type="button" aria-label="Меньше" data-act="cafStep" data-d="-50">−</button><button type="button" aria-label="Больше" data-act="cafStep" data-d="50">+</button></div></div>
+      <p class="foot-note" style="margin:6px 0 0">${custom ? `Ваша норма. Расчёт по весу: ${fmtInt(auto)} мг.` : "Расчёт по вашему весу. Нажмите «Изменить» или «+» и «−», чтобы задать свою."}</p>`;
+  }
+  return `<section class="card">${meHead("cup", "Кофеин")}${head}${body}</section>`;
+}
 function viewMe() {
   const u = state.user || {};
   const initial = esc((u.displayName || u.email || "?").trim().charAt(0).toUpperCase());
@@ -2165,6 +2181,7 @@ function viewMe() {
       ${sysOpen ? statusHtml() : ""}</section>
     ${themeCardHtml()}
     ${planGoalCardHtml()}
+    ${cafCardHtml()}
     <section class="card">${meHead("box", "Общая база продуктов")}
       <div class="me-num2"><div><b>${state.products.length}</b><span>продуктов в базе</span></div><div><b>${state.products.filter((p) => p.createdBy === u.uid).length}</b><span>добавили вы</span></div></div>
       <button type="button" class="me-lr" data-act="starterPick"><span class="fl-ic sl-sq">${ME_GLYPH.box}</span><span>Каталог базовых продуктов<small class="me-sub">Овощи, мясо, крупы и другое: выберите нужное</small></span><i>›</i></button>
@@ -3909,7 +3926,10 @@ const weekDays = (s) => Array.from({ length: 7 }, (_, i) => addDays(weekStart(s)
 const numS = (v) => { const n = parseFloat(String(v).trim().replace(",", ".")); return Number.isFinite(n) ? n : NaN; };
 const signed = (n) => `${n < 0 ? "−" : "+"}${fmtInt(Math.abs(n))}`;
 // Нормы EFSA для здоровых взрослых: до 5,7 мг/кг в сутки (не больше 400 мг) и до 3 мг/кг за раз (не больше 200 мг)
-const cafLimit = () => Math.round(Math.min(400, 5.7 * userWeight()));
+// Расчётная норма по весу; можно задать свою в «Профиле» (profile.cafLimitMg)
+const cafAuto = () => Math.round(Math.min(400, 5.7 * userWeight()));
+const cafCustom = () => { const v = Number(state.profile.cafLimitMg); return v > 0 ? Math.round(v) : 0; };
+const cafLimit = () => cafCustom() || cafAuto();
 const cafDose = () => Math.round(Math.min(200, 3 * userWeight()));
 
 function fluidItems(day) {
@@ -5525,6 +5545,25 @@ const actions = {
   goalStep(ds) {
     const g = Math.min(10000, Math.max(500, Math.round(state.goal) + Number(ds.d)));
     setDoc(docRef("settings", "profile"), { goalKcal: g }, { merge: true }).catch(writeFail);
+  },
+  toggleCafEdit() { state.cafEdit = !state.cafEdit; render(); },
+  cafStep(ds) {
+    const v = Math.min(1000, Math.max(50, cafLimit() + Number(ds.d)));
+    setDoc(docRef("settings", "profile"), { cafLimitMg: v }, { merge: true }).catch(writeFail);
+  },
+  saveCaf() {
+    const v = num($("#caf-input").value);
+    if (!(v >= 50 && v <= 1000)) { toast("Введите норму от 50 до 1000 мг"); return; }
+    setDoc(docRef("settings", "profile"), { cafLimitMg: Math.round(v) }, { merge: true }).catch(writeFail);
+    state.cafEdit = false;
+    toast("Норма кофеина сохранена");
+    render();
+  },
+  resetCaf() {
+    setDoc(docRef("settings", "profile"), { cafLimitMg: 0 }, { merge: true }).catch(writeFail);
+    state.cafEdit = false;
+    toast("Норма снова считается по весу");
+    render();
   },
   trainDayTog() { state.trainDayOpen = !state.trainDayOpen; render(); },
   trainDayTap(ds) { state.trainDayOpen = true; if (ds.date !== state.date) actions.pickDay(ds); else render(); },
