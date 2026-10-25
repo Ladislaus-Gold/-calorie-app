@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 298;
-const APP_VERSION_LABEL = "2.95"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 299;
+const APP_VERSION_LABEL = "2.96"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -145,6 +145,10 @@ const WEEKLY = {
   maintain: { minutes: 150, strength: 2, text: "Ориентир: 150 минут умеренной нагрузки в неделю и 2 силовые тренировки." },
 };
 
+// Подпись к цели недели, когда число силовых задано вручную
+const strWord = (n) => (n % 10 === 1 && n % 100 !== 11 ? "силовая тренировка" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "силовые тренировки" : "силовых тренировок");
+const weeklyText = (minutes, n) => (n > 0 ? `Ориентир: ${minutes} минут умеренной нагрузки в неделю и ${n} ${strWord(n)}.` : `Ориентир: ${minutes} минут умеренной нагрузки в неделю, без силовых тренировок.`);
+
 // Основной обмен по формуле Миффлина: Сан-Жеора, затем коэффициент образа жизни и поправка на цель
 function computePlan(p) {
   const age = Number(p.age), h = Number(p.heightCm), w = Number(p.weightKg);
@@ -177,7 +181,9 @@ function computePlan(p) {
   if (carbs < 50) { protein = Math.round(1.6 * w); carbs = Math.round((kcal - protein * 4 - fat * 9) / 4); }
   carbs = Math.max(0, carbs);
   const water = Math.min(4500, Math.max(1500, Math.round((w * 33) / 50) * 50));
-  const wk = WEEKLY[goal];
+  const wk0 = WEEKLY[goal];
+  const sCustom = p.strengthWk != null && p.strengthWk !== "" && Number.isFinite(Number(p.strengthWk)) ? Math.max(0, Math.min(7, Math.round(Number(p.strengthWk)))) : null;
+  const wk = sCustom == null || sCustom === wk0.strength ? wk0 : { ...wk0, strength: sCustom, text: weeklyText(wk0.minutes, sCustom) };
   const bmiLabel = bmi < 18.5 ? "ниже нормы" : bmi < 25 ? "в норме" : bmi < 30 ? "выше нормы" : "значительно выше нормы";
   return {
     bmr: Math.round(bmr), tdee: Math.round(tdee), kcal, protein, fat, carbs, water, bmi: r1(bmi), bmiLabel, goal, warnings,
@@ -4670,7 +4676,7 @@ function planCardHtml() {
 function previewPlanHtml(plan) {
   return `<div class="pv-kcal">${fmtInt(plan.kcal)}<small>ккал в день</small></div>
     <div class="pv-macros"><div><b>${plan.protein}</b>белки, г</div><div><b>${plan.fat}</b>жиры, г</div><div><b>${plan.carbs}</b>углеводы, г</div></div>
-    <p class="foot-note" style="margin:10px 0 0">Базовая норма воды: <b>${fmtInt(plan.water)} мл</b> в день. Нагрузка: <b>${plan.weekly.minutes} мин</b> в неделю.</p>
+    <p class="foot-note" style="margin:10px 0 0">Базовая норма воды: <b>${fmtInt(plan.water)} мл</b> в день. Силовых: <b>${plan.weekly.strength}</b> в неделю.</p>
     ${plan.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}`;
 }
 
@@ -4691,21 +4697,51 @@ function openProfile(first) {
     </div>
     <div class="field"><span>Цель</span>${seg("goal", GOALS, st.goal)}</div>
     <label class="field"><span>Образ жизни</span><select id="pr-level" class="input">${LEVELS.map((l) => `<option value="${l.v}" ${l.v === (pr.activity || "light") ? "selected" : ""}>${l.t}</option>`).join("")}</select></label>
+    <div class="field"><span>Силовых тренировок в неделю</span>
+      <div class="stp"><span class="stp-l">Цель недели</span><span class="stp-c"><button type="button" id="pr-str-m" aria-label="Меньше">−</button><b id="pr-str-v">0</b><button type="button" id="pr-str-p" aria-label="Больше">+</button></span></div>
+    </div>
+    <p class="foot-note" id="pr-str-note" style="margin:-6px 2px 14px"></p>
     <label class="field"><span>Кофеин, мг в день</span><input id="pr-caf" class="input" inputmode="numeric" value="${cafLimit()}" autocomplete="off"></label>
     <p class="foot-note" id="pr-caf-note" style="margin:-6px 2px 14px"></p>
     <div class="preview" id="pr-prev"></div>
     <div class="row">${first ? `<button type="button" class="btn ghost" id="pr-skip">Позже</button>` : ""}<button type="button" class="btn primary grow" id="pr-save">Рассчитать и сохранить</button></div>`, { bw: true });
 
-  const read = () => ({ sex: st.sex, goal: st.goal, age: num($("#pr-age", ov).value), heightCm: num($("#pr-h", ov).value), weightKg: num($("#pr-w", ov).value), activity: $("#pr-level", ov).value });
+  // Силовых в неделю: пока вы число не меняли руками, оно берётся по цели (2 или 3)
+  const strHas = pr.strengthWk != null && Number.isFinite(Number(pr.strengthWk));
+  let strTouched = false, strVal = strHas ? Math.max(0, Math.min(7, Math.round(Number(pr.strengthWk)))) : 0;
+  const strAuto = () => WEEKLY[st.goal || "maintain"].strength;
+  if (!strHas) strVal = strAuto();
+  const strCustomNow = () => (strTouched ? strVal !== strAuto() : strHas && strVal !== strAuto());
+  const drawStr = () => {
+    $("#pr-str-v", ov).textContent = String(strVal);
+    $("#pr-str-m", ov).disabled = strVal <= 0;
+    $("#pr-str-p", ov).disabled = strVal >= 7;
+    $("#pr-str-note", ov).innerHTML = `Для цели «${esc(GOAL_NAME[st.goal || "maintain"])}» рекомендуется ${strAuto()}. Это «из N» в карточке недели.${strVal === strAuto() ? "" : ` <button type="button" class="stp-reset" id="pr-str-reset">Вернуть расчёт</button>`}`;
+  };
+  const read = () => ({ sex: st.sex, goal: st.goal, age: num($("#pr-age", ov).value), heightCm: num($("#pr-h", ov).value), weightKg: num($("#pr-w", ov).value), activity: $("#pr-level", ov).value, strengthWk: strCustomNow() ? strVal : null });
   const upd = () => {
     const d = read(), plan = computePlan(d), box = $("#pr-prev", ov);
     if (plan) box.innerHTML = previewPlanHtml(plan);
     else if (Number.isFinite(d.age) && d.age < 18) box.innerHTML = `<p class="foot-note" style="margin:0">Расчёт сделан для взрослых, от 18 лет.</p>`;
     else box.innerHTML = `<p class="foot-note" style="margin:0">Заполните все поля, и здесь появится ваш план.</p>`;
   };
+  drawStr();
   upd();
   ov.addEventListener("input", upd);
   ov.addEventListener("change", upd);
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("#pr-str-m, #pr-str-p, #pr-str-reset, [data-seg=goal] [data-v]");
+    if (!b) return;
+    if (b.id === "pr-str-m") { strVal = Math.max(0, strVal - 1); strTouched = true; }
+    else if (b.id === "pr-str-p") { strVal = Math.min(7, strVal + 1); strTouched = true; }
+    else if (b.id === "pr-str-reset") { strVal = strAuto(); strTouched = true; }
+    else {
+      // цель сменилась: если число не менялось руками, оно идёт за целью
+      setTimeout(() => { if (!strTouched && !strHas) strVal = strAuto(); drawStr(); upd(); }, 0);
+      return;
+    }
+    drawStr(); upd();
+  });
 
   // Норма кофеина: пока вы её не меняли руками, она сама пересчитывается по введённому весу
   let cafTouched = false;
@@ -4744,6 +4780,7 @@ function openProfile(first) {
       goalKcal: plan.kcal, goalProtein: plan.protein, goalFat: plan.fat, goalCarbs: plan.carbs, waterBaseMl: plan.water,
       planUpdatedAt: serverTimestamp(),
     };
+    if (strTouched) data.strengthWk = strVal === strAuto() ? null : strVal; // null = по цели
     if (cafTouched) {
       const cv = num(cafInput.value);
       if (!(cv >= 50 && cv <= 1000)) { toast("Норма кофеина: от 50 до 1000 мг"); return; }

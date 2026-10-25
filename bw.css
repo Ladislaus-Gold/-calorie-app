@@ -2220,3 +2220,12 @@ html body .bw-ov #ap-q { margin: 0 0 4px; }
 
 /* v2.93: карандаш у каждой категории */
 html body .bw-ov .cat-ed { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--fill, #F2F2F7); color: var(--ink, #000); font-size: 15px; line-height: 1; display: grid; place-items: center; padding: 0; }
+
+/* v2.96: цель недели по силовым (степпер в «Мои данные») */
+html body .bw-ov .stp { display: flex; align-items: center; justify-content: space-between; background: var(--fill, #F2F2F7); border-radius: 14px; padding: 4px; }
+html body .bw-ov .stp .stp-l { padding: 0 12px; font-size: 17px; font-weight: 600; color: var(--ink, #000); }
+html body .bw-ov .stp .stp-c { display: flex; align-items: center; gap: 4px; }
+html body .bw-ov .stp button { width: 44px; height: 44px; border: 0; border-radius: 11px; background: #fff; color: #000; font-size: 22px; font-weight: 500; line-height: 1; box-shadow: 0 1px 2px rgba(0,0,0,.08); padding: 0; display: grid; place-items: center; }
+html body .bw-ov .stp button:disabled { color: #C7C7CC; box-shadow: none; background: transparent; }
+html body .bw-ov .stp b { min-width: 34px; text-align: center; font-size: 20px; font-weight: 700; color: var(--ink, #000); }
+html body .bw-ov .stp-reset { display: inline-grid; place-items: center; height: 26px; padding: 0 10px; margin-left: 6px; border: 0; border-radius: 999px; background: var(--fill, #F2F2F7); color: var(--ink, #000); font: inherit; font-size: 12px; font-weight: 600; }
