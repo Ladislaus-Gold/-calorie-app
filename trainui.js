@@ -41,14 +41,10 @@ const SND_NOTES = {
   go: [[988, 0, 0.14, 0.32, "square"], [1319, 0.2, 0.24, 0.32, "square"]],
   stop: [[1175, 0, 0.18, 0.34, "square"], [1175, 0.25, 0.18, 0.34, "square"], [1568, 0.5, 0.5, 0.34, "square"]],
   turn: [[880, 0, 0.12, 0.3, "square"]],
-  water: [[587, 0, 0.1, 0.16], [740, 0.08, 0.1, 0.16], [932, 0.16, 0.12, 0.16], [1047, 0.34, 0.9, 0.12, "triangle"], [1319, 0.42, 0.9, 0.12, "triangle"], [1568, 0.5, 0.9, 0.12, "triangle"], [2093, 0.58, 1.3, 0.1], [2637, 0.72, 1.0, 0.05]],
-  load: [[523, 0, 0.09, 0.14, "triangle"], [587, 0.08, 0.09, 0.14, "triangle"], [659, 0.16, 0.09, 0.14, "triangle"], [784, 0.24, 0.09, 0.14, "triangle"], [1047, 0.32, 0.12, 0.15, "triangle"], [523, 0.46, 1.3, 0.12, "triangle"], [659, 0.46, 1.3, 0.12, "triangle"], [784, 0.46, 1.3, 0.12, "triangle"], [1047, 0.46, 1.3, 0.12, "triangle"], [2093, 0.55, 1.0, 0.06], [3136, 0.7, 0.7, 0.03]],
-  kcal1: [[880, 0, 0.9, 0.14], [1760, 0, 0.5, 0.03]],
-  kcal2: [[880, 0, 0.5, 0.15], [740, 0.32, 0.9, 0.15], [370, 0.32, 0.9, 0.07]],
-  kcal3: [[988, 0, 0.4, 0.16, "triangle"], [784, 0.28, 0.4, 0.16, "triangle"], [587, 0.56, 1.0, 0.17, "triangle"], [294, 0.56, 1.0, 0.08]],
-  kcal4: [[392, 0, 0.5, 0.18, "triangle"], [392, 0.38, 0.5, 0.18, "triangle"], [330, 0.76, 1.1, 0.18, "triangle"], [165, 0.76, 1.1, 0.09]],
   win: [[523, 0, 0.16, 0.15, "triangle"], [784, 0, 0.16, 0.15, "triangle"], [523, 0.24, 1.2, 0.13, "triangle"], [659, 0.24, 1.2, 0.13, "triangle"], [784, 0.24, 1.2, 0.13, "triangle"], [1047, 0.24, 1.2, 0.13, "triangle"], [1568, 0.5, 0.9, 0.07, "sine"]],
 };
+// Готовые звуки (приятные «системные» колокольчики): вода, нагрузка, приёмы пищи, предупреждения по калориям
+const SND_FILES = new Set(["water", "load", "breakfast", "lunch", "dinner", "kcal1", "kcal2", "kcal3", "kcal4"]);
 let sndCtx = null, sndKeep = null, sndMedia = null, sndFx = null, sndFxOk = false;
 // Те же сигналы в виде WAV (data-URI): запасной путь, если Web Audio на iPhone «уснул» или система его заглушила
 const wavCache = {};
@@ -122,6 +118,16 @@ function tone(freq, at, dur, vol, type) {
 }
 // Сигнал: Web Audio, а если он сейчас не запущен (iOS его усыпил) — обычный <audio> с тем же сигналом
 function sndPlay(name) {
+  if (SND_FILES.has(name)) {
+    try {
+      sndUnlock();
+      if (!sndFx) sndFx = new Audio();
+      sndFx.src = `snd/${name}.mp3?v=1`;
+      const pr = sndFx.play();
+      if (pr && pr.catch) pr.catch(() => {});
+    } catch { /* ignore */ }
+    return;
+  }
   const c = sndUnlock(), notes = SND_NOTES[name] || [];
   const viaWebAudio = () => notes.forEach((n) => tone(...n));
   if (c && c.state === "running") { viaWebAudio(); return; }
