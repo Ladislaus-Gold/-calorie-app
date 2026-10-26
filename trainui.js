@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=18";
+import * as TR from "./train.js?v=20";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -164,7 +164,7 @@ export function createTrainUI(env) {
 /* ================= Домашние тренировки: план по анкете ================= */
 // Отметки «выполнено» хранятся отдельно (users/{uid}/trainlog) и не попадают ни в тренировки, ни в отчёты, ни в ИИ-анализ.
 const DUMBBELL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>';
-const trainCfg = () => { const c = TR.normCfg(state.trainCfg, todayStr()); TR.applyBandStyle(c.bandStyle); return c; };
+const trainCfg = () => { const c = TR.normCfg(state.trainCfg, todayStr()); TR.applyBands(c); return c; };
 const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
 // Кардио-пункт со временем в минутах (разминка-дорожка или кардио); суставные упражнения разминки идут по секундам
 const isMinIt = (it) => it.group === "cardio" || (it.group === "warm" && Number(it.minutes) > 0);
@@ -264,7 +264,7 @@ function trainRowHtml(day, it, done) {
   const fm = Number((lg.mins || {})[it.key]) || 0;
   const sd = it.reps ? (((lg.sets || {})[it.id]) || []).filter((v) => Number(v) > 0).length : 0;
   const part = !on && sd > 0 && sd < it.sets ? ` · сделано ${sd} из ${it.sets} подх.` : "";
-  const sub = isMinIt(it) ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${part}`;
+  const sub = isMinIt(it) ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${it.vk === "db" && Number((lg.edb || {})[it.id]) > 0 ? ` · ${fmt(Number(lg.edb[it.id]))} кг` : ""}${part}`;
   return `<div class="tr-row${on ? " on" : ""}">
     <button type="button" class="tr-check" data-act="trainTick" data-date="${day}" data-key="${esc(it.key)}" aria-pressed="${on}" aria-label="Отметить выполненным">${TICK}</button>
     <button type="button" class="tr-main" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}"><span class="tr-name">${esc(it.name)}</span><span class="tr-sub">${esc(sub)}</span></button>
@@ -482,7 +482,7 @@ function openTrainWorkout(date) {
   };
   const next = () => { idx = retMode ? items.length : idx + 1; retMode = false; enterItem(); draw(); };
   const planOf = (x) => (x.reps ? `${x.sets}×${x.reps[1]}` : x.secs ? `${x.secs[1]} сек` : x.minutes ? `${x.minutes} мин` : "");
-  const varOf = (x) => { const c = trainCfg(); return [lc1(x.vlabel || ""), x.vk === "db" && c.dumbbellKg ? `${fmt(c.dumbbellKg)} кг` : ""].filter(Boolean).join(" · "); };
+  const varOf = (x) => { const c = trainCfg(); return [lc1(x.vlabel || ""), x.vk === "db" && dbKgOf(x.id, date) ? `${fmt(dbKgOf(x.id, date))} кг` : ""].filter(Boolean).join(" · "); };
   // Шапка: кольцо прогресса (зелёное — сделано, красное — пропущено), название, вариант
   const bandHtml = (title, sub, label) => {
     const n = items.length, dn = items.filter(isDone).length, sk = items.filter((i) => !isDone(i) && skipped.has(i.key)).length;
@@ -570,7 +570,7 @@ function openTrainWorkout(date) {
     const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
     const head = bandHtml(it.name, sub);
     root.classList.add("wk-str");
-    root.innerHTML = `${head}${fig}${it.reps ? strengthHtml(it) : simpleHtml(it)}`;
+    root.innerHTML = `${head}${fig}${recText(it, date) ? `<p class="wk-rec">Рекомендуемый вес: <b>${esc(recText(it, date))}</b></p>` : ""}${it.reps ? strengthHtml(it) : simpleHtml(it)}`;
   };
   const recMin = (it, m) => { saveTrainLog(date, { mins: { [it.key]: m }, done: { [it.key]: true } }); next(); };
   // Таймер кардио/растяжки: запуск, конец (сам или свайпом) — значение записывается и открывается следующее
@@ -815,6 +815,16 @@ function openTrainExercise(date, key) {
   const savedBand = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || "";
   const lastB = lastBand(it.id, date);
   let selBand = comboIds(savedBand || lastB);
+  const dbs = cfg.dumbbells || [];
+  let selDb = Number((((trainLogOn(date) || {}).edb) || {})[it.id]) || lastDb(it.id, date) || 0;
+  const dbUp = () => {
+    const top = it.reps && topReached(it.id, date, it.reps[1]);
+    if (!selDb || !(trainAdvice(date).bump > 0 || top)) return "";
+    const nx = dbs.find((v) => v > selDb + 0.01);
+    if (!nx) return `<p class="ex-up">Это самые тяжёлые гантели из набора. Чтобы расти дальше: медленнее опускание (3 сек), пауза 1–2 сек в конце, больше повторов.</p>`;
+    return `<div class="ex-up">${top ? `В прошлый раз все подходы были на верхней границе (${it.reps[1]}).` : "В последних тренировках было легко."} Чтобы был прогресс, попробуйте <b>${fmt(nx)} кг</b>. <button type="button" class="ex-up-b" data-edbset="${nx}">Выбрать</button></div>`;
+  };
+  const dbBlock = () => `<span class="ex-vars-t">Какие гантели${selDb ? ` · ${fmt(selDb)} кг` : ""}</span><div class="chips" style="margin:0">${dbs.map((v) => `<button type="button" class="chip${v === selDb ? " sel" : ""}" data-edb="${v}" aria-pressed="${v === selDb}">${fmt(v)} кг</button>`).join("")}</div>${dbUp()}`;
   const upHint = () => {
     const top = it.reps && topReached(it.id, date, it.reps[1]);
     if (!selBand.length || !(trainAdvice(date).bump > 0 || top)) return "";
@@ -829,7 +839,9 @@ function openTrainExercise(date, key) {
     <div class="sheet-head"><h2>${nameVar(it.name, it.vlabel)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${hasPhoto(it.id, it.vk) ? `<div class="ex-fig">${exFig(it.id, it.vk)}</div>` : ""}
     <div class="ex-meta"><span class="pill">${esc(ex.muscles)}</span></div>
+    ${recText(it, date) ? `<p class="ex-rec">Рекомендуемый вес: <b>${esc(recText(it, date))}</b></p>` : ""}
     ${it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : ""}
+    ${it.vk === "db" && dbs.length ? `<div class="ex-vars ex-dbs">${dbBlock()}</div>` : ""}
     ${ex.variants && ex.variants.length > 1 ? `<div class="ex-vars"><span class="ex-vars-t">Как выполнять сейчас</span><div class="chips" style="margin:0">${[["", "Авто"], ...ex.variants.map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div></div>` : ""}
     <p class="ex-do"><b>${esc(trainDetail(it))}</b>${it.cue ? ` ${esc(it.cue)}` : ""}</p>
     ${res}
@@ -845,6 +857,9 @@ function openTrainExercise(date, key) {
     if (selBand.length && !isDone() && (((trainLogOn(date) || {}).ebands) || {})[it.id] !== comboKey(selBand)) {
       const cur = { ...(((trainLogOn(date) || {}).ebands) || {}), [it.id]: comboKey(selBand) };
       setDoc(docRef("trainlog", date), { date, ebands: cur, updatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
+    }
+    if (selDb && !isDone() && Number((((trainLogOn(date) || {}).edb) || {})[it.id]) !== selDb) {
+      setDoc(docRef("trainlog", date), { date, edb: { ...(((trainLogOn(date) || {}).edb) || {}), [it.id]: selDb }, updatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
     }
     actions.trainTick({ date, key }); ov.close();
   });
@@ -872,6 +887,16 @@ function openTrainExercise(date, key) {
     ov.close(); render();
   });
   ov.addEventListener("click", (e) => {
+    const ed = e.target.closest("[data-edb]"), eds = e.target.closest("[data-edbset]");
+    if (ed || eds) {
+      selDb = Number((ed || eds).dataset.edb || (ed || eds).dataset.edbset) || 0;
+      const cur = { ...(((trainLogOn(date) || {}).edb) || {}), [it.id]: selDb };
+      state.trainLog = state.trainLog.map((l) => (l.date === date ? { ...l, edb: cur } : l));
+      setDoc(docRef("trainlog", date), { date, edb: cur, updatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
+      const box = ov.querySelector(".ex-dbs");
+      if (box) box.innerHTML = dbBlock();
+      return;
+    }
     const eb = e.target.closest("[data-eb]"), es = e.target.closest("[data-ebset]");
     if (eb || es) {
       if (es) selBand = comboIds(es.dataset.ebset);
@@ -899,11 +924,14 @@ function openTrainExercise(date, key) {
 }
 
 // Анкета: место, дни, время, уровень, инвентарь, ограничения
+const baseBands = () => TR.BAND_BASE;
 function openTrainForm() {
   const cur = trainCfg();
   const f = { place: cur.place, days: new Set(cur.days), equip: JSON.parse(JSON.stringify(cur.equip)), minutes: cur.minutes, level: cur.level, limits: new Set(cur.limits), kg: cur.dumbbellKg ? String(cur.dumbbellKg).replace(".", ",") : "",
-    bk: Object.fromEntries(TR.BAND_COLORS.map((c) => [c.id, String(cur.bandKg[c.id] || TR.BAND_DEFAULT_KG[c.id] || "").replace(".", ",")])),
-    bs: Object.fromEntries(TR.BAND_COLORS.map((c) => [c.id, { t: c.t, hex: c.hex }])) };
+    bk: Object.fromEntries(baseBands().map((c) => [c.id, String(cur.bandKg[c.id] || TR.BAND_DEFAULT_KG[c.id] || "").replace(".", ",")])), rm: new Set(cur.removedBands),
+    bs: Object.fromEntries(baseBands().map((c) => [c.id, { t: (cur.bandStyle[c.id] || {}).t || c.t, hex: (cur.bandStyle[c.id] || {}).hex || c.hex }])),
+    // свои резинки (второй комплект и т.п.) и набор гантелей
+    xb: cur.extraBands.map((e) => ({ id: e.id, t: e.t, hex: e.hex, kg: String(e.kg).replace(".", ",") })), db: [...cur.dumbbells], dbIn: "" };
   const ov = openSheet(`<div class="sheet-head"><h2>Анкета тренировок</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="tf-body"></div>`, { bw: true });
   const body = $("#tf-body", ov);
   const draw = () => {
@@ -920,9 +948,10 @@ function openTrainForm() {
       ${sec("⏱️", "ic-wt", "Времени на тренировку, мин", "", `<div class="chips" data-tf="minutes" style="margin:0">${TR.TIMES.map((t) => `<button type="button" data-v="${t}" class="chip${t === f.minutes ? " sel" : " muted"}">${t}</button>`).join("")}</div>
         <div class="tf-hint amb">💡 <span>В любой день время можно поменять прямо в плане, упражнения подстроятся.</span></div>`)}
       ${sec("📈", "ic-prog", "Уровень", "", `<div class="seg full" data-tf="level">${TR.TRAIN_LEVELS.map((l) => `<button type="button" data-v="${l.v}" class="${l.v === f.level ? "on" : ""}">${l.t}</button>`).join("")}</div>`)}
-      ${sec("🎒", "ic-plan", "Инвентарь", placeHint, `<div class="tf-inv">${list.map((e) => `<label class="tf-iv${eq.has(e.id) ? " on" : ""}"><input type="checkbox" data-eq="${e.id}" ${eq.has(e.id) ? "checked" : ""}><i>${EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div>
-        ${eq.has("dumbbell") ? `<label class="field" style="margin:10px 0 0"><span>Вес гантелей, кг (необязательно)</span><input id="tf-kg" class="input" inputmode="decimal" value="${esc(f.kg)}" autocomplete="off"></label>` : ""}`)}
-      ${eq.has("tube") ? sec("🎨", "ic-band", "Резинки: цвет и вес", "Можно поправить название, цвет и вес в кг", `<div class="tf-bands">${TR.BAND_COLORS.map((c) => `<div class="tf-bd"><input type="color" class="tf-bc" data-bs="hex" data-id="${c.id}" value="${esc(f.bs[c.id].hex)}" aria-label="Цвет"><input class="input tf-bn" data-bs="t" data-id="${c.id}" value="${esc(f.bs[c.id].t)}" maxlength="16" autocomplete="off" aria-label="Название"><input class="input tf-bk" data-bs="kg" data-id="${c.id}" inputmode="decimal" value="${esc(f.bk[c.id])}" placeholder="кг" autocomplete="off" aria-label="Вес, кг"><span>кг</span></div>`).join("")}</div><button type="button" class="tf-reset" data-bsreset>Вернуть стандартные</button>`) : ""}
+      ${sec("🎒", "ic-plan", "Инвентарь", placeHint, `<div class="tf-inv">${list.map((e) => `<label class="tf-iv${eq.has(e.id) ? " on" : ""}"><input type="checkbox" data-eq="${e.id}" ${eq.has(e.id) ? "checked" : ""}><i>${EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div>`)}
+      ${eq.has("dumbbell") ? sec("🏋️", "ic-plan", "Гантели", "Какие веса у вас есть, в упражнении выберете нужный", `<div class="tf-dbs">${f.db.map((v) => `<span class="tf-dbc">${esc(fmt(v))} кг<button type="button" data-dbdel="${v}" aria-label="Убрать ${esc(fmt(v))} кг">×</button></span>`).join("") || `<small class="foot-note" style="margin:0">Пока пусто: добавьте вес одной гантели в кг.</small>`}</div>
+        <div class="tf-dbadd"><input id="tf-dbn" class="input" inputmode="decimal" placeholder="вес, кг" value="${esc(f.dbIn)}" autocomplete="off" aria-label="Вес гантели, кг"><button type="button" class="btn ghost" data-dbadd${f.db.length >= TR.DUMBBELL_MAX ? " disabled" : ""}>Добавить</button></div>`) : ""}
+      ${eq.has("tube") ? sec("🎨", "ic-band", "Резинки: цвет и вес", "Можно поправить название, цвет и вес в кг. Есть второй комплект или резинка порвалась? Добавьте свои или удалите ненужные", `<div class="tf-bands">${baseBands().filter((c) => !f.rm.has(c.id)).map((c) => `<div class="tf-bd"><input type="color" class="tf-bc" data-bs="hex" data-id="${c.id}" value="${esc(f.bs[c.id].hex)}" aria-label="Цвет"><input class="input tf-bn" data-bs="t" data-id="${c.id}" value="${esc(f.bs[c.id].t)}" maxlength="16" autocomplete="off" aria-label="Название"><input class="input tf-bk" data-bs="kg" data-id="${c.id}" inputmode="decimal" value="${esc(f.bk[c.id])}" placeholder="кг" autocomplete="off" aria-label="Вес, кг"><span>кг</span><button type="button" class="tf-x" data-bdel="${c.id}" aria-label="Удалить резинку">×</button></div>`).join("")}${f.xb.map((c) => `<div class="tf-bd tf-xb"><input type="color" class="tf-bc" data-xb="hex" data-id="${c.id}" value="${esc(c.hex)}" aria-label="Цвет"><input class="input tf-bn" data-xb="t" data-id="${c.id}" value="${esc(c.t)}" maxlength="16" autocomplete="off" aria-label="Название"><input class="input tf-bk" data-xb="kg" data-id="${c.id}" inputmode="decimal" value="${esc(c.kg)}" placeholder="кг" autocomplete="off" aria-label="Вес, кг"><span>кг</span><button type="button" class="tf-x" data-xdel="${c.id}" aria-label="Удалить резинку">×</button></div>`).join("")}</div><div class="tf-bact"><button type="button" class="tf-add" data-xadd${f.xb.length >= TR.BAND_X_MAX ? " disabled" : ""}>+ Добавить резинку</button></div>`) : ""}
       ${sec("🩹", "ic-shoe", "Есть ограничения?", "Такие упражнения заменим", `<div class="chips" data-tf="limits" style="margin:0">${TR.LIMITS.map((l) => `<button type="button" data-v="${l.id}" class="chip${f.limits.has(l.id) ? " sel" : " muted"}">${LIM_EMO[l.id] || ""} ${l.t}</button>`).join("")}</div>`)}
       <div class="tf-warn"><i>⚠️</i><span>Это общий ориентир для здоровых взрослых, а не лечебная программа. При болезнях сердца, травмах, беременности и других состояниях согласуйте нагрузку с врачом.</span></div>
       <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="tf-save">Сохранить и собрать план</button></div>`;
@@ -931,10 +960,12 @@ function openTrainForm() {
   const toggle = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); };
   ov.addEventListener("input", (e) => {
     if (e.target.id === "tf-kg") f.kg = e.target.value;
+    if (e.target.id === "tf-dbn") f.dbIn = e.target.value;
     const d = e.target.dataset;
     if (d && d.bs && d.id) {
       if (d.bs === "kg") f.bk[d.id] = e.target.value; else f.bs[d.id][d.bs] = e.target.value;
     }
+    if (d && d.xb && d.id) { const x = f.xb.find((q) => q.id === d.id); if (x) x[d.xb] = e.target.value; }
   });
   ov.addEventListener("change", (e) => {
     const id = e.target.dataset && e.target.dataset.eq;
@@ -945,13 +976,25 @@ function openTrainForm() {
     draw();
   });
   ov.addEventListener("click", (e) => {
-    if (e.target.closest("[data-bsreset]")) {
-      TR.applyBandStyle(null);
-      f.bs = Object.fromEntries(TR.BAND_COLORS.map((c) => [c.id, { t: c.t, hex: c.hex }]));
-      f.bk = Object.fromEntries(TR.BAND_COLORS.map((c) => [c.id, String(TR.BAND_DEFAULT_KG[c.id]).replace(".", ",")]));
+    const bd = e.target.closest("[data-bdel]");
+    if (bd) { f.rm.add(bd.dataset.bdel); draw(); return; }
+    if (e.target.closest("[data-xadd]")) {
+      if (f.xb.length >= TR.BAND_X_MAX) return;
+      const n = Math.max(0, ...f.xb.map((x) => Number(String(x.id).slice(1)) || 0)) + 1;
+      const HEX = ["#F26CA7", "#7B61FF", "#00B8D9", "#FF8A00", "#8E8E93", "#A0522D"];
+      f.xb.push({ id: `x${n}`, t: `Резинка ${f.xb.length + 1}`, hex: HEX[f.xb.length % HEX.length], kg: "" });
       draw();
       return;
     }
+    const xd = e.target.closest("[data-xdel]");
+    if (xd) { f.xb = f.xb.filter((x) => x.id !== xd.dataset.xdel); draw(); return; }
+    if (e.target.closest("[data-dbadd]")) {
+      const v = num(f.dbIn);
+      if (Number.isFinite(v) && v > 0 && v < 200 && f.db.length < TR.DUMBBELL_MAX && !f.db.some((q) => Math.abs(q - v) < 0.001)) { f.db = [...f.db, Math.round(v * 100) / 100].sort((p, q) => p - q); f.dbIn = ""; draw(); }
+      return;
+    }
+    const dd = e.target.closest("[data-dbdel]");
+    if (dd) { f.db = f.db.filter((q) => String(q) !== dd.dataset.dbdel); draw(); return; }
     const b = e.target.closest("[data-tf] [data-v]");
     if (b) {
       const grp = b.parentElement.dataset.tf, v = b.dataset.v;
@@ -965,19 +1008,20 @@ function openTrainForm() {
     }
     if (e.target.closest("#tf-save")) {
       if (!f.days.size) { $("#tf-days-hint", ov).textContent = "Выберите хотя бы один день."; return; }
-      const kg = num($("#tf-kg", ov) ? $("#tf-kg", ov).value : f.kg);
       const mv = {};
       const keepFrom = addDays(todayStr(), -14);
       for (const [a, b] of Object.entries(cur.moves || {})) if (a >= keepFrom) mv[a] = b;
       const bandKg = {};
-      for (const c of TR.BAND_COLORS) { const v = num(f.bk[c.id]); if (Number.isFinite(v) && v > 0 && Math.abs(v - (TR.BAND_DEFAULT_KG[c.id] || 0)) > 1e-9) bandKg[c.id] = v; }
+      for (const c of baseBands()) { const v = num(f.bk[c.id]); if (Number.isFinite(v) && v > 0 && Math.abs(v - (TR.BAND_DEFAULT_KG[c.id] || 0)) > 1e-9) bandKg[c.id] = v; }
       const bandStyle = {};
-      for (const c of TR.BAND_COLORS) bandStyle[c.id] = { t: String(f.bs[c.id].t || "").trim().slice(0, 16), hex: f.bs[c.id].hex };
+      for (const c of baseBands()) bandStyle[c.id] = { t: String(f.bs[c.id].t || "").trim().slice(0, 16), hex: f.bs[c.id].hex };
       const clean = TR.normCfg({ bandStyle }, todayStr()).bandStyle;
+      const extraBands = TR.normCfg({ extraBands: f.xb.map((x) => ({ id: x.id, t: x.t, hex: x.hex, kg: num(x.kg) })) }, todayStr()).extraBands;
+      const dumbbells = f.equip[f.place].includes("dumbbell") ? f.db : [];
       setDoc(docRef("settings", "training"), {
-        bandKg, bandStyle: clean,
+        bandKg, bandStyle: clean, extraBands, removedBands: [...f.rm], dumbbells,
         place: f.place, days: [...f.days].sort((a, b) => a - b), equip: f.equip, minutes: f.minutes, level: f.level, limits: [...f.limits],
-        dumbbellKg: Number.isFinite(kg) && f.equip[f.place].includes("dumbbell") ? kg : 0,
+        dumbbellKg: dumbbells.length ? Math.max(...dumbbells) : 0,
         startedAt: (state.trainCfg && state.trainCfg.startedAt) || todayStr(), moves: mv, vpref: cur.vpref || {}, updatedAt: serverTimestamp(),
       }).catch(writeFail);
       ov.close();
@@ -1097,7 +1141,8 @@ function trainAdvice(d) {
     }
   }
   const dk = Number(logs.find((l) => l.dumbbellKg)?.dumbbellKg) || 0;
-  const bell = dk ? (bump > 0 ? `Гантели: можно прибавить 0,5–1 кг (сейчас ${fmt(dk)} кг).` : bump < 0 ? `Гантели: не прибавляйте вес (сейчас ${fmt(dk)} кг).` : "") : "";
+  const nextDb = (cfg.dumbbells || []).find((v) => v > dk + 0.01);
+  const bell = dk ? (bump > 0 ? (nextDb ? `Гантели: можно взять ${fmt(nextDb)} кг (сейчас ${fmt(dk)} кг).` : `Гантели: можно прибавить 0,5–1 кг (сейчас ${fmt(dk)} кг).`) : bump < 0 ? `Гантели: не прибавляйте вес (сейчас ${fmt(dk)} кг).` : "") : "";
   let tip;
   if (last.length < 2) tip = "Завершайте тренировки кнопкой «Завершить тренировку»: после двух оценок приложение начнёт подбирать нагрузку.";
   else if (lowDone) tip = "Оценки лёгкие, но выполнено меньше 60% плана: нагрузку не повышаем. Сначала доделывайте упражнения до конца.";
@@ -1111,24 +1156,62 @@ const comboIds = (s) => String(s || "").split("+").filter(bandOk);
 const bandKgOf = (id) => Number(trainCfg().bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
 const comboKg = (ids) => ids.reduce((t, id) => t + bandKgOf(id), 0);
 const comboKey = (ids) => [...new Set(ids)].sort((p, q) => bandKgOf(q) - bandKgOf(p)).join("+");
-const bandName = (s) => comboIds(s).map((id) => (TR.BAND_COLORS.find((c) => c.id === id) || {}).t.toLowerCase()).join(" + ");
+// Для подписи берём и удалённые из набора резинки: старые записи остаются как были
+const bandAny = (id) => TR.BAND_COLORS.find((c) => c.id === id) || TR.BAND_BASE.find((c) => c.id === id);
+const bandName = (s) => String(s || "").split("+").map(bandAny).filter(Boolean).map((c) => c.t.toLowerCase()).join(" + ");
 // Следующий шаг по нагрузке: самая близкая по силе комбинация резинок, тяжелее текущей (можно сложить две-три трубки вместе)
 function nextBandCombo(curIds) {
-  const cur = comboKg(curIds), all = TR.BAND_COLORS.map((c) => c.id);
+  const cur = comboKg(curIds), all = TR.BAND_COLORS.map((c) => c.id), kgs = all.map(bandKgOf), n = all.length;
   let best = null;
-  for (let m = 1; m < 1 << all.length; m++) {
-    const ids = all.filter((_, k) => m & (1 << k));
-    if (ids.length > 3) continue;
-    const kg = comboKg(ids);
+  const test = (ix) => {
+    const kg = ix.reduce((t, i) => t + kgs[i], 0), ids = ix.map((i) => all[i]);
     if (kg > cur + 0.2 && (!best || kg < best.kg - 0.01 || (Math.abs(kg - best.kg) <= 0.01 && ids.length < best.ids.length))) best = { ids, kg };
+  };
+  for (let i = 0; i < n; i++) {
+    test([i]);
+    for (let j = i + 1; j < n; j++) {
+      test([i, j]);
+      for (let k = j + 1; k < n; k++) test([i, j, k]);
+    }
   }
   return best;
+}
+// Рекомендуемый вес: крупные мышцы берут больше, мелкие меньше; если уже были подходы, держимся прошлого выбора
+const bigMuscle = (id) => /квадрицепс|ягодиц|широчайш|спин|груд|бёдер/i.test((TR.EXERCISES[id] || {}).muscles || "");
+function bestCombo(target) {
+  const all = TR.BAND_COLORS.map((c) => c.id), kgs = all.map(bandKgOf), n = all.length;
+  let best = null;
+  const test = (ix) => {
+    const kg = ix.reduce((t, i) => t + kgs[i], 0), d = Math.abs(kg - target);
+    if (!best || d < best.d - 0.01 || (Math.abs(d - best.d) <= 0.01 && ix.length < best.ids.length)) best = { ids: ix.map((i) => all[i]), kg, d };
+  };
+  for (let i = 0; i < n; i++) { test([i]); for (let j = i + 1; j < n; j++) { test([i, j]); for (let k = j + 1; k < n; k++) test([i, j, k]); } }
+  return best;
+}
+function recText(it, date) {
+  if (!it.reps) return "";
+  if (it.vk === "band" || it.vk === "bandf") {
+    const last = comboIds(lastBand(it.id, date));
+    const b = last.length ? { ids: last, kg: comboKg(last) } : bestCombo(bigMuscle(it.id) ? 9 : 4.5);
+    return b ? `${bandName(comboKey(b.ids))} · около ${fmt(b.kg)} кг` : "";
+  }
+  if (it.vk === "db") {
+    const dbs = trainCfg().dumbbells || [];
+    if (!dbs.length) return "";
+    const last = lastDb(it.id, date), t = bigMuscle(it.id) ? 8 : 3;
+    const v = last || dbs.reduce((b, x) => (Math.abs(x - t) < Math.abs(b - t) ? x : b), dbs[0]);
+    return `${fmt(v)} кг`;
+  }
+  return "";
 }
 // Подпись: «Тяга сидя к поясу: красная; …»
 const ebandsText = (l) => Object.entries((l && l.ebands) || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `${TR.EXERCISES[id].name}: ${bandName(c)}`).join("; ");
 const lastBand = (id, date) => { const l = state.trainLog.filter((x) => x.date < date && x.ebands && x.ebands[id]).sort((p, q) => (p.date < q.date ? 1 : -1))[0]; return l ? l.ebands[id] : ""; };
+// Гантели: вес на упражнение выбирается из набора (cfg.dumbbells), запоминается в журнале дня (edb) и подставляется в следующий раз
+const lastDb = (id, date) => { const l = state.trainLog.filter((x) => x.date < date && x.edb && Number(x.edb[id]) > 0).sort((p, q) => (p.date < q.date ? 1 : -1))[0]; return l ? Number(l.edb[id]) : 0; };
+const dbKgOf = (id, date) => { const c = trainCfg(); return Number(((trainLogOn(date) || {}).edb || {})[id]) || lastDb(id, date) || (c.dumbbells.length === 1 ? c.dumbbells[0] : 0); };
 const bandsText = (l) => {
-  const parts = TR.BAND_COLORS.filter((c) => l.bands && c.id in l.bands).map((c) => `${c.t.toLowerCase()}${l.bands[c.id] ? ` ${fmt(l.bands[c.id])} кг` : ""}`);
+  const parts = [...TR.BAND_COLORS, ...TR.BAND_BASE.filter((b) => !TR.BAND_COLORS.some((c) => c.id === b.id))].filter((c) => l.bands && c.id in l.bands).map((c) => `${c.t.toLowerCase()}${l.bands[c.id] ? ` ${fmt(l.bands[c.id])} кг` : ""}`);
   if (l.dumbbellKg) parts.push(`гантели ${fmt(l.dumbbellKg)} кг`);
   return parts.join(", ");
 };
@@ -1337,7 +1420,7 @@ function openTrainFinish(date) {
     feel: Number(old.feel) || 0,
     used: new Set(Array.isArray(old.used) ? old.used : prev.used || []),
     bands: { ...(old.finished ? old.bands : prev.bands) || {} },
-    kg: old.dumbbellKg || cfg.dumbbellKg || "",
+    kg: old.dumbbellKg || Math.max(0, ...Object.values(old.edb || {}).map(Number)) || prev.dumbbellKg || cfg.dumbbellKg || "",
   };
   for (const c of new Set(Object.values(old.ebands || {}).flatMap((s) => comboIds(s)))) if (!(c in f.bands)) f.bands[c] = 0;
   const have = cfg.equip[cfg.place] || [];
