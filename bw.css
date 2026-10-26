@@ -2315,3 +2315,6 @@ html body .bw-ov .tr-feel button.fv5.on b, html body .bw-ov .tr-feel button.fv5.
 
 /* v3.15: у упражнений без резинки в истории нет цветного кружка */
 .hvw .tr-hc i.nb::before,.overlay .tr-hc i.nb::before,.tr-hc i.nb::before { display:none !important; }
+/* v3.14: подписи тренда (▲ ▼ «без изменений») читаются в любой теме: светлая плашка и чёрный текст, в тёмной — тёмная плашка и белый текст */
+.hvw .xt,.overlay .xt,.hvw .xt.up,.overlay .xt.up,.hvw .xt.down,.overlay .xt.down { background:#F2F2F7 !important; color:#000 !important; }
+:root[data-theme="dark"] .hvw .xt,:root[data-theme="dark"] .overlay .xt,:root[data-theme="dark"] .hvw .xt.up,:root[data-theme="dark"] .overlay .xt.up,:root[data-theme="dark"] .hvw .xt.down,:root[data-theme="dark"] .overlay .xt.down { background:#2C2C2E !important; color:#fff !important; }

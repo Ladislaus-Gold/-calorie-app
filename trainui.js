@@ -1207,7 +1207,7 @@ const bandsText = (l) => {
 // Что было запланировано и что выполнено за последние 4 недели
 function trainStats(fromArg, toArg) {
   const cfg = trainCfg(), today = todayStr();
-  const from = fromArg || addDays(today, -41);
+  const from = fromArg || addDays(today, -48);
   const end = toArg && toArg < today ? toArg : today;
   const start = cfg.startedAt > from ? cfg.startedAt : from;
   const ex = {}, weeks = {};
@@ -1329,7 +1329,7 @@ function exProgressHtml() {
   // Группы мышц: свёрнутая карточка с главными цифрами, внутри упражнения
   const groups = {};
   list.forEach((x) => { const g = TR.mgOf(x.id) || "other"; (groups[g] = groups[g] || []).push(x); });
-  const wk0 = TR.mondayOf(today), weeks = Array.from({ length: 6 }, (_, k) => addDays(wk0, -7 * (5 - k)));
+  const wk0 = TR.mondayOf(today), weeks = Array.from({ length: 7 }, (_, k) => addDays(wk0, -7 * (6 - k)));
   const order = [...Object.keys(TR.MG), "other"].filter((g) => groups[g]);
   const openG = state.trainGrpOpen || {};
   return `<div class="xl">` + order.map((g) => {
@@ -1357,7 +1357,7 @@ function trainProgressCardHtml(day) {
   const feels = fin.slice(0, 5).map((l) => Number(l.feel)).filter(Boolean);
   const avg = feels.length ? feels.reduce((a, b) => a + b, 0) / feels.length : 0;
   const empty = !st.planned && !fin.length && !state.trainLog.some((l) => l.sets);
-  const wkKeys = Object.keys(st.weeks).sort().slice(-6);
+  const wkKeys = Object.keys(st.weeks).sort().slice(-7);
   const wkBars = wkKeys.map((w) => { const x = st.weeks[w]; return `<div class="tr-bar"><span>${esc(dateShort(w))}</span><div class="track"><i style="width:${pct(x.done, x.plan)}%"></i></div><b>${pct(x.done, x.plan)}%</b></div>`; }).join("");
   const adv = trainAdvice(addDays(todayStr(), 1));
   const tip = [adv.tip, adv.band, adv.bell].filter(Boolean).join(" ");
