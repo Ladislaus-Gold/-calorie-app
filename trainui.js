@@ -410,7 +410,7 @@ function openTrainWorkout(date) {
   const doneSets = (i) => setsOn(date, i.id).filter((v) => v > 0);
   const factMin = (i) => Number((((trainLogOn(date) || {}).mins) || {})[i.key]) || 0;
   let idx = Math.max(0, items.findIndex((i) => !isDone(i)));
-  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, mins = 0, secv = 0, runStart = 0, retMode = false, winOn = false, side = 0, sdone = [false, false], dir = 0;
+  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, mins = 0, secv = 0, runStart = 0, retMode = false, winOn = false, side = 0, sdone = [false, false], dir = 0, half = 0;
   const skipped = new Set();
   const ov = openSheet(`<div id="wk-root"></div>`);
   ov.querySelector(".sheet").classList.add("wk");
@@ -425,7 +425,10 @@ function openTrainWorkout(date) {
   const fmtT = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   // Упражнения «на сторону» с таймером (круги коленом, махи ногой, растяжки): таймер идёт отдельно на каждую сторону, под ним два кружка
   const sideIt = (x) => !!(x && x.side && x.secs && !x.reps && !isMinIt(x));
+  // Силовые на одну ногу (выпады, подъёмы на скамью…): каждый подход делится на две стороны, под числом два кружка
+  const repSide = (x) => !!(x && x.side && x.reps);
   const sideLab = (x) => {
+    if (/птица|жук/i.test(x.name)) return ["Правая сторона", "Левая сторона"];
     const t = `${x.name} ${x.muscles || ""}`.toLowerCase();
     return /ног|бедр|икр|колен|ягод|стоп|голен/.test(t) ? ["Правая нога", "Левая нога"] : /рук|плеч|кист|локт|бицепс|трицепс/.test(t) ? ["Правая рука", "Левая рука"] : ["Правая сторона", "Левая сторона"];
   };
@@ -459,7 +462,7 @@ function openTrainWorkout(date) {
   const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true } }); };
   // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
   const enterItem = () => {
-    phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = []; side = 0; sdone = [false, false]; dir = 0;
+    phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = []; side = 0; sdone = [false, false]; dir = 0; half = 0;
     const it = items[idx];
     if (!it) return;
     if (it.reps) {
@@ -489,19 +492,20 @@ function openTrainWorkout(date) {
   const ARROW_R = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   // Силовое упражнение: плашки подходов, отдых, «Следом»
   const strengthHtml = (it) => {
-    const n = it.sets, lo = it.reps[0], hi = it.reps[1];
+    const n = it.sets, lo = it.reps[0], hi = it.reps[1], rs = repSide(it), lab = rs ? sideLab(it) : [];
     const dc = review ? n : phase === "work" ? setNo : phase === "rest" ? setNo + 1 : n;
     const cur = review ? -1 : phase === "work" ? setNo : phase === "rest" ? setNo + 1 : -1;
     const prev = exHist(it.id, addDays(date, -1)).slice(-1)[0];
     const plates = reps.slice(0, n).map((v, i) => {
       const dn = i < dc;
       const chip = dn ? (v < lo ? `−${lo - v}` : v > hi ? `+${v - hi}` : "цель") : "";
-      return `<div class="wk-pl${dn ? " dn" : ""}${i === cur ? " cur" : ""}" data-g="pl" data-i="${i}"><small>№ ${i + 1}</small><b>${v}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${dn ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
+      const pd = rs ? `<div class="wk-pd">${[0, 1].map((k) => `<i class="${dn || (i === cur && phase === "work" && half > k) ? "on" : ""}"></i>`).join("")}</div>` : "";
+      return `<div class="wk-pl${dn ? " dn" : ""}${i === cur ? " cur" : ""}${rs ? " sd" : ""}" data-g="pl" data-i="${i}"><small>№ ${i + 1}</small><b>${v}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${pd}${dn ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
     }).join("");
     const nx = items[idx + 1];
     const resting = phase === "rest" || phase === "restx";
     const rc = resting ? `<div class="wk-rc" data-g="rest"><div class="l">${phase === "restx" ? "Отдых перед следующим" : "Отдых"}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +15 с · свайп влево — ${phase === "restx" ? "открыть сейчас" : "пропустить"}</div></div>` : "";
-    const midTxt = review ? REDO : phase === "work" ? "нажмите — выполнено<br>зажмите — число" : phase === "rest" ? `подход ${setNo + 2} из ${n}<br>начнётся сам` : "следующее<br>откроется само";
+    const midTxt = review ? REDO : phase === "work" ? (rs ? `<b>${esc(lab[half])}</b><br>нажмите — готово` : "нажмите — выполнено<br>зажмите — число") : phase === "rest" ? `подход ${setNo + 2} из ${n}<br>начнётся сам` : "следующее<br>откроется само";
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${midTxt}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     let nxHtml = "";
     if (nx && phase === "restx") {
@@ -510,7 +514,7 @@ function openTrainWorkout(date) {
     } else if (nx) {
       nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
     }
-    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
+    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${rs ? " на сторону" : ""}${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
   };
   // Кардио, разминка, растяжка: одна плашка со значением (минуты или секунды), таймер в той же «карточке», что и отдых
   const simpleHtml = (it) => {
@@ -608,6 +612,12 @@ function openTrainWorkout(date) {
       if (idx < items.length - 1 && !retMode) { phase = "restx"; startTimer(rest); SND.start(); draw(); } else next();
     } else { phase = "rest"; startTimer(rest); SND.start(); draw(); }
   };
+  // Нажатие на текущий подход: у упражнений «на сторону» сначала одна сторона (кружок чернеет), вторым нажатием подход засчитывается
+  const tapSet = () => {
+    const it = items[idx];
+    if (repSide(it) && half === 0) { half = 1; SND.turn(); draw(); return; }
+    half = 0; setDone();
+  };
   const restSkip = () => { if (phase === "rest") { endAt = 0; phase = "work"; setNo++; draw(); } else if (phase === "restx") { endAt = 0; next(); } };
   const rest15 = (sec = 15) => {
     if (!endAt) return;
@@ -622,7 +632,7 @@ function openTrainWorkout(date) {
     if (!it) return;
     if (!it.reps) { if (isMinIt(it)) mins = v; else secv = v; draw(); return; }
     reps[i] = v;
-    if (phase === "work" && i === setNo) { setDone(); return; }
+    if (phase === "work" && i === setNo) { tapSet(); return; }
     if (i < doneCount(it)) saveTrainLog(date, { sets: { [it.id]: reps.slice(0, doneCount(it)) } });
     draw();
   };
@@ -676,7 +686,7 @@ function openTrainWorkout(date) {
     const it = items[idx];
     if (!it) return;
     if (G.k === "pl" && tap) {
-      if (it.reps) { if (phase === "work" && !review && Number(G.el.dataset.i) === setNo) setDone(); }
+      if (it.reps) { if (phase === "work" && !review && Number(G.el.dataset.i) === setNo) tapSet(); }
       else if (phase === "work" && !review) { if (isMinIt(it)) recMin(it, mins); else { markDone(it); next(); } }
     } else if (G.k === "rest") {
       if (phase === "swap") { if (tap || dx < -50) startRun(); }
@@ -695,7 +705,7 @@ function openTrainWorkout(date) {
     const it = items[idx];
     if (!it || review || phase !== "work") return;
     lastEnd = Date.now();
-    if (it.reps) { if (Number(pl.dataset.i) === setNo) setDone(); }
+    if (it.reps) { if (Number(pl.dataset.i) === setNo) tapSet(); }
     else if (isMinIt(it)) recMin(it, mins); else { markDone(it); next(); }
   });
   ov.addEventListener("click", (e) => {
@@ -705,7 +715,7 @@ function openTrainWorkout(date) {
     if (w === "finish") { ov.close(); openTrainFinish(date); return; }
     if (w === "ret") { const k = Number(b.dataset.k); skipped.delete(items[k].key); idx = k; retMode = true; enterItem(); draw(); return; }
     if (!it) return;
-    if (w === "redo") { review = false; setNo = 0; side = 0; sdone = [false, false]; dir = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
+    if (w === "redo") { review = false; setNo = 0; side = 0; sdone = [false, false]; dir = 0; half = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
     if (w === "skip") {
       const was = idx, wasDone = isDone(it);
       if (!wasDone) skipped.add(it.key);
