@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 315;
-const APP_VERSION_LABEL = "3.12"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 316;
+const APP_VERSION_LABEL = "3.13"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4185,8 +4185,8 @@ function miniTiles(day) {
   const caf = caffeineStatus(day);
   const banner = caf.level !== "ok" ? `<div class="warn ${caf.level === "over" ? "over" : ""}" style="margin:0 0 12px">${esc(caf.msgs[0].t)}</div>` : "";
   return `<div class="mini-row">
-    <button type="button" class="mini water${tg > 0 && ml >= tg ? " done" : ""}" data-act="goTab" data-tab="health" data-h="today">
-      <span class="mini-top"><span class="mini-ic sq">${GLYPH_DROP}</span><span class="mini-label">Жидкость</span>${MINI_CV}</span>
+    <button type="button" class="mini water${tg > 0 && ml >= tg ? " done" : ""}" data-act="addDrink" aria-label="Добавить напиток">
+      <span class="mini-top"><span class="mini-ic sq">${GLYPH_DROP}</span><span class="mini-label">Жидкость</span></span>
       <span class="mini-val"><span data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></span>
       <span class="mini-sub">норма ${fmtInt(tg)} мл</span>
       ${caf.mg > 0 ? `<span class="mini-sub caf ${caf.level}">кофеин ${caf.mg} из ${caf.limit} мг</span>` : ""}
