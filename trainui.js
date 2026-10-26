@@ -1369,7 +1369,7 @@ function trainProgressCardHtml(day) {
     const ids = new Set();
     Object.entries(l.sets || {}).forEach(([id, a]) => { if (Array.isArray(a) && a.some((v) => Number(v) > 0)) ids.add(id); });
     Object.keys(l.ebands || {}).forEach((id) => ids.add(id));
-    const chips = [...ids].filter((id) => TR.EXERCISES[id]).map((id) => { const bn = bandName((l.ebands || {})[id]); return `<i style="--c:${bn ? bandHex(bn) : "#9AA8A0"}">${esc(TR.EXERCISES[id].name)}</i>`; }).join("");
+    const chips = [...ids].filter((id) => TR.EXERCISES[id]).map((id) => { const bn = bandName((l.ebands || {})[id]); return bn ? `<i style="--c:${bandHex(bn)}">${esc(TR.EXERCISES[id].name)}</i>` : `<i class="nb">${esc(TR.EXERCISES[id].name)}</i>`; }).join("");
     const cnt = ids.size ? `${[...ids].filter((id) => TR.EXERCISES[id]).length} упр.` : "";
     const fl = Number(l.feel), op = !!hOpen[l.date];
     return `<div class="tr-h tr-dy${op ? " op" : ""}"><button type="button" class="tr-dh" data-act="toggleTrHist" data-d="${l.date}" aria-expanded="${op}"><span class="tr-dn"><b>${esc(trainDayName(l.date))}</b>${cnt ? `<small>${cnt}</small>` : ""}</span>${fl ? `<span class="tr-hf fv${fl}">${esc(feelLabel(fl))}</span>` : ""}<svg class="tr-dc" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>${op ? `<div class="tr-db">${bandsText(l) ? `<small class="tr-hb">${esc(bandsText(l))}</small>` : ""}${chips ? `<div class="tr-hc">${chips}</div>` : `<small class="tr-hb">Подробностей по упражнениям нет.</small>`}</div>` : ""}</div>`;
