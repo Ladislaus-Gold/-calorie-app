@@ -13,7 +13,7 @@ import {
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=20";
-import { createTrainUI } from "./trainui.js?v=55";
+import { createTrainUI } from "./trainui.js?v=56";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 311;
-const APP_VERSION_LABEL = "3.08"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 312;
+const APP_VERSION_LABEL = "3.09"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -767,22 +767,34 @@ function checkCelebrate() {
   const marks = [];
   if (tg > 0 && ml >= tg) marks.push(["water", "water"]);
   if (mins > 0 && mins >= dayGoal) marks.push(["load", "load"]);
-  if (r >= 0.8) marks.push(["k80", "kcal1"]);
-  if (r >= 0.9) marks.push(["k90", "kcal2"]);
-  if (r >= 1) marks.push(["k100", "kcal3"]);
-  if (r > 1.05) marks.push(["k105", "kcal4"]);
-  const quiet = Date.now() - celeb.t0 < 6000; // первые секунды данные ещё подгружаются: только запоминаем
-  let play = null;
-  for (const [k, snd] of marks) {
-    const key = `snd:${day}:${k}`;
-    let was = celeb.seen[key];
-    try { was = was || localStorage.getItem(key); } catch { /* ignore */ }
-    if (was) continue;
-    celeb.seen[key] = 1;
-    try { localStorage.setItem(key, "1"); } catch { /* ignore */ }
-    if (!quiet) play = snd;
+  // приём пищи заполнен: съедено не меньше 95% его доли от дневной нормы (перекус без звука)
+  for (const id of ["breakfast", "lunch", "dinner"]) {
+    const t = mealTarget(id);
+    if (t > 0 && sumEntries(entriesOn(day).filter((e) => e.meal === id)).kcal >= t * 0.95) marks.push([`m_${id}`, id]);
   }
-  if (play) { try { sndPlay(play); } catch { /* ignore */ } }
+  const warn = [];
+  if (r >= 0.8) warn.push(["k80", "kcal1"]);
+  if (r >= 0.9) warn.push(["k90", "kcal2"]);
+  if (r >= 1) warn.push(["k100", "kcal3"]);
+  if (r > 1.05) warn.push(["k105", "kcal4"]);
+  const quiet = Date.now() - celeb.t0 < 6000; // первые секунды данные ещё подгружаются: только запоминаем
+  const fresh = (list) => {
+    let play = null;
+    for (const [k, snd] of list) {
+      const key = `snd:${day}:${k}`;
+      let was = celeb.seen[key];
+      try { was = was || localStorage.getItem(key); } catch { /* ignore */ }
+      if (was) continue;
+      celeb.seen[key] = 1;
+      try { localStorage.setItem(key, "1"); } catch { /* ignore */ }
+      if (!quiet) play = snd;
+    }
+    return play;
+  };
+  const win = fresh(marks), wn = fresh(warn);
+  // сначала «выполнено», через секунду-полторы предупреждение по калориям (если сработали вместе)
+  if (win) { try { sndPlay(win); } catch { /* ignore */ } }
+  if (wn) setTimeout(() => { try { sndPlay(wn); } catch { /* ignore */ } }, win ? 1500 : 0);
 }
 document.addEventListener("pointerdown", () => { try { sndUnlock(); } catch { /* ignore */ } }, { passive: true });
 
