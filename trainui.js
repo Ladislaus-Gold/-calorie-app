@@ -438,6 +438,8 @@ function openTrainWorkout(date) {
     const base = sideIt(x) ? sideLab(x)[side] : rotIt(x) ? "Вращайте" : isMinIt(x) ? "Идёт" : "Держите";
     return rotIt(x) ? `${base} · ${x.rot[dir]}` : base;
   };
+  // «на ногу» / «на руку» / «на сторону»: цель в упражнениях «на сторону» дана за одну сторону, это должно быть видно
+  const sideAcc = (x) => { const w = sideLab(x)[0].split(" ")[1]; return w === "нога" ? "на ногу" : w === "рука" ? "на руку" : "на сторону"; };
   const startTimer = (sec) => { total = sec; endAt = Date.now() + sec * 1000; tmDone = false; };
   const iv = setInterval(() => {
     if (!ov.isConnected) { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); sndIdle(); try { if (lock) lock.release(); } catch { /* ignore */ } return; }
@@ -514,18 +516,18 @@ function openTrainWorkout(date) {
     } else if (nx) {
       nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
     }
-    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${rs ? " на сторону" : ""}${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
+    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${rs ? ` ${sideAcc(it)}` : ""}${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
   };
   // Кардио, разминка, растяжка: одна плашка со значением (минуты или секунды), таймер в той же «карточке», что и отдых
   const simpleHtml = (it) => {
     const kind = isMinIt(it) ? "min" : it.secs ? "sec" : "plain";
     const plan = kind === "min" ? it.minutes : kind === "sec" ? it.secs[1] : 0;
     const val = kind === "min" ? mins : kind === "sec" ? secv : TICK;
-    const unit = kind === "min" ? "Минуты" : kind === "sec" ? "Секунды" : "Упражнение";
+    const unit = kind === "min" ? "Минуты" : kind === "sec" ? (sideIt(it) ? `Секунды ${sideAcc(it)}` : "Секунды") : "Упражнение";
     const run = phase === "run", sd = sideIt(it), lab = sd ? sideLab(it) : [];
     const chip = review ? "выполнено" : kind === "plain" ? "нажмите" : val === plan ? "цель" : val < plan ? `−${plan - val}` : `+${val - plan}`;
     const pl = `<div class="wk-pl one${review ? " dn" : " cur"}" data-g="pl" data-i="0"><small>${unit}</small><b>${val}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${review ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
-    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}${rotIt(it) ? ` · по ${Math.round(plan / 2)} с: ${it.rot[0]}, потом ${it.rot[1]}` : ""}`;
+    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}${sideIt(it) ? ` ${sideAcc(it)}` : ""}${rotIt(it) ? ` · по ${Math.round(plan / 2)} с: ${it.rot[0]}, потом ${it.rot[1]}` : ""}`;
     const len = kind === "min" ? mins * 60 : secv;
     const step = kind === "min" ? "1 мин" : "15 с";
     let rc = "";
