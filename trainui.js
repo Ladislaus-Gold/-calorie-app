@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=17";
+import * as TR from "./train.js?v=18";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -34,14 +34,54 @@ if (typeof document !== "undefined" && !window.__exPh) {
 }
 
 // Звуки тренировки (Web Audio): мягкий сигнал начала отдыха, тройной сигнал «отдых закончен», победная фанфара в конце
-let sndCtx = null, sndKeep = null;
+// Ноты сигналов: [частота, начало (с), длительность (с), громкость, тембр]
+const SND_NOTES = {
+  start: [[659, 0, 0.2, 0.12], [880, 0.13, 0.32, 0.12]],
+  end: [[784, 0, 0.16, 0.17, "triangle"], [784, 0.2, 0.16, 0.17, "triangle"], [1047, 0.4, 0.55, 0.2, "triangle"]],
+  go: [[988, 0, 0.14, 0.32, "square"], [1319, 0.2, 0.24, 0.32, "square"]],
+  stop: [[1175, 0, 0.18, 0.34, "square"], [1175, 0.25, 0.18, 0.34, "square"], [1568, 0.5, 0.5, 0.34, "square"]],
+  turn: [[880, 0, 0.12, 0.3, "square"]],
+  win: [[523, 0, 0.16, 0.15, "triangle"], [784, 0, 0.16, 0.15, "triangle"], [523, 0.24, 1.2, 0.13, "triangle"], [659, 0.24, 1.2, 0.13, "triangle"], [784, 0.24, 1.2, 0.13, "triangle"], [1047, 0.24, 1.2, 0.13, "triangle"], [1568, 0.5, 0.9, 0.07, "sine"]],
+};
+let sndCtx = null, sndKeep = null, sndMedia = null, sndFx = null, sndFxOk = false;
+// Те же сигналы в виде WAV (data-URI): запасной путь, если Web Audio на iPhone «уснул» или система его заглушила
+const wavCache = {};
+function wavUri(name) {
+  if (wavCache[name]) return wavCache[name];
+  const notes = SND_NOTES[name] || [], rate = 22050;
+  const total = name === "silence" ? 1 : Math.max(...notes.map((n) => n[1] + n[2])) + 0.1;
+  const len = Math.ceil(rate * total), buf = new Int16Array(len);
+  for (const [f, at, dur, vol, type] of notes) {
+    const i0 = Math.floor(at * rate), i1 = Math.min(len, Math.floor((at + dur) * rate));
+    for (let i = i0; i < i1; i++) {
+      const t = (i - i0) / rate, ph = 2 * Math.PI * f * t;
+      const w = type === "square" ? (Math.sin(ph) >= 0 ? 1 : -1) : type === "triangle" ? (2 / Math.PI) * Math.asin(Math.sin(ph)) : Math.sin(ph);
+      const env = t < 0.02 ? t / 0.02 : Math.pow(0.0001 / vol, (t - 0.02) / Math.max(0.01, dur - 0.02));
+      buf[i] = Math.max(-32767, Math.min(32767, buf[i] + Math.round(w * env * vol * 1.8 * 32767)));
+    }
+  }
+  const hd = new DataView(new ArrayBuffer(44)), W = (o, str) => { for (let k = 0; k < str.length; k++) hd.setUint8(o + k, str.charCodeAt(k)); };
+  W(0, "RIFF"); hd.setUint32(4, 36 + len * 2, true); W(8, "WAVE"); W(12, "fmt "); hd.setUint32(16, 16, true); hd.setUint16(20, 1, true); hd.setUint16(22, 1, true);
+  hd.setUint32(24, rate, true); hd.setUint32(28, rate * 2, true); hd.setUint16(32, 2, true); hd.setUint16(34, 16, true); W(36, "data"); hd.setUint32(40, len * 2, true);
+  const bytes = new Uint8Array(44 + len * 2); bytes.set(new Uint8Array(hd.buffer), 0); bytes.set(new Uint8Array(buf.buffer), 44);
+  let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  return (wavCache[name] = `data:audio/wav;base64,${btoa(bin)}`);
+}
 function sndUnlock() {
   try {
-    const C = window.AudioContext || window.webkitAudioContext;
-    if (!C) return null;
     // iPhone: играть как «медиа», тогда беззвучный режим не глушит сигналы
     try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch { /* ignore */ }
-    if (!sndCtx || sndCtx.state === "closed") { sndCtx = new C(); sndKeep = null; }
+    // тихий зацикленный <audio>: iOS держит звуковую сессию «медиа» живой, пока идёт тренировка
+    try {
+      if (!sndMedia) { sndMedia = new Audio(wavUri("silence")); sndMedia.loop = true; sndMedia.setAttribute("playsinline", ""); }
+      if (sndMedia.paused) { const pr = sndMedia.play(); if (pr && pr.catch) pr.catch(() => {}); }
+      // отдельный <audio> для сигналов: «разблокируем» его жестом, дальше он играет и без касания
+      if (!sndFx) { sndFx = new Audio(); sndFx.setAttribute("playsinline", ""); }
+      if (!sndFxOk) { sndFx.src = wavUri("silence"); const pr = sndFx.play(); if (pr && pr.then) pr.then(() => { sndFxOk = true; sndFx.pause(); }, () => {}); }
+    } catch { /* ignore */ }
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return null;
+    if (!sndCtx || sndCtx.state === "closed") { sndCtx = new C(); sndKeep = null; try { sndCtx.onstatechange = () => { if (sndCtx && sndCtx.state !== "running" && sndCtx.state !== "closed") sndCtx.resume().catch(() => {}); }; } catch { /* ignore */ } }
     if (sndCtx.state !== "running") sndCtx.resume().catch(() => {});
     // «тихий» непрерывный тон: без него iOS усыпляет звук за время отдыха, и сигнал в конце отдыха не слышен
     if (!sndKeep) {
@@ -53,7 +93,11 @@ function sndUnlock() {
     return sndCtx;
   } catch { return null; }
 }
-function sndIdle() { try { if (sndKeep) sndKeep.stop(); } catch { /* ignore */ } sndKeep = null; }
+function sndIdle() {
+  try { if (sndKeep) sndKeep.stop(); } catch { /* ignore */ }
+  sndKeep = null;
+  try { if (sndMedia) sndMedia.pause(); } catch { /* ignore */ }
+}
 function tone(freq, at, dur, vol, type) {
   const c = sndCtx;
   if (!c) return;
@@ -70,22 +114,34 @@ function tone(freq, at, dur, vol, type) {
   };
   if (c.state === "running") go(); else c.resume().then(go, () => {});
 }
+// Сигнал: Web Audio, а если он сейчас не запущен (iOS его усыпил) — обычный <audio> с тем же сигналом
+function sndPlay(name) {
+  const c = sndUnlock(), notes = SND_NOTES[name] || [];
+  const viaWebAudio = () => notes.forEach((n) => tone(...n));
+  if (c && c.state === "running") { viaWebAudio(); return; }
+  try {
+    if (sndFx) {
+      sndFx.src = wavUri(name);
+      const pr = sndFx.play();
+      if (pr && pr.catch) pr.catch(viaWebAudio);
+      return;
+    }
+  } catch { /* ignore */ }
+  viaWebAudio();
+}
 const SND = {
   // отдых начался: два мягких звука вверх
-  start() { sndUnlock(); tone(659, 0, 0.2, 0.12); tone(880, 0.13, 0.32, 0.12); },
+  start() { sndPlay("start"); },
   // отдых закончился, пора делать подход: три ноты, последняя выше и длиннее
-  end() { sndUnlock(); tone(784, 0, 0.16, 0.17, "triangle"); tone(784, 0.2, 0.16, 0.17, "triangle"); tone(1047, 0.4, 0.55, 0.2, "triangle"); },
+  end() { sndPlay("end"); },
   // старт таймера упражнения (растяжка, кардио): два чётких коротких «пик-пик» + вибрация
-  go() { sndUnlock(); tone(988, 0, 0.14, 0.32, "square"); tone(1319, 0.2, 0.24, 0.32, "square"); try { if (navigator.vibrate) navigator.vibrate(60); } catch { /* ignore */ } },
+  go() { sndPlay("go"); try { if (navigator.vibrate) navigator.vibrate(60); } catch { /* ignore */ } },
   // конец таймера упражнения: три громких сигнала + вибрация
-  stop() { sndUnlock(); [0, 0.25, 0.5].forEach((t, i) => tone(i < 2 ? 1175 : 1568, t, i < 2 ? 0.18 : 0.5, 0.34, "square")); try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch { /* ignore */ } },
+  stop() { sndPlay("stop"); try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch { /* ignore */ } },
+  // середина вращения: короткий «пик» — меняйте направление
+  turn() { sndPlay("turn"); try { if (navigator.vibrate) navigator.vibrate(40); } catch { /* ignore */ } },
   // тренировка завершена: «па-бам»
-  win() {
-    sndUnlock();
-    [523, 784].forEach((f) => tone(f, 0, 0.16, 0.15, "triangle"));
-    [523, 659, 784, 1047].forEach((f) => tone(f, 0.24, 1.2, 0.13, "triangle"));
-    tone(1568, 0.5, 0.9, 0.07, "sine");
-  },
+  win() { sndPlay("win"); },
 };
 // Галочка: скруглённая, с обводкой (цвет задаёт CSS)
 const TICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 12.8l4.2 4.2L18.5 7.8"/></svg>';
@@ -354,7 +410,7 @@ function openTrainWorkout(date) {
   const doneSets = (i) => setsOn(date, i.id).filter((v) => v > 0);
   const factMin = (i) => Number((((trainLogOn(date) || {}).mins) || {})[i.key]) || 0;
   let idx = Math.max(0, items.findIndex((i) => !isDone(i)));
-  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, mins = 0, secv = 0, runStart = 0, retMode = false, winOn = false;
+  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, mins = 0, secv = 0, runStart = 0, retMode = false, winOn = false, side = 0, sdone = [false, false], dir = 0;
   const skipped = new Set();
   const ov = openSheet(`<div id="wk-root"></div>`);
   ov.querySelector(".sheet").classList.add("wk");
@@ -363,10 +419,22 @@ function openTrainWorkout(date) {
   let lock = null;
   const getLock = async () => { try { if (navigator.wakeLock && !lock && ov.isConnected) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); } } catch { lock = null; } };
   getLock();
-  const onVis = () => { if (document.visibilityState === "visible") getLock(); };
+  const onVis = () => { if (document.visibilityState === "visible") { getLock(); try { if (sndCtx && sndCtx.state !== "running") sndCtx.resume().catch(() => {}); } catch { /* ignore */ } } };
   document.addEventListener("visibilitychange", onVis);
   const left = () => Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
   const fmtT = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  // Упражнения «на сторону» с таймером (круги коленом, махи ногой, растяжки): таймер идёт отдельно на каждую сторону, под ним два кружка
+  const sideIt = (x) => !!(x && x.side && x.secs && !x.reps && !isMinIt(x));
+  const sideLab = (x) => {
+    const t = `${x.name} ${x.muscles || ""}`.toLowerCase();
+    return /ног|бедр|икр|колен|ягод|стоп|голен/.test(t) ? ["Правая нога", "Левая нога"] : /рук|плеч|кист|локт|бицепс|трицепс/.test(t) ? ["Правая рука", "Левая рука"] : ["Правая сторона", "Левая сторона"];
+  };
+  // Вращения (круги коленом, стопой, плечами…): половина времени в одну сторону, потом в другую
+  const rotIt = (x) => !!(x && Array.isArray(x.rot) && x.secs && !x.reps && !isMinIt(x));
+  const runLabel = (x) => {
+    const base = sideIt(x) ? sideLab(x)[side] : rotIt(x) ? "Вращайте" : isMinIt(x) ? "Идёт" : "Держите";
+    return rotIt(x) ? `${base} · ${x.rot[dir]}` : base;
+  };
   const startTimer = (sec) => { total = sec; endAt = Date.now() + sec * 1000; tmDone = false; };
   const iv = setInterval(() => {
     if (!ov.isConnected) { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); sndIdle(); try { if (lock) lock.release(); } catch { /* ignore */ } return; }
@@ -375,18 +443,23 @@ function openTrainWorkout(date) {
     const l = left();
     if (t) t.textContent = fmtT(l);
     if (bar && total) bar.style.width = `${Math.round(((total - l) / total) * 100)}%`;
+    if (phase === "run" && !dir) {
+      const x = items[idx];
+      if (rotIt(x) && total - l >= total / 2) { dir = 1; const lb = $(".wk-rc .l", ov); if (lb) lb.textContent = runLabel(x); SND.turn(); }
+    }
     if (l <= 0 && !tmDone) {
       tmDone = true; endAt = 0; if (phase === "run") SND.stop(); else SND.end();
       if (phase === "rest") { phase = "work"; setNo++; draw(); }
       else if (phase === "restx") next();
       else if (phase === "run") finishRun(false);
+      else if (phase === "swap") startRun();
       else draw();
     }
   }, 250);
   const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true } }); };
   // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
   const enterItem = () => {
-    phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = [];
+    phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = []; side = 0; sdone = [false, false]; dir = 0;
     const it = items[idx];
     if (!it) return;
     if (it.reps) {
@@ -399,6 +472,7 @@ function openTrainWorkout(date) {
       mins = factMin(it) || it.minutes || 0;
       secv = it.secs ? it.secs[1] : 0;
       review = isDone(it);
+      if (review) sdone = [true, true];
     }
   };
   const next = () => { idx = retMode ? items.length : idx + 1; retMode = false; enterItem(); draw(); };
@@ -444,23 +518,28 @@ function openTrainWorkout(date) {
     const plan = kind === "min" ? it.minutes : kind === "sec" ? it.secs[1] : 0;
     const val = kind === "min" ? mins : kind === "sec" ? secv : TICK;
     const unit = kind === "min" ? "Минуты" : kind === "sec" ? "Секунды" : "Упражнение";
-    const run = phase === "run";
+    const run = phase === "run", sd = sideIt(it), lab = sd ? sideLab(it) : [];
     const chip = review ? "выполнено" : kind === "plain" ? "нажмите" : val === plan ? "цель" : val < plan ? `−${plan - val}` : `+${val - plan}`;
     const pl = `<div class="wk-pl one${review ? " dn" : " cur"}" data-g="pl" data-i="0"><small>${unit}</small><b>${val}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${review ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
-    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}`;
+    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}${rotIt(it) ? ` · по ${Math.round(plan / 2)} с: ${it.rot[0]}, потом ${it.rot[1]}` : ""}`;
     const len = kind === "min" ? mins * 60 : secv;
     const step = kind === "min" ? "1 мин" : "15 с";
     let rc = "";
     if (!review && kind !== "plain") {
       rc = run
-        ? `<div class="wk-rc" data-g="rest"><div class="l">${kind === "min" ? "Идёт" : "Держите"}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +${step} · свайп влево — закончить</div></div>`
-        : `<div class="wk-rc" data-g="rest"><div class="l">Таймер</div><div class="t">${fmtT(len)}</div><div class="bar"><i style="width:0"></i></div><div class="h">нажмите — запустить</div></div>`;
+        ? `<div class="wk-rc" data-g="rest"><div class="l">${esc(runLabel(it))}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar${rotIt(it) ? " rot" : ""}"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +${step} · свайп влево — закончить</div></div>`
+        : `<div class="wk-rc" data-g="rest"><div class="l">Таймер</div><div class="t">${fmtT(len)}</div><div class="bar${rotIt(it) ? " rot" : ""}"><i style="width:0"></i></div><div class="h">нажмите — запустить${sd ? `: ${lab[0].toLowerCase()}` : ""}${rotIt(it) ? `<br>половина времени ${it.rot[0]}, потом ${it.rot[1]}` : ""}</div></div>`;
+      if (sd && phase === "swap") rc = `<div class="wk-rc" data-g="rest"><div class="l">Смените сторону</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — начать сразу · дальше: ${lab[1].toLowerCase()}</div></div>`;
+      if (sd && phase === "fin") rc = `<div class="wk-rc" data-g="none"><div class="l">Готово</div><div class="t">${fmtT(0)}</div><div class="bar"><i style="width:100%"></i></div><div class="h">следующее откроется само</div></div>`;
     }
-    const mid = review ? REDO : run ? "идёт таймер<br>закончится сам" : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
+    // два кружка под таймером: серый — сторона не сделана, чёрный — сделана
+    const cur = review || phase === "fin" ? -1 : side;
+    const sides = sd ? `<div class="wk-sides">${[0, 1].map((i) => `<div class="${i === cur ? "cur" : ""}"><span class="wk-sd${sdone[i] ? " on" : ""}${i === cur ? " cur" : ""}"></span><small>${esc(lab[i])}</small></div>`).join("")}</div>` : "";
+    const mid = review ? REDO : phase === "swap" || phase === "fin" ? "подготовьтесь<br>начнётся само" : run ? "идёт таймер<br>закончится сам" : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${mid}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     const nx = items[idx + 1];
     const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>` : "";
-    return `<div class="wk-info">${info}</div><div class="wk-pls">${pl}</div>${rc}${ctl}${nxHtml}${HINT}`;
+    return `<div class="wk-info">${info}</div><div class="wk-pls">${pl}</div>${rc}${sides}${ctl}${nxHtml}${HINT}`;
   };
   const endHtml = () => {
     const n = items.length, dn = items.filter(isDone).length, sk = n - dn;
@@ -493,12 +572,20 @@ function openTrainWorkout(date) {
     const it = items[idx];
     const len = isMinIt(it) ? mins * 60 : secv;
     if (!it || it.reps || review || len <= 0) return;
-    phase = "run"; startTimer(len); runStart = Date.now(); SND.go(); draw();
+    phase = "run"; dir = 0; startTimer(len); runStart = Date.now(); SND.go(); draw();
   };
   const finishRun = (early) => {
     const it = items[idx];
     endAt = 0; phase = "work";
     if (!it) return;
+    if (sideIt(it)) {
+      sdone[side] = true;
+      if (side === 0) { side = 1; phase = "swap"; startTimer(5); SND.start(); draw(); return; }
+      markDone(it); phase = "fin"; draw();
+      const at = idx;
+      setTimeout(() => { if (ov.isConnected && idx === at && phase === "fin") next(); }, 1000);
+      return;
+    }
     if (isMinIt(it)) recMin(it, early ? Math.max(1, Math.round((Date.now() - runStart) / 60000)) : Math.max(1, Math.round(total / 60)));
     else { markDone(it); next(); }
   };
@@ -592,7 +679,8 @@ function openTrainWorkout(date) {
       if (it.reps) { if (phase === "work" && !review && Number(G.el.dataset.i) === setNo) setDone(); }
       else if (phase === "work" && !review) { if (isMinIt(it)) recMin(it, mins); else { markDone(it); next(); } }
     } else if (G.k === "rest") {
-      if (phase === "run") { if (dx < -50 && Math.abs(dy) < 60) finishRun(true); else if (tap) rest15(isMinIt(it) ? 60 : 15); }
+      if (phase === "swap") { if (tap || dx < -50) startRun(); }
+      else if (phase === "run") { if (dx < -50 && Math.abs(dy) < 60) finishRun(true); else if (tap) rest15(isMinIt(it) ? 60 : 15); }
       else if (phase === "work") { if (tap) startRun(); }
       else if (dx < -50 && Math.abs(dy) < 60) restSkip(); else if (tap) rest15();
     }
@@ -617,7 +705,7 @@ function openTrainWorkout(date) {
     if (w === "finish") { ov.close(); openTrainFinish(date); return; }
     if (w === "ret") { const k = Number(b.dataset.k); skipped.delete(items[k].key); idx = k; retMode = true; enterItem(); draw(); return; }
     if (!it) return;
-    if (w === "redo") { review = false; setNo = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
+    if (w === "redo") { review = false; setNo = 0; side = 0; sdone = [false, false]; dir = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
     if (w === "skip") {
       const was = idx, wasDone = isDone(it);
       if (!wasDone) skipped.add(it.key);

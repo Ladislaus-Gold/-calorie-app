@@ -868,7 +868,7 @@ export const EXERCISES = {
     mistakes: ["Быстрые круги головой: нагрузка на шейные позвонки.", "Поднятые к ушам плечи."],
   },
   mob_shoulder: {
-    name: "Круги плечами", muscles: "Плечевые суставы, трапеции", kind: "stretch", warm: true, joints: "плечи",
+    name: "Круги плечами", muscles: "Плечевые суставы, трапеции", kind: "stretch", warm: true, rot: ["назад", "вперёд"], joints: "плечи",
     variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Большие плавные круги назад, затем вперёд." }],
     anchor: "ankle",
     frames: [{ ...STAND, a: [40, 25] }, { ...STAND, a: [-40, -25] }],
@@ -876,7 +876,7 @@ export const EXERCISES = {
     mistakes: ["Маленькие быстрые круги.", "Наклон корпуса вперёд."],
   },
   mob_arm: {
-    name: "Круги прямыми руками", muscles: "Плечевые суставы, грудь и спина", kind: "stretch", warm: true, joints: "плечи",
+    name: "Круги прямыми руками", muscles: "Плечевые суставы, грудь и спина", kind: "stretch", warm: true, rot: ["по часовой", "против часовой"], joints: "плечи",
     variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Начинайте с маленьких кругов и постепенно увеличивайте." }],
     anchor: "ankle",
     frames: [{ ...STAND, a: [180, 180] }, { ...STAND, a: [-90, -90] }],
@@ -892,7 +892,7 @@ export const EXERCISES = {
     mistakes: ["Локти уходят вперёд и в стороны.", "Резкое разгибание до упора."],
   },
   mob_wrist: {
-    name: "Круги кистями и пальцами", muscles: "Запястья и предплечья", kind: "stretch", warm: true, joints: "запястья",
+    name: "Круги кистями и пальцами", muscles: "Запястья и предплечья", kind: "stretch", warm: true, rot: ["по часовой", "против часовой"], joints: "запястья",
     variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Круги кистями в обе стороны, затем сгибания и разгибания." }],
     anchor: "ankle",
     frames: [{ ...STAND, a: [90, 90], hdir: -65 }, { ...STAND, a: [90, 90], hdir: 65 }],
@@ -919,7 +919,7 @@ export const EXERCISES = {
     mistakes: ["Поворот коленями вместо корпуса.", "Резкие рывки."],
   },
   mob_hip: {
-    name: "Круги коленом: тазобедренный сустав", muscles: "Тазобедренные суставы, ягодицы", kind: "stretch", side: true, warm: true, joints: "тазобедренные суставы",
+    name: "Круги коленом: тазобедренный сустав", muscles: "Тазобедренные суставы, ягодицы", kind: "stretch", side: true, warm: true, rot: ["по часовой", "против часовой"], joints: "тазобедренные суставы",
     variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Поднимите колено и рисуйте им большие круги в стороны." }],
     anchor: "ankle",
     frames: [{ t: 180, la: [26, 30, "f"], LA: [0, 55, "f"], a: [30, 20] }, { t: 180, la: [10, 26, "f"], f: 40, LA: [0, 55, "f"], a: [30, 20] }],
@@ -935,7 +935,7 @@ export const EXERCISES = {
     mistakes: ["Резкие махи с отрывом.", "Прогиб поясницы при махе назад."],
   },
   mob_knee: {
-    name: "Круги коленями", muscles: "Коленные суставы", kind: "stretch", warm: true, joints: "колени",
+    name: "Круги коленями", muscles: "Коленные суставы", kind: "stretch", warm: true, rot: ["по часовой", "против часовой"], joints: "колени",
     variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Колени вместе, ладони на коленях, круги небольшие." }],
     anchor: "ankle",
     frames: [{ t: 172, la: [10, 52, "f"], a: [50, 55] }, { t: 172, la: [26, 44, "f"], a: [50, 55] }],
@@ -943,7 +943,7 @@ export const EXERCISES = {
     mistakes: ["Глубокий присед.", "Резкое выпрямление колен."],
   },
   mob_ankle: {
-    name: "Круги стопой", muscles: "Голеностопные суставы", kind: "stretch", side: true, warm: true, joints: "голеностопы",
+    name: "Круги стопой", muscles: "Голеностопные суставы", kind: "stretch", side: true, warm: true, rot: ["по часовой", "против часовой"], joints: "голеностопы",
     variants: [{ k: "bw", need: [], label: "Без инвентаря", cue: "Носок рисует большой круг, голень неподвижна." }],
     anchor: "ankle",
     frames: [{ t: 180, la: [14, 40, "f"], f: 30, LA: [0, 55, "f"], a: [30, 20] }, { t: 180, la: [14, 40, "f"], f: 150, LA: [0, 55, "f"], a: [30, 20] }],
@@ -1177,7 +1177,7 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
   const v = pickVariant(ex, ctx);
   const prog = Math.min(3, ctx.weeks);
   const adj = ({ n: -2, m: 0, a: 2 }[ctx.level] || 0) + (ctx.bump || 0);
-  const it = { key: `${group}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, muscles: ex.muscles, mg: MG_OF[ex.id] || "" };
+  const it = { key: `${group}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, rot: ex.rot || null, muscles: ex.muscles, mg: MG_OF[ex.id] || "" };
   const rest = Math.max(20, (ex.rest || 40) + (ctx.goal === "gain" ? 20 : ctx.goal === "lose" ? -5 : 0));
   if (ex.kind === "cardio") {
     it.minutes = cardioMin;
@@ -1232,7 +1232,7 @@ export function customItem(spec, cfgRaw, date) {
   const ctx = { have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(), goal: "maintain", bump: 0, vpref: cfg.vpref, weeks: 0 };
   const v = pickVariant(ex, ctx) || ex.variants[0];
   const group = ["warm", "main", "cardio", "cool"].includes(spec.group) ? spec.group : GROUP_OF(ex);
-  const it = { key: `x${spec.n}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, muscles: ex.muscles, mg: MG_OF[ex.id] || "", custom: true, n: spec.n };
+  const it = { key: `x${spec.n}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, rot: ex.rot || null, muscles: ex.muscles, mg: MG_OF[ex.id] || "", custom: true, n: spec.n };
   if (ex.kind === "cardio") {
     const m = clampN(spec.minutes, 1, 300, group === "warm" ? 5 : 10);
     it.minutes = m; it.est = m * 60; it.text = `${m} мин`; it.sub = "своё время";
