@@ -55,9 +55,9 @@ function wavUri(name) {
     const i0 = Math.floor(at * rate), i1 = Math.min(len, Math.floor((at + dur) * rate));
     for (let i = i0; i < i1; i++) {
       const t = (i - i0) / rate, ph = 2 * Math.PI * f * t;
-      const w = type === "square" ? (Math.sin(ph) >= 0 ? 0.5 : -0.5) : type === "triangle" ? (2 / Math.PI) * Math.asin(Math.sin(ph)) : Math.sin(ph);
+      const w = type === "square" ? (Math.sin(ph) >= 0 ? 1 : -1) : type === "triangle" ? (2 / Math.PI) * Math.asin(Math.sin(ph)) : Math.sin(ph);
       const env = t < 0.02 ? t / 0.02 : Math.pow(0.0001 / vol, (t - 0.02) / Math.max(0.01, dur - 0.02));
-      buf[i] = Math.max(-32767, Math.min(32767, buf[i] + Math.round(w * env * vol * 32767)));
+      buf[i] = Math.max(-32767, Math.min(32767, buf[i] + Math.round(w * env * vol * 1.8 * 32767)));
     }
   }
   const hd = new DataView(new ArrayBuffer(44)), W = (o, str) => { for (let k = 0; k < str.length; k++) hd.setUint8(o + k, str.charCodeAt(k)); };
