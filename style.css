@@ -2837,3 +2837,15 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 .wk-rc .bar { position: relative; }
 .wk-rc .bar.rot::after { content: ""; position: absolute; left: calc(50% - 1px); top: 0; bottom: 0; width: 2px; background: rgba(0, 0, 0, .45); }
 :root[data-theme="dark"] .wk-rc .bar.rot::after { background: rgba(255, 255, 255, .55); }
+
+/* силовые «на сторону»: под числом подхода два кружка — правая и левая сторона */
+.wk-pd { display: flex; justify-content: center; gap: 6px; margin-top: 3px; }
+.wk-pd i { width: 8px; height: 8px; border-radius: 50%; background: #D1D1D6; }
+.wk-pd i.on { background: #000; }
+.wk-pl.dn .wk-pd i { background: rgba(255, 255, 255, .35); }
+.wk-pl.dn .wk-pd i.on { background: #fff; }
+:root[data-theme="dark"] .wk-pd i { background: #48484A; }
+:root[data-theme="dark"] .wk-pd i.on { background: #fff; }
+:root[data-theme="dark"] .wk-pl.dn .wk-pd i { background: rgba(0, 0, 0, .25); }
+:root[data-theme="dark"] .wk-pl.dn .wk-pd i.on { background: #000; }
+.wk-mid b { color: var(--text); }
