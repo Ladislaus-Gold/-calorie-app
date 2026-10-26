@@ -2820,3 +2820,15 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 :root[data-theme="dark"] .ios-eg button.on{background:rgba(10,132,255,.25)}
 :root[data-theme="dark"] .ios-pv b{color:#fff}
 :root[data-theme="dark"] .em-bd{border-color:#1C1C1E}
+
+/* v2.98: таймер «на сторону» — под ним два кружка: серый — сторона не сделана, чёрный — сделана */
+.wk-sides { display: flex; justify-content: center; gap: 34px; }
+.wk-sides > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.wk-sides small { font-size: 12px; font-weight: 700; color: var(--muted-2); }
+.wk-sides .cur small { color: var(--text); }
+.wk-sd { width: 20px; height: 20px; border-radius: 50%; background: #D1D1D6; transition: background .25s, box-shadow .25s; }
+.wk-sd.cur { box-shadow: 0 0 0 4px rgba(0, 0, 0, .12); }
+.wk-sd.on { background: #000; }
+:root[data-theme="dark"] .wk-sd { background: #48484A; }
+:root[data-theme="dark"] .wk-sd.cur { box-shadow: 0 0 0 4px rgba(255, 255, 255, .16); }
+:root[data-theme="dark"] .wk-sd.on { background: #fff; }
