@@ -2832,3 +2832,8 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 :root[data-theme="dark"] .wk-sd { background: #48484A; }
 :root[data-theme="dark"] .wk-sd.cur { box-shadow: 0 0 0 4px rgba(255, 255, 255, .16); }
 :root[data-theme="dark"] .wk-sd.on { background: #fff; }
+
+/* вращения: засечка посередине полосы таймера — здесь меняется направление */
+.wk-rc .bar { position: relative; }
+.wk-rc .bar.rot::after { content: ""; position: absolute; left: calc(50% - 1px); top: 0; bottom: 0; width: 2px; background: rgba(0, 0, 0, .45); }
+:root[data-theme="dark"] .wk-rc .bar.rot::after { background: rgba(255, 255, 255, .55); }

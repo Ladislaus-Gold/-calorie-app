@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=17";
+import * as TR from "./train.js?v=18";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -40,6 +40,7 @@ const SND_NOTES = {
   end: [[784, 0, 0.16, 0.17, "triangle"], [784, 0.2, 0.16, 0.17, "triangle"], [1047, 0.4, 0.55, 0.2, "triangle"]],
   go: [[988, 0, 0.14, 0.32, "square"], [1319, 0.2, 0.24, 0.32, "square"]],
   stop: [[1175, 0, 0.18, 0.34, "square"], [1175, 0.25, 0.18, 0.34, "square"], [1568, 0.5, 0.5, 0.34, "square"]],
+  turn: [[880, 0, 0.12, 0.3, "square"]],
   win: [[523, 0, 0.16, 0.15, "triangle"], [784, 0, 0.16, 0.15, "triangle"], [523, 0.24, 1.2, 0.13, "triangle"], [659, 0.24, 1.2, 0.13, "triangle"], [784, 0.24, 1.2, 0.13, "triangle"], [1047, 0.24, 1.2, 0.13, "triangle"], [1568, 0.5, 0.9, 0.07, "sine"]],
 };
 let sndCtx = null, sndKeep = null, sndMedia = null, sndFx = null, sndFxOk = false;
@@ -137,6 +138,8 @@ const SND = {
   go() { sndPlay("go"); try { if (navigator.vibrate) navigator.vibrate(60); } catch { /* ignore */ } },
   // конец таймера упражнения: три громких сигнала + вибрация
   stop() { sndPlay("stop"); try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch { /* ignore */ } },
+  // середина вращения: короткий «пик» — меняйте направление
+  turn() { sndPlay("turn"); try { if (navigator.vibrate) navigator.vibrate(40); } catch { /* ignore */ } },
   // тренировка завершена: «па-бам»
   win() { sndPlay("win"); },
 };
@@ -407,7 +410,7 @@ function openTrainWorkout(date) {
   const doneSets = (i) => setsOn(date, i.id).filter((v) => v > 0);
   const factMin = (i) => Number((((trainLogOn(date) || {}).mins) || {})[i.key]) || 0;
   let idx = Math.max(0, items.findIndex((i) => !isDone(i)));
-  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, mins = 0, secv = 0, runStart = 0, retMode = false, winOn = false, side = 0, sdone = [false, false];
+  let setNo = 0, reps = [], phase = "work", endAt = 0, total = 0, tmDone = false, review = false, mins = 0, secv = 0, runStart = 0, retMode = false, winOn = false, side = 0, sdone = [false, false], dir = 0;
   const skipped = new Set();
   const ov = openSheet(`<div id="wk-root"></div>`);
   ov.querySelector(".sheet").classList.add("wk");
@@ -426,6 +429,12 @@ function openTrainWorkout(date) {
     const t = `${x.name} ${x.muscles || ""}`.toLowerCase();
     return /ног|бедр|икр|колен|ягод|стоп|голен/.test(t) ? ["Правая нога", "Левая нога"] : /рук|плеч|кист|локт|бицепс|трицепс/.test(t) ? ["Правая рука", "Левая рука"] : ["Правая сторона", "Левая сторона"];
   };
+  // Вращения (круги коленом, стопой, плечами…): половина времени в одну сторону, потом в другую
+  const rotIt = (x) => !!(x && Array.isArray(x.rot) && x.secs && !x.reps && !isMinIt(x));
+  const runLabel = (x) => {
+    const base = sideIt(x) ? sideLab(x)[side] : rotIt(x) ? "Вращайте" : isMinIt(x) ? "Идёт" : "Держите";
+    return rotIt(x) ? `${base} · ${x.rot[dir]}` : base;
+  };
   const startTimer = (sec) => { total = sec; endAt = Date.now() + sec * 1000; tmDone = false; };
   const iv = setInterval(() => {
     if (!ov.isConnected) { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); sndIdle(); try { if (lock) lock.release(); } catch { /* ignore */ } return; }
@@ -434,6 +443,10 @@ function openTrainWorkout(date) {
     const l = left();
     if (t) t.textContent = fmtT(l);
     if (bar && total) bar.style.width = `${Math.round(((total - l) / total) * 100)}%`;
+    if (phase === "run" && !dir) {
+      const x = items[idx];
+      if (rotIt(x) && total - l >= total / 2) { dir = 1; const lb = $(".wk-rc .l", ov); if (lb) lb.textContent = runLabel(x); SND.turn(); }
+    }
     if (l <= 0 && !tmDone) {
       tmDone = true; endAt = 0; if (phase === "run") SND.stop(); else SND.end();
       if (phase === "rest") { phase = "work"; setNo++; draw(); }
@@ -446,7 +459,7 @@ function openTrainWorkout(date) {
   const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true } }); };
   // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
   const enterItem = () => {
-    phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = []; side = 0; sdone = [false, false];
+    phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = []; side = 0; sdone = [false, false]; dir = 0;
     const it = items[idx];
     if (!it) return;
     if (it.reps) {
@@ -508,14 +521,14 @@ function openTrainWorkout(date) {
     const run = phase === "run", sd = sideIt(it), lab = sd ? sideLab(it) : [];
     const chip = review ? "выполнено" : kind === "plain" ? "нажмите" : val === plan ? "цель" : val < plan ? `−${plan - val}` : `+${val - plan}`;
     const pl = `<div class="wk-pl one${review ? " dn" : " cur"}" data-g="pl" data-i="0"><small>${unit}</small><b>${val}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${review ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
-    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}`;
+    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}${rotIt(it) ? ` · по ${Math.round(plan / 2)} с: ${it.rot[0]}, потом ${it.rot[1]}` : ""}`;
     const len = kind === "min" ? mins * 60 : secv;
     const step = kind === "min" ? "1 мин" : "15 с";
     let rc = "";
     if (!review && kind !== "plain") {
       rc = run
-        ? `<div class="wk-rc" data-g="rest"><div class="l">${sd ? lab[side] : kind === "min" ? "Идёт" : "Держите"}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +${step} · свайп влево — закончить</div></div>`
-        : `<div class="wk-rc" data-g="rest"><div class="l">Таймер</div><div class="t">${fmtT(len)}</div><div class="bar"><i style="width:0"></i></div><div class="h">нажмите — запустить${sd ? `: ${lab[0].toLowerCase()}` : ""}</div></div>`;
+        ? `<div class="wk-rc" data-g="rest"><div class="l">${esc(runLabel(it))}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar${rotIt(it) ? " rot" : ""}"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +${step} · свайп влево — закончить</div></div>`
+        : `<div class="wk-rc" data-g="rest"><div class="l">Таймер</div><div class="t">${fmtT(len)}</div><div class="bar${rotIt(it) ? " rot" : ""}"><i style="width:0"></i></div><div class="h">нажмите — запустить${sd ? `: ${lab[0].toLowerCase()}` : ""}${rotIt(it) ? `<br>половина времени ${it.rot[0]}, потом ${it.rot[1]}` : ""}</div></div>`;
       if (sd && phase === "swap") rc = `<div class="wk-rc" data-g="rest"><div class="l">Смените сторону</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — начать сразу · дальше: ${lab[1].toLowerCase()}</div></div>`;
       if (sd && phase === "fin") rc = `<div class="wk-rc" data-g="none"><div class="l">Готово</div><div class="t">${fmtT(0)}</div><div class="bar"><i style="width:100%"></i></div><div class="h">следующее откроется само</div></div>`;
     }
@@ -559,7 +572,7 @@ function openTrainWorkout(date) {
     const it = items[idx];
     const len = isMinIt(it) ? mins * 60 : secv;
     if (!it || it.reps || review || len <= 0) return;
-    phase = "run"; startTimer(len); runStart = Date.now(); SND.go(); draw();
+    phase = "run"; dir = 0; startTimer(len); runStart = Date.now(); SND.go(); draw();
   };
   const finishRun = (early) => {
     const it = items[idx];
@@ -692,7 +705,7 @@ function openTrainWorkout(date) {
     if (w === "finish") { ov.close(); openTrainFinish(date); return; }
     if (w === "ret") { const k = Number(b.dataset.k); skipped.delete(items[k].key); idx = k; retMode = true; enterItem(); draw(); return; }
     if (!it) return;
-    if (w === "redo") { review = false; setNo = 0; side = 0; sdone = [false, false]; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
+    if (w === "redo") { review = false; setNo = 0; side = 0; sdone = [false, false]; dir = 0; reps = it.reps ? Array.from({ length: it.sets }, () => it.reps[1]) : []; if (it.reps) saveTrainLog(date, { sets: { [it.id]: [] } }); draw(); return; }
     if (w === "skip") {
       const was = idx, wasDone = isDone(it);
       if (!wasDone) skipped.add(it.key);
