@@ -2251,3 +2251,54 @@ html body .bw-ov .stp-reset { display: inline-grid; place-items: center; height:
 .wk-card .sw { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:5px; vertical-align:-1px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.15); }
 :root[data-theme="dark"] .wk-card { background:#2C2C2E; }
 :root[data-theme="dark"] .wk-card .r b { color:#fff; }
+/* v3.07: итоги тренировки: оценка тяжести плашками от тёмно-зелёного до красного */
+html body .bw-ov .tr-feel button.fv { border:3px solid transparent !important; color:#fff !important; }
+html body .bw-ov .tr-feel button.fv1 { background:#248A3D !important; }
+html body .bw-ov .tr-feel button.fv2 { background:#34C759 !important; }
+html body .bw-ov .tr-feel button.fv3 { background:#FF9500 !important; }
+html body .bw-ov .tr-feel button.fv4 { background:#FF3B30 !important; }
+html body .bw-ov .tr-feel button.fv5 { background:#9B1B30 !important; }
+html body .bw-ov .tr-feel button.fv b, html body .bw-ov .tr-feel button.fv small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv3 b, html body .bw-ov .tr-feel button.fv3 small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv.on { border-color:#000 !important; box-shadow:inset 0 0 0 2px #fff !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv.on { border-color:#fff !important; box-shadow:inset 0 0 0 2px #000 !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv1 { background:#248A3D !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv2 { background:#34C759 !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv3 { background:#FF9500 !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv4 { background:#FF3B30 !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv5 { background:#9B1B30 !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv small { color:#fff !important; }
+html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv3 b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv3 small { color:#fff !important; }
+.bw-ov .tr-win { background: #000 !important; color: #fff !important; border: 0 !important; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .16) !important; }
+.bw-ov .tr-win h3 { color: #fff !important; text-shadow: none !important; }
+.bw-ov .tr-win p, .bw-ov .tr-win .nn { color: rgba(255, 255, 255, .72) !important; opacity: 1; }
+.bw-ov .tr-win .em { background: #fff !important; box-shadow: none !important; }
+.bw-ov .tr-win .bar { background: rgba(255, 255, 255, .22) !important; }
+.bw-ov .tr-win .bar i { background: #fff !important; }
+:root[data-theme="dark"] .bw-ov .tr-win { background: #fff !important; color: #000 !important; }
+:root[data-theme="dark"] .bw-ov .tr-win h3 { color: #000 !important; }
+:root[data-theme="dark"] .bw-ov .tr-win p, :root[data-theme="dark"] .bw-ov .tr-win .nn { color: rgba(0, 0, 0, .6) !important; }
+:root[data-theme="dark"] .bw-ov .tr-win .em { background: #000 !important; }
+:root[data-theme="dark"] .bw-ov .tr-win .bar { background: rgba(0, 0, 0, .15) !important; }
+:root[data-theme="dark"] .bw-ov .tr-win .bar i { background: #000 !important; }
+/* оценка: выбранная плашка сохраняет свой цвет */
+html body .bw-ov .tr-feel button.fv1.on, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv1.on { background:#248A3D !important; }
+html body .bw-ov .tr-feel button.fv1.on b, html body .bw-ov .tr-feel button.fv1.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv2.on, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv2.on { background:#34C759 !important; }
+html body .bw-ov .tr-feel button.fv2.on b, html body .bw-ov .tr-feel button.fv2.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv3.on, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv3.on { background:#FF9500 !important; }
+html body .bw-ov .tr-feel button.fv3.on b, html body .bw-ov .tr-feel button.fv3.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv4.on, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv4.on { background:#FF3B30 !important; }
+html body .bw-ov .tr-feel button.fv4.on b, html body .bw-ov .tr-feel button.fv4.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv5.on, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv5.on { background:#9B1B30 !important; }
+html body .bw-ov .tr-feel button.fv5.on b, html body .bw-ov .tr-feel button.fv5.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv2 b, html body .bw-ov .tr-feel button.fv2 small, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv2 b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv2 small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv3 b, html body .bw-ov .tr-feel button.fv3 small, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv3 b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv3 small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv1 b, html body .bw-ov .tr-feel button.fv1 small, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv1 b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv1 small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv4 b, html body .bw-ov .tr-feel button.fv4 small, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv4 b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv4 small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv5 b, html body .bw-ov .tr-feel button.fv5 small, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv5 b, html:root[data-theme="dark"] body .bw-ov .tr-feel button.fv5 small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv1.on b, html body .bw-ov .tr-feel button.fv1.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv2.on b, html body .bw-ov .tr-feel button.fv2.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv3.on b, html body .bw-ov .tr-feel button.fv3.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv4.on b, html body .bw-ov .tr-feel button.fv4.on small { color:#fff !important; }
+html body .bw-ov .tr-feel button.fv5.on b, html body .bw-ov .tr-feel button.fv5.on small { color:#fff !important; }
