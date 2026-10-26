@@ -535,14 +535,14 @@ function openTrainWorkout(date) {
     if (!review && kind !== "plain") {
       rc = run
         ? `<div class="wk-rc" data-g="rest"><div class="l">${esc(runLabel(it))}</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar${rotIt(it) ? " rot" : ""}"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — +${step} · свайп влево — закончить</div></div>`
-        : `<div class="wk-rc" data-g="rest"><div class="l">Таймер</div><div class="t">${fmtT(len)}</div><div class="bar${rotIt(it) ? " rot" : ""}"><i style="width:0"></i></div><div class="h">нажмите — запустить${sd ? `: ${lab[0].toLowerCase()}` : ""}${rotIt(it) ? `<br>половина времени ${it.rot[0]}, потом ${it.rot[1]}` : ""}</div></div>`;
+        : `<div class="wk-rc" data-g="rest"><div class="l">Таймер</div><div class="t">${fmtT(len)}</div><div class="bar${rotIt(it) ? " rot" : ""}"><i style="width:0"></i></div><div class="h">нажмите — запустить · зажмите — время${sd ? `: ${lab[0].toLowerCase()}` : ""}${rotIt(it) ? `<br>половина времени ${it.rot[0]}, потом ${it.rot[1]}` : ""}</div></div>`;
       if (sd && phase === "swap") rc = `<div class="wk-rc" data-g="rest"><div class="l">Смените сторону</div><div class="t" id="wk-t">${fmtT(left())}</div><div class="bar"><i id="wk-bar" style="width:${total ? Math.round(((total - left()) / total) * 100) : 0}%"></i></div><div class="h">нажмите — начать сразу · дальше: ${lab[1].toLowerCase()}</div></div>`;
       if (sd && phase === "fin") rc = `<div class="wk-rc" data-g="none"><div class="l">Готово</div><div class="t">${fmtT(0)}</div><div class="bar"><i style="width:100%"></i></div><div class="h">следующее откроется само</div></div>`;
     }
     // два кружка под таймером: серый — сторона не сделана, чёрный — сделана
     const cur = review || phase === "fin" ? -1 : side;
     const sides = sd ? `<div class="wk-sides">${[0, 1].map((i) => `<div class="${i === cur ? "cur" : ""}"><span class="wk-sd${sdone[i] ? " on" : ""}${i === cur ? " cur" : ""}"></span><small>${esc(lab[i])}</small></div>`).join("")}</div>` : "";
-    const mid = review ? REDO : phase === "swap" || phase === "fin" ? "подготовьтесь<br>начнётся само" : run ? "идёт таймер<br>закончится сам" : hasPhoto(it.id, it.vk) ? (kind === "plain" ? "нажмите на картинку — выполнено" : "нажмите на картинку — записать<br>зажмите картинку — значение") : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
+    const mid = review ? REDO : phase === "swap" || phase === "fin" ? "подготовьтесь<br>начнётся само" : run ? "идёт таймер<br>закончится сам" : hasPhoto(it.id, it.vk) ? (kind === "plain" ? "нажмите на картинку — выполнено" : "нажмите на картинку — записать") : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${mid}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     const nx = items[idx + 1];
     const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>` : "";
@@ -664,7 +664,8 @@ function openTrainWorkout(date) {
     const el = e.target.closest("[data-g]");
     if (!el) { g = null; return; }
     g = { k: el.dataset.g, el, x: e.clientX, y: e.clientY, pid: e.pointerId, lp: 0, picker: null, moved: false };
-    if (g.k === "pl") { const G = g; G.lp = setTimeout(() => { if (g === G && !G.moved) openPicker(G); }, 600); }
+    const cit = items[idx];
+    if ((g.k === "pl" && !el.classList.contains("tapfig")) || (g.k === "rest" && phase === "work" && cit && !cit.reps && !review)) { const G = g; G.lp = setTimeout(() => { if (g === G && !G.moved) openPicker(G); }, 600); }
   });
   ov.addEventListener("pointermove", (e) => {
     if (!g || e.pointerId !== g.pid) return;
