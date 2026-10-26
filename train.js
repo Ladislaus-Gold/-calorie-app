@@ -1098,21 +1098,23 @@ const TYPES = ["A", "B", "C"];
 const BLUEPRINT = {
   A: {
     short: "Ноги и ягодицы", focus: "Акцент на ноги и ягодицы, плюс верх тела и кор",
-    slots: ["legs", "glutes", "chest", "back", "core", "biceps", "triceps", "shoulders", "forearms", "legs", "glutes", "core"],
+    // Очередь слотов = приоритет: главные группы дня (ноги, ягодицы) идут первыми по 2–3 упражнения, мелкие группы в конце и отпадают первыми
+    slots: ["legs", "glutes", "legs", "glutes", "chest", "back", "legs", "glutes", "core", "shoulders", "triceps", "biceps", "forearms", "core"],
     cool: ["st_quad", "st_calf", "st_ham", "st_child"],
   },
   B: {
     short: "Спина и руки", focus: "Акцент на спину и руки, плюс ноги и кор",
-    slots: ["back", "biceps", "triceps", "forearms", "legs", "shoulders", "chest", "glutes", "core", "back", "legs", "triceps"],
+    slots: ["back", "biceps", "back", "triceps", "forearms", "back", "biceps", "triceps", "legs", "shoulders", "core", "chest", "glutes", "forearms"],
     cool: ["st_ham", "st_child", "st_calf", "st_quad"],
   },
   C: {
     short: "Грудь, плечи и кор", focus: "Акцент на грудь, плечи и пресс, плюс ноги и спина",
-    slots: ["chest", "shoulders", "core", "triceps", "legs", "back", "forearms", "biceps", "glutes", "chest", "core", "shoulders"],
+    slots: ["chest", "shoulders", "core", "chest", "shoulders", "core", "triceps", "back", "chest", "shoulders", "legs", "core", "glutes", "biceps", "forearms"],
     cool: ["st_child", "st_ham", "st_quad", "st_calf"],
   },
 };
 
+const ACCESSORY = new Set(["calf", "wristcurl", "wristext"]);
 const haveOf = (cfg) => new Set(cfg.equip[cfg.place] || DEFAULT_EQUIP[cfg.place]);
 const needOk = (need, have) => (need || []).every((n) => n.split("|").some((x) => have.has(x)));
 
@@ -1340,7 +1342,9 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
     }
     if (!cands.length) continue;
     const k = ((rot % cands.length) + cands.length) % cands.length;
-    const ordered = [...cands.slice(k), ...cands.slice(0, k)];
+    // изолирующие «добавки» (икры, кисти) берём в последнюю очередь, когда в группе есть более крупные упражнения
+    const rotated = [...cands.slice(k), ...cands.slice(0, k)];
+    const ordered = [...rotated.filter((id) => !ACCESSORY.has(id)), ...rotated.filter((id) => ACCESSORY.has(id))];
     const base = ordered[0];
     const exId = ordered.find((id) => !avoid.has(id)) || base;
     if (base !== exId) swapped.push({ from: base, to: exId });
