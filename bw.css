@@ -2244,5 +2244,5 @@ html body .bw-ov .stp-reset { display: inline-grid; place-items: center; height:
 :root[data-theme="dark"] .tf-dbc { background:#2C2C2E; }
 :root[data-theme="dark"] .tf-add { background:#fff; color:#000; }
 :root[data-theme="dark"] .ex-rec b,:root[data-theme="dark"] .wk-rec b { color:#fff; }
-.wk-rec { margin-bottom:3px; }
-.wk-rec + .wk-info { margin-bottom:3px; }
+.wk-rec { margin-bottom:1.5px; }
+.wk-rec + .wk-info { margin-bottom:4.5px; }
