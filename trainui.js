@@ -516,7 +516,8 @@ function openTrainWorkout(date) {
     } else if (nx) {
       nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
     }
-    return `<div class="wk-info">цель <b>${lo === hi ? hi : `${lo}–${hi}`}</b>${rs ? ` ${sideAcc(it)}` : ""}${prev ? ` · в прошлый раз <b>${prev.sets.join(" / ")}</b>` : ""}</div><div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
+    const rt = recText(it, date);
+    return `${infoCard([rt ? ["Рекомендуемый вес", `${recDots(it, date)}${esc(rt)}`] : null, ["Цель", `${lo === hi ? hi : `${lo}–${hi}`} ${plur(hi, "повторение", "повторения", "повторений")}${rs ? ` ${sideAcc(it)}` : ""}`], prev ? ["В прошлый раз", prev.sets.join(" / ")] : null])}<div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
   };
   // Кардио, разминка, растяжка: одна плашка со значением (минуты или секунды), таймер в той же «карточке», что и отдых
   const simpleHtml = (it) => {
@@ -527,7 +528,7 @@ function openTrainWorkout(date) {
     const run = phase === "run", sd = sideIt(it), lab = sd ? sideLab(it) : [];
     const chip = review ? "выполнено" : kind === "plain" ? "нажмите" : val === plan ? "цель" : val < plan ? `−${plan - val}` : `+${val - plan}`;
     const pl = `<div class="wk-pl one${review ? " dn" : " cur"}" data-g="pl" data-i="0"><small>${unit}</small><b>${val}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${review ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
-    const info = kind === "plain" ? esc(trainDetail(it)) : `цель <b>${plan}</b> ${kind === "min" ? "мин" : "сек"}${sideIt(it) ? ` ${sideAcc(it)}` : ""}${rotIt(it) ? ` · по ${Math.round(plan / 2)} с: ${it.rot[0]}, потом ${it.rot[1]}` : ""}`;
+    const info = kind === "plain" ? `<div class="wk-info">${esc(trainDetail(it))}</div>` : infoCard([["Цель", `${plan} ${kind === "min" ? plur(plan, "минута", "минуты", "минут") : plur(plan, "секунда", "секунды", "секунд")}${sideIt(it) ? ` ${sideAcc(it)}` : ""}`], rotIt(it) ? [`По ${Math.round(plan / 2)} с`, `${esc(it.rot[0])}, потом ${esc(it.rot[1])}`] : null]);
     const len = kind === "min" ? mins * 60 : secv;
     const step = kind === "min" ? "1 мин" : "15 с";
     let rc = "";
@@ -545,7 +546,7 @@ function openTrainWorkout(date) {
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${mid}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     const nx = items[idx + 1];
     const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>` : "";
-    return `<div class="wk-info">${info}</div><div class="wk-pls">${pl}</div>${rc}${sides}${ctl}${nxHtml}${HINT}`;
+    return `${info}<div class="wk-pls">${pl}</div>${rc}${sides}${ctl}${nxHtml}${HINT}`;
   };
   const endHtml = () => {
     const n = items.length, dn = items.filter(isDone).length, sk = n - dn;
@@ -570,7 +571,7 @@ function openTrainWorkout(date) {
     const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
     const head = bandHtml(it.name, sub);
     root.classList.add("wk-str");
-    root.innerHTML = `${head}${fig}${recText(it, date) ? `<p class="wk-rec">Рекомендуемый вес: <b>${esc(recText(it, date))}</b></p>` : ""}${it.reps ? strengthHtml(it) : simpleHtml(it)}`;
+    root.innerHTML = `${head}${fig}${it.reps ? strengthHtml(it) : simpleHtml(it)}`;
   };
   const recMin = (it, m) => { saveTrainLog(date, { mins: { [it.key]: m }, done: { [it.key]: true } }); next(); };
   // Таймер кардио/растяжки: запуск, конец (сам или свайпом) — значение записывается и открывается следующее
@@ -1187,6 +1188,14 @@ function bestCombo(target) {
   };
   for (let i = 0; i < n; i++) { test([i]); for (let j = i + 1; j < n; j++) { test([i, j]); for (let k = j + 1; k < n; k++) test([i, j, k]); } }
   return best;
+}
+const plur = (n, a, b, c) => { const m = Math.abs(n) % 100, d = m % 10; return m > 10 && m < 20 ? c : d === 1 ? a : d > 1 && d < 5 ? b : c; };
+const infoCard = (rows) => `<div class="wk-card">${rows.filter(Boolean).map(([l, v]) => `<div class="r"><span>${l}</span><b>${v}</b></div>`).join("")}</div>`;
+function recDots(it, date) {
+  if (!it.reps || !(it.vk === "band" || it.vk === "bandf")) return "";
+  const last = comboIds(lastBand(it.id, date));
+  const ids = last.length ? last : ((bestCombo(bigMuscle(it.id) ? 9 : 4.5) || {}).ids || []);
+  return ids.map((id) => `<i class="sw" style="background:${esc((bandAny(id) || {}).hex || "#888")}"></i>`).join("");
 }
 function recText(it, date) {
   if (!it.reps) return "";
