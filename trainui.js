@@ -542,11 +542,11 @@ function openTrainWorkout(date) {
     // два кружка под таймером: серый — сторона не сделана, чёрный — сделана
     const cur = review || phase === "fin" ? -1 : side;
     const sides = sd ? `<div class="wk-sides">${[0, 1].map((i) => `<div class="${i === cur ? "cur" : ""}"><span class="wk-sd${sdone[i] ? " on" : ""}${i === cur ? " cur" : ""}"></span><small>${esc(lab[i])}</small></div>`).join("")}</div>` : "";
-    const mid = review ? REDO : phase === "swap" || phase === "fin" ? "подготовьтесь<br>начнётся само" : run ? "идёт таймер<br>закончится сам" : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
+    const mid = review ? REDO : phase === "swap" || phase === "fin" ? "подготовьтесь<br>начнётся само" : run ? "идёт таймер<br>закончится сам" : hasPhoto(it.id, it.vk) ? (kind === "plain" ? "нажмите на картинку — выполнено" : "нажмите на картинку — записать<br>зажмите картинку — значение") : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${mid}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     const nx = items[idx + 1];
     const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>` : "";
-    return `${info}<div class="wk-pls">${pl}</div>${rc}${sides}${ctl}${nxHtml}${HINT}`;
+    return `${info}${hasPhoto(it.id, it.vk) ? "" : `<div class="wk-pls">${pl}</div>`}${rc}${sides}${ctl}${nxHtml}${HINT}`;
   };
   const endHtml = () => {
     const n = items.length, dn = items.filter(isDone).length, sk = n - dn;
@@ -566,7 +566,7 @@ function openTrainWorkout(date) {
     }
     winOn = false;
     const it = items[idx], ex = TR.EXERCISES[it.id] || {};
-    const fig = hasPhoto(it.id, it.vk) ? `<div class="ex-fig wk-fig wk-ph">${exFig(it.id, it.vk)}</div>` : "";
+    const fig = hasPhoto(it.id, it.vk) ? `<div class="ex-fig wk-fig wk-ph${it.reps ? "" : " tapfig"}"${it.reps ? "" : ' data-g="pl" data-i="0"'}>${exFig(it.id, it.vk)}</div>` : "";
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
     const head = bandHtml(it.name, sub);
@@ -653,7 +653,7 @@ function openTrainWorkout(date) {
     if (!cf) return;
     const r = G.el.getBoundingClientRect(), box = document.createElement("div");
     box.className = "wk-wheel";
-    box.style.cssText = `left:${Math.round(r.left + r.width / 2 - 52)}px;bottom:${Math.round(window.innerHeight - r.top + 10)}px`;
+    box.style.cssText = `left:${Math.round(r.left + r.width / 2 - 52)}px;bottom:${Math.round(window.innerHeight - (G.el.classList.contains("tapfig") ? r.top + r.height / 2 : r.top) + 10)}px`;
     G.picker = { i, base: cf.v, sel: cf.v, box, min: cf.min, max: cf.max, step: cf.step, px: cf.px };
     wheel(G);
     ov.appendChild(box);
