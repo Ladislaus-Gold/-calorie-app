@@ -41,6 +41,12 @@ const SND_NOTES = {
   go: [[988, 0, 0.14, 0.32, "square"], [1319, 0.2, 0.24, 0.32, "square"]],
   stop: [[1175, 0, 0.18, 0.34, "square"], [1175, 0.25, 0.18, 0.34, "square"], [1568, 0.5, 0.5, 0.34, "square"]],
   turn: [[880, 0, 0.12, 0.3, "square"]],
+  water: [[587, 0, 0.1, 0.16], [740, 0.08, 0.1, 0.16], [932, 0.16, 0.12, 0.16], [1047, 0.34, 0.9, 0.12, "triangle"], [1319, 0.42, 0.9, 0.12, "triangle"], [1568, 0.5, 0.9, 0.12, "triangle"], [2093, 0.58, 1.3, 0.1], [2637, 0.72, 1.0, 0.05]],
+  load: [[523, 0, 0.09, 0.14, "triangle"], [587, 0.08, 0.09, 0.14, "triangle"], [659, 0.16, 0.09, 0.14, "triangle"], [784, 0.24, 0.09, 0.14, "triangle"], [1047, 0.32, 0.12, 0.15, "triangle"], [523, 0.46, 1.3, 0.12, "triangle"], [659, 0.46, 1.3, 0.12, "triangle"], [784, 0.46, 1.3, 0.12, "triangle"], [1047, 0.46, 1.3, 0.12, "triangle"], [2093, 0.55, 1.0, 0.06], [3136, 0.7, 0.7, 0.03]],
+  kcal1: [[880, 0, 0.9, 0.14], [1760, 0, 0.5, 0.03]],
+  kcal2: [[880, 0, 0.5, 0.15], [740, 0.32, 0.9, 0.15], [370, 0.32, 0.9, 0.07]],
+  kcal3: [[988, 0, 0.4, 0.16, "triangle"], [784, 0.28, 0.4, 0.16, "triangle"], [587, 0.56, 1.0, 0.17, "triangle"], [294, 0.56, 1.0, 0.08]],
+  kcal4: [[392, 0, 0.5, 0.18, "triangle"], [392, 0.38, 0.5, 0.18, "triangle"], [330, 0.76, 1.1, 0.18, "triangle"], [165, 0.76, 1.1, 0.09]],
   win: [[523, 0, 0.16, 0.15, "triangle"], [784, 0, 0.16, 0.15, "triangle"], [523, 0.24, 1.2, 0.13, "triangle"], [659, 0.24, 1.2, 0.13, "triangle"], [784, 0.24, 1.2, 0.13, "triangle"], [1047, 0.24, 1.2, 0.13, "triangle"], [1568, 0.5, 0.9, 0.07, "sine"]],
 };
 let sndCtx = null, sndKeep = null, sndMedia = null, sndFx = null, sndFxOk = false;
@@ -1507,5 +1513,5 @@ async function resetTrainProgress() {
   } catch (e) { writeFail(e); }
 }
 
-  return { W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
+  return { sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
 }

@@ -13,7 +13,7 @@ import {
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=20";
-import { createTrainUI } from "./trainui.js?v=54";
+import { createTrainUI } from "./trainui.js?v=55";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 310;
-const APP_VERSION_LABEL = "3.07"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 311;
+const APP_VERSION_LABEL = "3.08"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -756,8 +756,39 @@ function bindFluidCap(root) {
   up.addEventListener("touchend", () => { y0 = null; });
 }
 
+// Звуки «норма выполнена» (вода, нагрузка) и предупреждения по калориям (80, 90, 100% и перебор): каждый раз один на день
+const celeb = { t0: Date.now(), seen: {} };
+function checkCelebrate() {
+  const day = todayStr();
+  if (state.date !== day) return;
+  const tg = waterTarget(day), ml = hydrationOn(day), mins = actMinutes(day);
+  const plan = currentPlan(), dayGoal = plan ? Math.ceil(plan.weekly.minutes / 7) : 30;
+  const goal = Number(state.goal) || 0, kcal = sumEntries(entriesOn(day)).kcal, r = goal > 0 ? kcal / goal : 0;
+  const marks = [];
+  if (tg > 0 && ml >= tg) marks.push(["water", "water"]);
+  if (mins > 0 && mins >= dayGoal) marks.push(["load", "load"]);
+  if (r >= 0.8) marks.push(["k80", "kcal1"]);
+  if (r >= 0.9) marks.push(["k90", "kcal2"]);
+  if (r >= 1) marks.push(["k100", "kcal3"]);
+  if (r > 1.05) marks.push(["k105", "kcal4"]);
+  const quiet = Date.now() - celeb.t0 < 6000; // первые секунды данные ещё подгружаются: только запоминаем
+  let play = null;
+  for (const [k, snd] of marks) {
+    const key = `snd:${day}:${k}`;
+    let was = celeb.seen[key];
+    try { was = was || localStorage.getItem(key); } catch { /* ignore */ }
+    if (was) continue;
+    celeb.seen[key] = 1;
+    try { localStorage.setItem(key, "1"); } catch { /* ignore */ }
+    if (!quiet) play = snd;
+  }
+  if (play) { try { sndPlay(play); } catch { /* ignore */ } }
+}
+document.addEventListener("pointerdown", () => { try { sndUnlock(); } catch { /* ignore */ } }, { passive: true });
+
 function render() {
   if (!state.user) return;
+  checkCelebrate();
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
   const views = { diary: viewDiary, products: viewProducts, health: viewHealth, reports: viewReports, me: viewMe };
   const banner = state.error ? `<div class="banner" role="alert">${esc(state.error)}</div>` : "";
@@ -4142,14 +4173,14 @@ function miniTiles(day) {
   const caf = caffeineStatus(day);
   const banner = caf.level !== "ok" ? `<div class="warn ${caf.level === "over" ? "over" : ""}" style="margin:0 0 12px">${esc(caf.msgs[0].t)}</div>` : "";
   return `<div class="mini-row">
-    <button type="button" class="mini water" data-act="goTab" data-tab="health" data-h="today">
+    <button type="button" class="mini water${tg > 0 && ml >= tg ? " done" : ""}" data-act="goTab" data-tab="health" data-h="today">
       <span class="mini-top"><span class="mini-ic sq">${GLYPH_DROP}</span><span class="mini-label">Жидкость</span>${MINI_CV}</span>
       <span class="mini-val"><span data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></span>
       <span class="mini-sub">норма ${fmtInt(tg)} мл</span>
       ${caf.mg > 0 ? `<span class="mini-sub caf ${caf.level}">кофеин ${caf.mg} из ${caf.limit} мг</span>` : ""}
       <span class="mini-bar"><i style="width:${Math.max(0, Math.min(100, (ml / tg) * 100))}%"></i></span>
     </button>
-    <button type="button" class="mini act" data-act="goTab" data-tab="health" data-h="train">
+    <button type="button" class="mini act${mins > 0 && mins >= dayGoal ? " done" : ""}" data-act="goTab" data-tab="health" data-h="train">
       <span class="mini-top"><span class="mini-ic sq">${GLYPH_FLAME}</span><span class="mini-label">Нагрузка</span>${MINI_CV}</span>
       <span class="mini-val"><span data-cnt="${mins}">${fmtInt(mins)}</span><small>мин</small></span>
       <span class="mini-sub">сожжено ${fmtInt(burned)} ккал</span>
@@ -4260,9 +4291,10 @@ function viewHealth() {
     </button>`).join("") + legacyRow;
   const nRec = fluidAll.length + (legacyRow ? 1 : 0);
   const pToday = `
-    <section class="card fl-main">
+    <section class="card fl-main${left <= 0 && tg > 0 ? " done" : ""}">
       <div class="card-top fl-top"><span class="fl-ic g-liq" data-ek="liq">${GLYPH_DROP}</span><h2 class="h2">Жидкость</h2><span class="fl-pills">${caf.mg > 0 ? cafPill : ""}</span></div>
       <div class="big-line"><span id="fl-n" data-cnt="${ml}">${fmtInt(ml)}</span><small>мл</small></div>
+      ${left <= 0 && tg > 0 ? `<span class="fl-win">🎉 Норма выполнена!</span>` : ""}
       <p class="fl-sub">${flStatus}</p>
       <button type="button" class="fl-cap" id="fl-cap" data-act="toggleFluid" data-noswipe aria-expanded="${fluidOpen}" aria-label="Список выпитого">
         ${dotGroups.filter((x) => x.hyd > 0).map((x) => `<i class="sg" style="width:${capPct(x.hyd)};--c:${esc(x.hex)};background-color:${esc(x.hex)}"></i>`).join("")}<i class="tick" style="left:${capPct(tg)}"></i>
@@ -5824,4 +5856,4 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) naviga
 })();
 
 // Подключаем интерфейс тренировок: после того как объявлено всё остальное
-({ W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat } = createTrainUI({ $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail }));
+({ sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat } = createTrainUI({ $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail }));
