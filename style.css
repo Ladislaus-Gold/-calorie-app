@@ -2174,7 +2174,7 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .d-edit{flex:none;width:34px;height:34px;border-radius:11px;color:var(--muted);font-size:16px;display:grid;place-items:center;background:none;border:0}
 .dk-new{margin:0 0 12px}
 .pk-em{display:inline-block;margin-right:2px}
-.sheet .row:has(#dc-save){position:sticky;bottom:0;z-index:3;background:var(--card);padding:10px 0 4px;margin-top:4px}
+.sheet .row:has(#dc-save){position:sticky;bottom:0;z-index:3;background:var(--card);padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 14px);margin-top:4px}
 :root[data-theme="dark"] .d-ava{background:#1E3550}
 :root[data-theme="dark"] .cat-btn.minus{background:#26352C;color:#C9D8CE;border-color:#324A37}
 /* v2.4: окно «Добавить запись» — аккуратная шапка: пилюля-селект и круглая ×, отступ от края */
@@ -2196,7 +2196,9 @@ button[data-act="addDrink"].btn.primary:active{transform:translateY(1px);box-sha
 .opt-add{display:block;background:none;border:0;color:#37A873;font-weight:700;font-size:14px;padding:4px 2px;margin:-6px 0 10px}
 .opt-add:active{opacity:.7}
 /* v2.2: кнопки «Удалить» и «Сохранить» в карточке продукта всегда видны внизу окна */
-.sheet .row:has(#pf-save){position:sticky;bottom:0;z-index:3;background:var(--card);padding:10px 0 4px;margin-top:4px}
+.sheet .row:has(#pf-save){position:sticky;bottom:0;z-index:3;background:var(--card);padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 14px);margin-top:4px}
+/* v3.12: нижний отступ окна переносим в панель кнопок: на iPhone «липкий» низ считается без отступа, и кнопки зависали выше края */
+.sheet:has(#pf-save),.sheet:has(#dc-save){padding-bottom:0}
 :root[data-theme="dark"] .opt-add{color:#6FCD9A}
 /* v2.8: полоска вкладок как в референсе: белая плашка, активная вкладка — зелёная таблетка */
 .seg,.seg:not(.in-card){background:#fff;border:1px solid rgba(20,60,35,.08);border-radius:20px;padding:5px;gap:2px;box-shadow:0 2px 10px rgba(20,60,35,.10)}
