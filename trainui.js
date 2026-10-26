@@ -45,60 +45,37 @@ const SND_NOTES = {
 };
 // Готовые звуки (приятные «системные» колокольчики): вода, нагрузка, приёмы пищи, предупреждения по калориям
 const SND_FILES = new Set(["water", "load", "breakfast", "lunch", "dinner", "kcal1", "kcal2", "kcal3", "kcal4"]);
-let sndCtx = null, sndKeep = null, sndMedia = null, sndFx = null, sndFxOk = false;
-// Те же сигналы в виде WAV (data-URI): запасной путь, если Web Audio на iPhone «уснул» или система его заглушила
-const wavCache = {};
-function wavUri(name) {
-  if (wavCache[name]) return wavCache[name];
-  const notes = SND_NOTES[name] || [], rate = 22050;
-  const total = name === "silence" ? 1 : Math.max(...notes.map((n) => n[1] + n[2])) + 0.1;
-  const len = Math.ceil(rate * total), buf = new Int16Array(len);
-  for (const [f, at, dur, vol, type] of notes) {
-    const i0 = Math.floor(at * rate), i1 = Math.min(len, Math.floor((at + dur) * rate));
-    for (let i = i0; i < i1; i++) {
-      const t = (i - i0) / rate, ph = 2 * Math.PI * f * t;
-      const w = type === "square" ? (Math.sin(ph) >= 0 ? 1 : -1) : type === "triangle" ? (2 / Math.PI) * Math.asin(Math.sin(ph)) : Math.sin(ph);
-      const env = t < 0.02 ? t / 0.02 : Math.pow(0.0001 / vol, (t - 0.02) / Math.max(0.01, dur - 0.02));
-      buf[i] = Math.max(-32767, Math.min(32767, buf[i] + Math.round(w * env * vol * 1.8 * 32767)));
-    }
-  }
-  const hd = new DataView(new ArrayBuffer(44)), W = (o, str) => { for (let k = 0; k < str.length; k++) hd.setUint8(o + k, str.charCodeAt(k)); };
-  W(0, "RIFF"); hd.setUint32(4, 36 + len * 2, true); W(8, "WAVE"); W(12, "fmt "); hd.setUint32(16, 16, true); hd.setUint16(20, 1, true); hd.setUint16(22, 1, true);
-  hd.setUint32(24, rate, true); hd.setUint32(28, rate * 2, true); hd.setUint16(32, 2, true); hd.setUint16(34, 16, true); W(36, "data"); hd.setUint32(40, len * 2, true);
-  const bytes = new Uint8Array(44 + len * 2); bytes.set(new Uint8Array(hd.buffer), 0); bytes.set(new Uint8Array(buf.buffer), 44);
-  let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-  return (wavCache[name] = `data:audio/wav;base64,${btoa(bin)}`);
-}
-function sndUnlock() {
+let sndCtx = null, sndKeep = null, sndWorkout = false, sndSleep = 0;
+const sndBufs = {};
+// Звук идёт только через Web Audio в режиме «ambient»: не показывается плеером на экране блокировки,
+// не перехватывает микрофон и музыку других приложений
+function sndUnlock(workout) {
   try {
-    // iPhone: играть как «медиа», тогда беззвучный режим не глушит сигналы
-    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch { /* ignore */ }
-    // тихий зацикленный <audio>: iOS держит звуковую сессию «медиа» живой, пока идёт тренировка
-    try {
-      if (!sndMedia) { sndMedia = new Audio(wavUri("silence")); sndMedia.loop = true; sndMedia.setAttribute("playsinline", ""); }
-      if (sndMedia.paused) { const pr = sndMedia.play(); if (pr && pr.catch) pr.catch(() => {}); }
-      // отдельный <audio> для сигналов: «разблокируем» его жестом, дальше он играет и без касания
-      if (!sndFx) { sndFx = new Audio(); sndFx.setAttribute("playsinline", ""); }
-      if (!sndFxOk) { sndFx.src = wavUri("silence"); const pr = sndFx.play(); if (pr && pr.then) pr.then(() => { sndFxOk = true; sndFx.pause(); }, () => {}); }
-    } catch { /* ignore */ }
+    try { if (navigator.audioSession) navigator.audioSession.type = "ambient"; } catch { /* ignore */ }
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
-    if (!sndCtx || sndCtx.state === "closed") { sndCtx = new C(); sndKeep = null; try { sndCtx.onstatechange = () => { if (sndCtx && sndCtx.state !== "running" && sndCtx.state !== "closed") sndCtx.resume().catch(() => {}); }; } catch { /* ignore */ } }
+    if (!sndCtx || sndCtx.state === "closed") { sndCtx = new C(); sndKeep = null; }
     if (sndCtx.state !== "running") sndCtx.resume().catch(() => {});
-    // «тихий» непрерывный тон: без него iOS усыпляет звук за время отдыха, и сигнал в конце отдыха не слышен
-    if (!sndKeep) {
+    if (workout) sndWorkout = true;
+    // во время тренировки держим звук «живым», иначе iOS усыпляет его за время отдыха
+    if (sndWorkout && !sndKeep) {
       const o = sndCtx.createOscillator(), g = sndCtx.createGain();
       g.gain.value = 0.00002; o.frequency.value = 40;
       o.connect(g); g.connect(sndCtx.destination); o.start();
       sndKeep = o;
     }
+    // вне тренировки через несколько секунд отпускаем звуковую сессию
+    clearTimeout(sndSleep);
+    if (!sndWorkout) sndSleep = setTimeout(() => { try { if (sndCtx && !sndWorkout) sndCtx.suspend(); } catch { /* ignore */ } }, 4000);
     return sndCtx;
   } catch { return null; }
 }
 function sndIdle() {
+  sndWorkout = false;
   try { if (sndKeep) sndKeep.stop(); } catch { /* ignore */ }
   sndKeep = null;
-  try { if (sndMedia) sndMedia.pause(); } catch { /* ignore */ }
+  clearTimeout(sndSleep);
+  sndSleep = setTimeout(() => { try { if (sndCtx && !sndWorkout) sndCtx.suspend(); } catch { /* ignore */ } }, 4000);
 }
 function tone(freq, at, dur, vol, type) {
   const c = sndCtx;
@@ -116,30 +93,19 @@ function tone(freq, at, dur, vol, type) {
   };
   if (c.state === "running") go(); else c.resume().then(go, () => {});
 }
-// Сигнал: Web Audio, а если он сейчас не запущен (iOS его усыпил) — обычный <audio> с тем же сигналом
+function sndFile(name, c) {
+  const run = (buf) => {
+    const go = () => { try { const s = c.createBufferSource(); s.buffer = buf; s.connect(c.destination); s.start(); } catch { /* ignore */ } };
+    if (c.state === "running") go(); else c.resume().then(go, () => {});
+  };
+  if (sndBufs[name]) { run(sndBufs[name]); return; }
+  fetch(`snd/${name}.mp3?v=1`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, no) => c.decodeAudioData(ab, ok, no))).then((buf) => { sndBufs[name] = buf; run(buf); }).catch(() => {});
+}
 function sndPlay(name) {
-  if (SND_FILES.has(name)) {
-    try {
-      sndUnlock();
-      if (!sndFx) sndFx = new Audio();
-      sndFx.src = `snd/${name}.mp3?v=1`;
-      const pr = sndFx.play();
-      if (pr && pr.catch) pr.catch(() => {});
-    } catch { /* ignore */ }
-    return;
-  }
-  const c = sndUnlock(), notes = SND_NOTES[name] || [];
-  const viaWebAudio = () => notes.forEach((n) => tone(...n));
-  if (c && c.state === "running") { viaWebAudio(); return; }
-  try {
-    if (sndFx) {
-      sndFx.src = wavUri(name);
-      const pr = sndFx.play();
-      if (pr && pr.catch) pr.catch(viaWebAudio);
-      return;
-    }
-  } catch { /* ignore */ }
-  viaWebAudio();
+  const c = sndUnlock();
+  if (!c) return;
+  if (SND_FILES.has(name)) { sndFile(name, c); return; }
+  (SND_NOTES[name] || []).forEach((n) => tone(...n));
 }
 const SND = {
   // отдых начался: два мягких звука вверх
@@ -427,7 +393,7 @@ function openTrainWorkout(date) {
   const ov = openSheet(`<div id="wk-root"></div>`);
   ov.querySelector(".sheet").classList.add("wk");
   const root = $("#wk-root", ov);
-  sndUnlock();
+  sndUnlock(true);
   let lock = null;
   const getLock = async () => { try { if (navigator.wakeLock && !lock && ov.isConnected) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); } } catch { lock = null; } };
   getLock();
@@ -672,7 +638,7 @@ function openTrainWorkout(date) {
     try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* ignore */ }
   };
   ov.addEventListener("pointerdown", (e) => {
-    sndUnlock();
+    sndUnlock(true);
     const el = e.target.closest("[data-g]");
     if (!el) { g = null; return; }
     g = { k: el.dataset.g, el, x: e.clientX, y: e.clientY, pid: e.pointerId, lp: 0, picker: null, moved: false };
