@@ -222,13 +222,14 @@ export const BAND_COLORS = [
 ];
 // Ориентир сопротивления трубок по цветам: типовой набор из 5 трубок «до 100 фунтов» (жёлтая 10, красная 15, синяя 20, зелёная 25, чёрная 30 фунтов). У разных продавцов цвета могут идти иначе, вес можно поправить.
 // Свои цвет и название резинок из анкеты (поверх набора выше): { id: { t, hex } }
-const BAND_BASE = BAND_COLORS.map((c) => ({ ...c }));
+export const BAND_BASE = BAND_COLORS.map((c) => ({ ...c }));
 export const BAND_DEFAULT_KG = { yellow: 4.5, red: 6.8, blue: 9.1, green: 11.3, black: 13.6 };
 // Набор резинок = стандартные 5 (со своими названием и цветом) + свои добавленные (extraBands: второй комплект и т.п.)
 export function applyBands(cfg) {
-  const st = cfg && cfg.bandStyle, ex = (cfg && cfg.extraBands) || [];
+  const st = cfg && cfg.bandStyle, ex = (cfg && cfg.extraBands) || [], rm = (cfg && cfg.removedBands) || [];
   BAND_COLORS.length = 0;
   for (const b of BAND_BASE) {
+    if (rm.includes(b.id)) continue;
     const o = st && st[b.id];
     BAND_COLORS.push({ id: b.id, t: o && o.t ? o.t : b.t, hex: o && o.hex ? o.hex : b.hex });
   }
@@ -236,7 +237,7 @@ export function applyBands(cfg) {
   for (const e of ex) { BAND_COLORS.push({ id: e.id, t: e.t, hex: e.hex, extra: true }); BAND_DEFAULT_KG[e.id] = e.kg; }
 }
 export function applyBandStyle(st) {
-  applyBands({ bandStyle: st, extraBands: BAND_COLORS.filter((c) => c.extra).map((c) => ({ id: c.id, t: c.t, hex: c.hex, kg: BAND_DEFAULT_KG[c.id] })) });
+  applyBands({ bandStyle: st, removedBands: BAND_BASE.filter((b) => !BAND_COLORS.some((c) => c.id === b.id)).map((b) => b.id), extraBands: BAND_COLORS.filter((c) => c.extra).map((c) => ({ id: c.id, t: c.t, hex: c.hex, kg: BAND_DEFAULT_KG[c.id] })) });
 }
 export const BAND_X_MAX = 12, DUMBBELL_MAX = 12;
 export const FEEL = ["", "Очень легко", "Легко", "Нормально", "Тяжело", "Очень тяжело"];
@@ -1114,6 +1115,7 @@ export function normCfg(raw, today) {
     dumbbellKg: dumbbells.length ? dumbbells[dumbbells.length - 1] : 0,
     dumbbells,
     extraBands,
+    removedBands: Array.isArray(r.removedBands) ? BAND_BASE.map((b) => b.id).filter((id) => r.removedBands.includes(id)) : [],
     bandKg: cleanBands(r.bandKg, extraBands.map((e) => e.id)),
     bandStyle: cleanBandStyle(r.bandStyle),
     startedAt: /^\d{4}-\d{2}-\d{2}$/.test(r.startedAt || "") ? r.startedAt : today,

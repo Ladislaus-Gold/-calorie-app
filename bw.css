@@ -2239,7 +2239,7 @@ html body .bw-ov .stp-reset { display: inline-grid; place-items: center; height:
 .tf-dbc button { border:0; background:#D1D1D6; color:#000; border-radius:50%; width:22px; height:22px; line-height:1; }
 .tf-dbadd { display:flex; gap:8px; }
 .tf-dbadd .input { flex:1; }
-.ex-rec,.wk-rec { margin:6px 0; font-size:14px; color:#636366; text-align:center; }
+.ex-rec,.wk-rec { margin:6px 2px; font-size:14px; color:#636366; text-align:left; }
 .ex-rec b,.wk-rec b { color:#000; }
 :root[data-theme="dark"] .tf-dbc { background:#2C2C2E; }
 :root[data-theme="dark"] .tf-add { background:#fff; color:#000; }
