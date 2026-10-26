@@ -2229,3 +2229,18 @@ html body .bw-ov .stp button { width: 44px; height: 44px; border: 0; border-radi
 html body .bw-ov .stp button:disabled { color: #C7C7CC; box-shadow: none; background: transparent; }
 html body .bw-ov .stp b { min-width: 34px; text-align: center; font-size: 20px; font-weight: 700; color: var(--ink, #000); }
 html body .bw-ov .stp-reset { display: inline-grid; place-items: center; height: 26px; padding: 0 10px; margin-left: 6px; border: 0; border-radius: 999px; background: var(--fill, #F2F2F7); color: var(--ink, #000); font: inherit; font-size: 12px; font-weight: 600; }
+/* v3.01: наборы резинок и гантелей, рекомендуемый вес */
+.tf-bact { display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:8px; }
+.tf-add { border:0; background:#000; color:#fff; border-radius:12px; padding:9px 14px; font-weight:600; font-size:14px; }
+.tf-add:disabled { opacity:.35; }
+.tf-x { border:0; background:transparent; font-size:22px; line-height:1; color:#8E8E93; padding:0 4px; }
+.tf-dbs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+.tf-dbc { display:inline-flex; align-items:center; gap:6px; background:#F2F2F7; border-radius:999px; padding:6px 6px 6px 12px; font-weight:600; font-size:14px; }
+.tf-dbc button { border:0; background:#D1D1D6; color:#000; border-radius:50%; width:22px; height:22px; line-height:1; }
+.tf-dbadd { display:flex; gap:8px; }
+.tf-dbadd .input { flex:1; }
+.ex-rec,.wk-rec { margin:6px 0; font-size:14px; color:#636366; text-align:center; }
+.ex-rec b,.wk-rec b { color:#000; }
+:root[data-theme="dark"] .tf-dbc { background:#2C2C2E; }
+:root[data-theme="dark"] .tf-add { background:#fff; color:#000; }
+:root[data-theme="dark"] .ex-rec b,:root[data-theme="dark"] .wk-rec b { color:#fff; }

@@ -223,14 +223,22 @@ export const BAND_COLORS = [
 // Ориентир сопротивления трубок по цветам: типовой набор из 5 трубок «до 100 фунтов» (жёлтая 10, красная 15, синяя 20, зелёная 25, чёрная 30 фунтов). У разных продавцов цвета могут идти иначе, вес можно поправить.
 // Свои цвет и название резинок из анкеты (поверх набора выше): { id: { t, hex } }
 const BAND_BASE = BAND_COLORS.map((c) => ({ ...c }));
-export function applyBandStyle(st) {
-  BAND_COLORS.forEach((c, i) => {
-    const o = st && st[c.id];
-    c.t = o && o.t ? o.t : BAND_BASE[i].t;
-    c.hex = o && o.hex ? o.hex : BAND_BASE[i].hex;
-  });
-}
 export const BAND_DEFAULT_KG = { yellow: 4.5, red: 6.8, blue: 9.1, green: 11.3, black: 13.6 };
+// Набор резинок = стандартные 5 (со своими названием и цветом) + свои добавленные (extraBands: второй комплект и т.п.)
+export function applyBands(cfg) {
+  const st = cfg && cfg.bandStyle, ex = (cfg && cfg.extraBands) || [];
+  BAND_COLORS.length = 0;
+  for (const b of BAND_BASE) {
+    const o = st && st[b.id];
+    BAND_COLORS.push({ id: b.id, t: o && o.t ? o.t : b.t, hex: o && o.hex ? o.hex : b.hex });
+  }
+  for (const k of Object.keys(BAND_DEFAULT_KG)) if (/^x\d+$/.test(k)) delete BAND_DEFAULT_KG[k];
+  for (const e of ex) { BAND_COLORS.push({ id: e.id, t: e.t, hex: e.hex, extra: true }); BAND_DEFAULT_KG[e.id] = e.kg; }
+}
+export function applyBandStyle(st) {
+  applyBands({ bandStyle: st, extraBands: BAND_COLORS.filter((c) => c.extra).map((c) => ({ id: c.id, t: c.t, hex: c.hex, kg: BAND_DEFAULT_KG[c.id] })) });
+}
+export const BAND_X_MAX = 12, DUMBBELL_MAX = 12;
 export const FEEL = ["", "Очень легко", "Легко", "Нормально", "Тяжело", "Очень тяжело"];
 export const EQUIP = [
   { id: "mat", t: "Коврик" },
@@ -1045,10 +1053,28 @@ function cleanMoves(m) {
   if (m && typeof m === "object") for (const [a, b] of Object.entries(m)) if (DATE_RE.test(a) && DATE_RE.test(String(b)) && a !== b) out[a] = String(b);
   return out;
 }
-function cleanBands(b) {
+function cleanBands(b, extraIds) {
   const o = {};
-  if (b && typeof b === "object") for (const c of BAND_COLORS) { const n = Number(b[c.id]); if (n > 0) o[c.id] = n; }
+  if (b && typeof b === "object") for (const id of [...BAND_BASE.map((c) => c.id), ...(extraIds || [])]) { const n = Number(b[id]); if (n > 0) o[id] = n; }
   return o;
+}
+// Свои резинки: [{ id: "x1", t, hex, kg }], не больше BAND_X_MAX
+function cleanExtraBands(a) {
+  const out = [];
+  if (Array.isArray(a)) for (const e of a) {
+    if (!e || typeof e !== "object") continue;
+    const id = String(e.id || ""), kg = Number(e.kg);
+    if (!/^x\d{1,3}$/.test(id) || out.some((o) => o.id === id)) continue;
+    out.push({ id, t: String(e.t || "").trim().slice(0, 16) || "Резинка", hex: /^#[0-9a-f]{6}$/i.test(String(e.hex || "")) ? String(e.hex) : "#8E8E93", kg: kg > 0 && kg < 200 ? Math.round(kg * 100) / 100 : 5 });
+    if (out.length >= BAND_X_MAX) break;
+  }
+  return out;
+}
+// Набор гантелей: веса в кг по возрастанию; если списка нет, берётся прежний одиночный вес
+function cleanDumbbells(a, legacy) {
+  const out = [...new Set((Array.isArray(a) ? a : []).map(Number).filter((v) => v > 0 && v < 200).map((v) => Math.round(v * 100) / 100))].sort((p, q) => p - q).slice(0, DUMBBELL_MAX);
+  if (!out.length && Number(legacy) > 0) out.push(Number(legacy));
+  return out;
 }
 function cleanBandStyle(b) {
   const o = {};
@@ -1077,6 +1103,7 @@ export function normCfg(raw, today) {
   const eq = {};
   for (const p of PLACES) eq[p.v] = Array.isArray(r.equip && r.equip[p.v]) ? r.equip[p.v].filter((x) => EQUIP.some((e) => e.id === x)) : DEFAULT_EQUIP[p.v].slice();
   const min = Number(r.minutes);
+  const extraBands = cleanExtraBands(r.extraBands), dumbbells = cleanDumbbells(r.dumbbells, r.dumbbellKg);
   return {
     place,
     days: days.length ? days : DEFAULT_DAYS.slice(),
@@ -1084,8 +1111,10 @@ export function normCfg(raw, today) {
     minutes: min >= 10 && min <= 90 ? Math.round(min) : 30,
     level: TRAIN_LEVELS.some((l) => l.v === r.level) ? r.level : "m",
     limits: Array.isArray(r.limits) ? r.limits.filter((x) => LIMITS.some((l) => l.id === x)) : [],
-    dumbbellKg: Number(r.dumbbellKg) > 0 ? Number(r.dumbbellKg) : 0,
-    bandKg: cleanBands(r.bandKg),
+    dumbbellKg: dumbbells.length ? dumbbells[dumbbells.length - 1] : 0,
+    dumbbells,
+    extraBands,
+    bandKg: cleanBands(r.bandKg, extraBands.map((e) => e.id)),
     bandStyle: cleanBandStyle(r.bandStyle),
     startedAt: /^\d{4}-\d{2}-\d{2}$/.test(r.startedAt || "") ? r.startedAt : today,
     moves: cleanMoves(r.moves),
