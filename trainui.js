@@ -41,6 +41,12 @@ const SND_NOTES = {
   go: [[988, 0, 0.14, 0.32, "square"], [1319, 0.2, 0.24, 0.32, "square"]],
   stop: [[1175, 0, 0.18, 0.34, "square"], [1175, 0.25, 0.18, 0.34, "square"], [1568, 0.5, 0.5, 0.34, "square"]],
   turn: [[880, 0, 0.12, 0.3, "square"]],
+  water: [[587, 0, 0.1, 0.16], [740, 0.08, 0.1, 0.16], [932, 0.16, 0.12, 0.16], [1047, 0.34, 0.9, 0.12, "triangle"], [1319, 0.42, 0.9, 0.12, "triangle"], [1568, 0.5, 0.9, 0.12, "triangle"], [2093, 0.58, 1.3, 0.1], [2637, 0.72, 1.0, 0.05]],
+  load: [[523, 0, 0.09, 0.14, "triangle"], [587, 0.08, 0.09, 0.14, "triangle"], [659, 0.16, 0.09, 0.14, "triangle"], [784, 0.24, 0.09, 0.14, "triangle"], [1047, 0.32, 0.12, 0.15, "triangle"], [523, 0.46, 1.3, 0.12, "triangle"], [659, 0.46, 1.3, 0.12, "triangle"], [784, 0.46, 1.3, 0.12, "triangle"], [1047, 0.46, 1.3, 0.12, "triangle"], [2093, 0.55, 1.0, 0.06], [3136, 0.7, 0.7, 0.03]],
+  kcal1: [[880, 0, 0.9, 0.14], [1760, 0, 0.5, 0.03]],
+  kcal2: [[880, 0, 0.5, 0.15], [740, 0.32, 0.9, 0.15], [370, 0.32, 0.9, 0.07]],
+  kcal3: [[988, 0, 0.4, 0.16, "triangle"], [784, 0.28, 0.4, 0.16, "triangle"], [587, 0.56, 1.0, 0.17, "triangle"], [294, 0.56, 1.0, 0.08]],
+  kcal4: [[392, 0, 0.5, 0.18, "triangle"], [392, 0.38, 0.5, 0.18, "triangle"], [330, 0.76, 1.1, 0.18, "triangle"], [165, 0.76, 1.1, 0.09]],
   win: [[523, 0, 0.16, 0.15, "triangle"], [784, 0, 0.16, 0.15, "triangle"], [523, 0.24, 1.2, 0.13, "triangle"], [659, 0.24, 1.2, 0.13, "triangle"], [784, 0.24, 1.2, 0.13, "triangle"], [1047, 0.24, 1.2, 0.13, "triangle"], [1568, 0.5, 0.9, 0.07, "sine"]],
 };
 let sndCtx = null, sndKeep = null, sndMedia = null, sndFx = null, sndFxOk = false;
@@ -1442,19 +1448,18 @@ function openTrainFinish(date) {
   const draw = () => {
     const band = f.used.has("tube") || f.used.has("loop");
     body.innerHTML = `
-      ${n > 0 && k >= n ? `<div class="fn-win"><span class="tw">🏆</span><div class="wm"><b>Тренировка выполнена!</b><div class="wb"><u></u></div></div><em>${k}/${n}</em></div>` : `<div class="fn-sum">Выполнено упражнений: <b>${k} из ${n}</b><div class="pb"><u style="width:${n ? Math.max(4, Math.round((k / n) * 100)) : 0}%"></u></div><p>Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p></div>`}
-      <div class="field"><span class="lb"><em>💭</em>Как вы себя чувствуете?</span>
-        <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="fv fv${v}${f.feel === v ? " on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div>
-        <small class="foot-note" style="margin:2px 4px 0">1 — совсем легко, 5 — на пределе.</small></div>
-      <div class="field"><span class="lb"><em>🎒</em>Какой инвентарь использовали</span>
-        ${list.map((e) => `<label class="check iv"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}><span class="ie">${EQ_EMO[e.id] || "🎒"}</span><b>${esc(e.t)}</b><i class="cb"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></i></label>`).join("")}</div>
-      ${band ? `<div class="field"><span class="lb"><em>🎨</em>Резинки: цвета и вес, кг</span>
+      ${n > 0 && k >= n ? `<div class="tr-win"><span class="cf">🎉🔥</span><div class="em">🏆</div><h3>Тренировка выполнена!</h3><p>Класс, вы молодец, так держать 🙌</p><div class="bar"><i></i></div><div class="nn"><span>${k} из ${n}</span><span>100%</span></div></div>` : `<div class="fn-sum">Выполнено упражнений: <b>${k} из ${n}</b><div class="pb"><u style="width:${n ? Math.max(4, Math.round((k / n) * 100)) : 0}%"></u></div><p>Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p></div>`}
+      <div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-prog">💭</span><div><b>Как вы себя чувствуете?</b><small>1 — совсем легко, 5 — на пределе</small></div></div>
+        <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="fv fv${v}${f.feel === v ? " on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div></div>
+      <div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-plan">🎒</span><div><b>Какой инвентарь использовали</b></div></div>
+        <div class="tf-inv">${list.map((e) => `<label class="tf-iv${f.used.has(e.id) ? " on" : ""}"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}><i>${EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div></div>
+      ${band ? `<div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-band">🎨</span><div><b>Резинки: цвета и вес, кг</b></div></div>
         <small class="foot-note" style="margin:0 4px 4px">Вес подставлен по типовому набору из 5 трубок: жёлтая 10, красная 15, синяя 20, зелёная 25, чёрная 30 фунтов (4,5 · 6,8 · 9,1 · 11,3 · 13,6 кг). Точные значения зависят от продавца: поправьте один раз, приложение запомнит.</small>
         ${TR.BAND_COLORS.map((c) => {
           const on = c.id in f.bands;
           return `<div class="tr-band${on ? " on" : ""}"><button type="button" data-band="${c.id}" class="tr-dot${on ? " on" : ""}" style="--c:${c.hex}" aria-pressed="${on}" aria-label="${c.t}"></button><span>${c.t}<small>${cfg.bandKg[c.id] ? "ваш вес" : "ориентир"} ${fmt(eff(c.id))} кг</small></span>${on ? `<input class="input" data-bkg="${c.id}" inputmode="decimal" placeholder="вес, кг" value="${f.bands[c.id] ? esc(String(f.bands[c.id]).replace(".", ",")) : esc(String(eff(c.id)).replace(".", ","))}" autocomplete="off">` : ""}</div>`;
         }).join("")}</div>` : ""}
-      ${f.used.has("dumbbell") ? `<label class="field"><span>Вес гантелей, кг</span><input id="fn-kg" class="input" inputmode="decimal" value="${esc(String(f.kg).replace(".", ","))}" autocomplete="off"></label>` : ""}
+      ${f.used.has("dumbbell") ? `<div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-plan">🏋️</span><div><b>Вес гантелей, кг</b></div></div><input id="fn-kg" class="input" inputmode="decimal" value="${esc(String(f.kg).replace(".", ","))}" autocomplete="off"></div>` : ""}
       <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="fn-save" ${f.feel ? "" : "disabled"}>Сохранить итоги</button></div>`;
   };
   draw();
@@ -1508,5 +1513,5 @@ async function resetTrainProgress() {
   } catch (e) { writeFail(e); }
 }
 
-  return { W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
+  return { sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
 }
