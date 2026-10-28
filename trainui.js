@@ -334,6 +334,24 @@ function trainDetail(it) {
   return `${it.sets} ${pluralSets(it.sets)} по ${it.secs[0]}–${it.secs[1]} секунд${it.side ? " на каждую сторону" : ""}, отдых ${it.rest} сек.`;
 }
 
+const PEN_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>`;
+// Окошко «сколько минут (секунд)»: число с − и +, быстрые шаги и «Сохранить»
+function openNumSheet({ title, sub, val, min, max, unit, steps, onSave }) {
+  let v = Math.max(min, Math.min(max, Math.round(val) || min));
+  const st = steps || [-10, -5, -1, 1, 5, 10];
+  const ov = openSheet(`<div class="sheet-head"><h2>${esc(title)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
+    ${sub ? `<p class="foot-note" style="margin:0 2px 12px">${esc(sub)}</p>` : ""}
+    <div class="ms-st"><button type="button" class="ms-b" data-d="-1" aria-label="Меньше">−</button><div class="ms-v"><b id="ms-v">${v}</b><small>${esc(unit)}</small></div><button type="button" class="ms-b" data-d="1" aria-label="Больше">+</button></div>
+    <div class="ms-ch">${st.map((d) => `<button type="button" data-d="${d}">${d > 0 ? "+" : "−"}${Math.abs(d)}</button>`).join("")}</div>
+    <button type="button" class="btn primary full" id="ms-save">Сохранить</button>`, { bw: true });
+  const show = () => { const b = ov.querySelector("#ms-v"); if (b) b.textContent = v; };
+  ov.addEventListener("click", (e) => {
+    const d = e.target.closest("[data-d]");
+    if (d) { v = Math.max(min, Math.min(max, v + Number(d.dataset.d))); show(); return; }
+    if (e.target.closest("#ms-save")) { ov.close(); onSave(v); }
+  });
+}
+
 // Сверка с часами: данные плана и Apple Health остаются раздельными, показываем рядом.
 // Ходьба/бег на дорожке, силовая и растяжка/йога записываются часами разными тренировками.
 const WALK_RE = /ход|бег|walk|run|дорожк|treadmill|эллипс|вело|cycl/i;
@@ -512,7 +530,13 @@ function openTrainWorkout(date) {
     const run = phase === "run", sd = sideIt(it), lab = sd ? sideLab(it) : [];
     const chip = review ? "выполнено" : kind === "plain" ? "нажмите" : val === plan ? "цель" : val < plan ? `−${plan - val}` : `+${val - plan}`;
     const pl = `<div class="wk-pl one${review ? " dn" : " cur"}" data-g="pl" data-i="0"><small>${unit}</small><b>${val}</b><em class="${chip[0] === "−" ? "lo" : ""}">${chip}</em>${review ? `<span class="ck">${CK_SVG}</span>` : ""}</div>`;
-    const info = kind === "plain" ? `<div class="wk-info">${esc(trainDetail(it))}</div>` : infoCard([["Цель", `${plan} ${kind === "min" ? plur(plan, "минута", "минуты", "минут") : plur(plan, "секунда", "секунды", "секунд")}${sideIt(it) ? ` ${sideAcc(it)}` : ""}`], rotIt(it) ? [`По ${Math.round(plan / 2)} с`, `${esc(it.rot[0])}, потом ${esc(it.rot[1])}`] : null]);
+    const un = kind === "min" ? "мин" : "сек";
+    const edRow = (cls, l, v) => `<button type="button" class="wk-edrow ${cls}" data-minedit="${kind}"><span>${l}</span><b>${v}<i class="pen">${PEN_SVG}</i></b></button>`;
+    const planRow = `<div class="wk-edrow st"><span>План</span><b>${plan} ${un}${sideIt(it) ? ` ${sideAcc(it)}` : ""}</b></div>`;
+    const rotRow = rotIt(it) ? `<div class="wk-edrow st"><span>По ${Math.round(plan / 2)} с</span><b>${esc(it.rot[0])}, потом ${esc(it.rot[1])}</b></div>` : "";
+    const info = kind === "plain" ? `<div class="wk-info">${esc(trainDetail(it))}</div>`
+      : review ? `<div class="wk-eds">${kind === "min" ? edRow("fact", "Прошли", `${val} ${un}`) : ""}${planRow}${rotRow}</div>`
+      : `<div class="wk-eds">${edRow("", "План", `${val} ${un}${val !== plan ? ` <em>было ${plan}</em>` : ""}`)}${rotRow}</div>`;
     const len = kind === "min" ? mins * 60 : secv;
     const step = kind === "min" ? "1 мин" : "15 с";
     let rc = "";
@@ -688,6 +712,16 @@ function openTrainWorkout(date) {
   ov.addEventListener("pointercancel", (e) => endG(e, true));
   // Запасной путь: если pointerup не пришёл (iOS иногда его теряет), но браузер выдал обычный click по плашке — засчитываем нажатие
   ov.addEventListener("click", (e) => {
+    const me = e.target.closest("[data-minedit]");
+    if (!me) return;
+    const it = items[idx];
+    if (!it || phase === "run") return;
+    if (me.dataset.minedit === "min") {
+      if (review) openNumSheet({ title: "Сколько прошли?", sub: `План был ${it.minutes} мин. Запишем по факту.`, val: factMin(it) || it.minutes, min: 1, max: 600, unit: "мин", onSave: (v) => { mins = v; saveTrainLog(date, { mins: { [it.key]: v }, done: { [it.key]: true } }); draw(); } });
+      else openNumSheet({ title: "Сколько минут?", sub: `По плану ${it.minutes} мин. Таймер будет на выбранное время.`, val: mins, min: 1, max: 180, unit: "мин", onSave: (v) => { mins = v; draw(); } });
+    } else if (!review) openNumSheet({ title: "Сколько секунд?", sub: `По плану ${it.secs[1]} сек.`, val: secv, min: 5, max: 600, unit: "сек", steps: [-30, -15, -5, 5, 15, 30], onSave: (v) => { secv = v; draw(); } });
+  });
+  ov.addEventListener("click", (e) => {
     const pl = e.target.closest('[data-g="pl"]');
     if (!pl || Date.now() - lastEnd < 700 || g) return;
     const it = items[idx];
@@ -777,7 +811,7 @@ function openTrainExercise(date, key) {
     ? `<p class="ex-note">Подберите сопротивление так, чтобы последние 2–3 повторения давались тяжело, но техника не ломалась. Когда верхняя граница диапазона даётся легко, возьмите резинку потяжелее или добавьте паузу внизу.</p>`
     : it.vk === "db" ? `<p class="ex-note">Вес гантелей подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая.${cfg.dumbbellKg ? ` Ваши гантели: ${fmt(cfg.dumbbellKg)} кг. Если легко, замедлите движение: 3 секунды вниз.` : ""}</p>` : wtOf(it.vk) ? `<p class="ex-note">Вес подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая. Если легко, замедлите движение: 3 секунды вниз.</p>` : "";
   const exExtraHtml = () => {
-    if (isMinIt(it)) { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Прошли по факту · запись из тренировки</span><div class="ex-fact${fm ? "" : " none"}">${fm ? `${fm} ${plur(fm, "минута", "минуты", "минут")}` : "ещё не записано"}</div></div>`; }
+    if (isMinIt(it)) { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Прошли по факту</span><button type="button" class="ex-fact ed${fm ? "" : " none"}" data-minedit="min"><span>${fm ? `${fm} ${plur(fm, "минута", "минуты", "минут")}` : "ещё не записано"}</span><i class="pen">${PEN_SVG}</i></button></div>`; }
     if (!it.reps && it.group !== "main") return "";
     const lg = trainLogOn(date) || {};
     const cur = setsOn(date, it.id);
@@ -821,22 +855,53 @@ function openTrainExercise(date, key) {
     return `<div class="ex-up">${top ? `В прошлый раз все подходы были на верхней границе (${it.reps[1]}).` : "В последних тренировках было легко."} Чтобы был прогресс, попробуйте: <b>${esc(bandName(k))}</b> (около ${fmt(nx.kg)} кг)${nx.ids.length > 1 ? ". Сложите трубки вместе и держите обе за ручки" : ""}.${same ? "" : ` <button type="button" class="ex-up-b" data-ebset="${k}">Выбрать</button>`}</div>`;
   };
   const bandsBlock = () => `<span class="ex-vars-t">Какой резинкой${!((((trainLogOn(date) || {}).ebands) || {})[it.id]) && lastB && comboKey(selBand) === comboKey(comboIds(lastB)) ? " · как в прошлый раз, можно сменить" : ""}${selBand.length ? ` · около ${fmt(comboKg(selBand))} кг` : ""}</span><div class="ex-bandrow">${TR.BAND_COLORS.map((c) => `<button type="button" class="ex-bd${selBand.includes(c.id) ? " on" : ""}" data-eb="${c.id}" style="--c:${c.hex}" aria-pressed="${selBand.includes(c.id)}"><i></i>${c.t}</button>`).join("")}</div><span class="ex-vars-t" style="margin-top:6px;font-weight:500">Можно выбрать несколько цветов: трубки складываются.</span>${upHint()}`;
+  const GROUP_RU = { main: "Основная часть", warm: "Разминка", cool: "Растяжка", cardio: "Кардио" };
+  const EQ_NAME = { mat: "Коврик", tube: "Эспандер с ручками", anchor: "Дверной якорь", loop: "Резиновая петля", dumbbell: "Гантели", bar: "Турник", bench: "Скамья или крепкий стул", treadmill: "Беговая дорожка", cable: "Блочный тренажёр" };
+  const EQ_ICO = { mat: "🧘", tube: "🟢", anchor: "🚪", loop: "➰", dumbbell: "🏋️", bar: "🔝", bench: "🪑", treadmill: "🏃", cable: "⚙️" };
+  const haveEq = (trainCfg().equip[trainCfg().place] || []);
+  const needInfo = (n) => {
+    const c = (trainCfg().customEq || []).find((x) => x.id === n);
+    if (c) return { t: c.t, e: c.emo || "🎒", ok: haveEq.includes(n) };
+    const alts = String(n).split("|");
+    const nm = alts.length > 1 ? alts.map((x) => (EQ_NAME[x] || x).toLowerCase()) : [EQ_NAME[n] || n];
+    return { t: alts.length > 1 ? `Резинка: ${nm.join(" или ")}` : nm[0], e: EQ_ICO[alts[0]] || "🎒", ok: alts.some((x) => haveEq.includes(x)) };
+  };
+  const eqRow = (v, cur) => {
+    const ns = (v.need || []).map(needInfo);
+    const ok = ns.every((x) => x.ok);
+    const name = ns.length ? ns.map((x) => x.t).join(" + ") : "Без инвентаря";
+    return `<div class="eqr${cur ? " cur" : ""}"><span class="em">${ns.length ? ns[0].e : "🙌"}</span><div class="et"><b>${cur ? "" : "Или: "}${esc(name)}</b><small>${esc(v.cue || v.label || "")}</small></div><span class="ok${ok ? "" : " no"}">${ok ? "есть у вас" : "нет в списке"}</span></div>`;
+  };
+  const eqHave = () => exVs(ex).length > 0;
+  const eqHtml = () => {
+    const vs = exVs(ex);
+    const curV = vs.find((v) => v.k === it.vk), rest = vs.filter((v) => v !== curV);
+    if (!vs.length) return `<div class="eqr cur"><span class="em">🙌</span><div class="et"><b>Без инвентаря</b><small>Только вы и немного места</small></div></div>`;
+    return `<div class="eqs">${[curV, ...rest].filter(Boolean).map((v) => eqRow(v, v === curV)).join("")}</div>`;
+  };
+  const statsHtml = () => {
+    const t = (b, l) => `<div class="st"><b>${b}</b><small>${l}</small></div>`;
+    if (it.reps) return `<div class="ex-stats">${t(it.sets, plur(it.sets, "подход", "подхода", "подходов"))}${t(it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`, "повторений" + (it.side ? " на сторону" : ""))}${t(`${it.rest} с`, "отдых")}</div>`;
+    if (it.secs) return `<div class="ex-stats">${t(it.sets, plur(it.sets, "подход", "подхода", "подходов"))}${t(`${it.secs[0]}–${it.secs[1]}`, "секунд" + (it.side ? " на сторону" : ""))}${t(`${it.rest} с`, "отдых")}</div>`;
+    return `<p class="ex-do"><b>${esc(trainDetail(it))}</b>${it.cue ? ` ${esc(it.cue)}` : ""}</p>`;
+  };
+  const howNow = [
+    exVs(ex).length > 1 ? `<div class="chips ex-seg" style="margin:0">${[["", "Авто"], ...exVs(ex).map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div>` : "",
+    recText(it, date) ? `<p class="ex-rec">Рекомендуемый вес: <b>${esc(recText(it, date))}</b></p>` : "",
+    it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : "",
+    wtI && dbs.length ? `<div class="ex-vars ex-dbs">${dbBlock()}</div>` : "",
+    res,
+  ].filter(Boolean).join("");
   const ov = openSheet(`
     <div class="sheet-head"><h2>${nameVar(it.name, it.vlabel)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div>
     ${hasPhoto(it.id, it.vk) ? `<div class="ex-fig">${exFig(it.id, it.vk)}</div>` : ""}
-    <div class="ex-meta"><span class="pill">${esc(ex.muscles)}</span></div>
-    ${recText(it, date) ? `<p class="ex-rec">Рекомендуемый вес: <b>${esc(recText(it, date))}</b></p>` : ""}
-    ${it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : ""}
-    ${wtI && dbs.length ? `<div class="ex-vars ex-dbs">${dbBlock()}</div>` : ""}
-    ${exVs(ex).length > 1 ? `<div class="ex-vars"><span class="ex-vars-t">Как выполнять сейчас</span><div class="chips" style="margin:0">${[["", "Авто"], ...exVs(ex).map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div></div>` : ""}
-    <p class="ex-do"><b>${esc(trainDetail(it))}</b>${it.cue ? ` ${esc(it.cue)}` : ""}</p>
-    ${res}
-    <div id="ex-extra">${exExtraHtml()}</div>
-    <h3 class="ex-h">Как выполнять</h3>
-    <ol class="ex-list">${ex.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
-    <h3 class="ex-h">Частые ошибки</h3>
-    <ul class="ex-list ex-bad">${ex.mistakes.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
-    <p class="foot-note" style="margin:14px 2px 12px">При боли в суставах, головокружении или боли в груди остановитесь.</p>
+    <div class="ex-meta"><span class="pill g">${esc(ex.muscles)}</span><span class="pill">${esc(GROUP_RU[it.group] || "Упражнение")}</span></div>
+    ${statsHtml()}
+    <div class="ex-sec"><h4>${eqHave() ? "Что понадобится" : "Инвентарь"}</h4>${eqHtml()}</div>
+    ${howNow ? `<div class="ex-sec"><h4>Как будете делать</h4>${howNow}</div>` : ""}
+    <div class="ex-sec"><h4>Как выполнять</h4><ol class="ex-steps">${ex.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></div>
+    <div class="ex-sec"><h4>Частые ошибки</h4><ul class="ex-mist">${ex.mistakes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p class="foot-note" style="margin:8px 2px 0">При боли в суставах, головокружении или боли в груди остановитесь.</p></div>
+    ${exExtraHtml() ? `<div class="ex-sec"><h4>Ваши результаты</h4><div id="ex-extra">${exExtraHtml()}</div></div>` : ""}
     ${it.custom ? `<button type="button" class="more-btn red" id="ex-del" style="margin:0 0 10px">Убрать из тренировки</button>` : it.group === "main" ? `<button type="button" class="more-btn" id="ex-swap" style="margin:0 0 10px">Заменить упражнение</button><p class="foot-note" id="ex-swap-msg" style="margin:0 2px 10px"></p>` : ""}
     <button type="button" class="btn primary full" id="tx-done">${isDone() ? "Снять отметку" : "Отметить выполненным"}</button>`, { bw: true });
   $("#tx-done", ov).addEventListener("click", () => {
@@ -873,6 +938,11 @@ function openTrainExercise(date, key) {
     ov.close(); render();
   });
   ov.addEventListener("click", (e) => {
+    if (e.target.closest("[data-minedit]")) {
+      const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0;
+      openNumSheet({ title: "Сколько прошли?", sub: `План был ${it.minutes} мин. Запишем по факту.`, val: fm || it.minutes, min: 1, max: 600, unit: "мин", onSave: (v) => { saveTrainLog(date, { mins: { [it.key]: v } }); const x = ov.querySelector("#ex-extra"); if (x) x.innerHTML = exExtraHtml(); render(); } });
+      return;
+    }
     const ed = e.target.closest("[data-edb]"), eds = e.target.closest("[data-edbset]");
     if (ed || eds) {
       selDb = Number((ed || eds).dataset.edb || (ed || eds).dataset.edbset) || 0;
