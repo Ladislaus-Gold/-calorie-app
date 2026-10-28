@@ -777,7 +777,7 @@ function openTrainExercise(date, key) {
     ? `<p class="ex-note">Подберите сопротивление так, чтобы последние 2–3 повторения давались тяжело, но техника не ломалась. Когда верхняя граница диапазона даётся легко, возьмите резинку потяжелее или добавьте паузу внизу.</p>`
     : it.vk === "db" ? `<p class="ex-note">Вес гантелей подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая.${cfg.dumbbellKg ? ` Ваши гантели: ${fmt(cfg.dumbbellKg)} кг. Если легко, замедлите движение: 3 секунды вниз.` : ""}</p>` : wtOf(it.vk) ? `<p class="ex-note">Вес подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая. Если легко, замедлите движение: 3 секунды вниз.</p>` : "";
   const exExtraHtml = () => {
-    if (isMinIt(it)) { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Сколько прошли, мин · время выбираете сами</span><input class="input" id="ex-mins" inputmode="numeric" placeholder="${it.minutes}" value="${fm || ""}"></div>`; }
+    if (isMinIt(it)) { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Прошли по факту · запись из тренировки</span><div class="ex-fact${fm ? "" : " none"}">${fm ? `${fm} ${plur(fm, "минута", "минуты", "минут")}` : "ещё не записано"}</div></div>`; }
     if (!it.reps && it.group !== "main") return "";
     const lg = trainLogOn(date) || {};
     const cur = setsOn(date, it.id);
@@ -786,7 +786,7 @@ function openTrainExercise(date, key) {
     const hi = it.reps ? it.reps[1] : 0;
     let h = "";
     if (it.reps) {
-      h += `<div class="ex-sets"><span class="ex-vars-t">Повторы по подходам${prev ? ` · в прошлый раз ${prev.sets.join("/")}` : ""}</span><div class="ex-setrow">${Array.from({ length: it.sets }, (_, i) => `<label class="ex-sl"><small>${i + 1}</small><input class="input ex-set" inputmode="numeric" data-set="${i}" placeholder="${hi}" value="${cur[i] > 0 ? cur[i] : ""}"></label>`).join("")}</div></div>`;
+      h += `<div class="ex-sets"><span class="ex-vars-t">Повторено по подходам${prev ? ` · в прошлый раз ${prev.sets.join("/")}` : ""}</span><div class="ex-setrow">${Array.from({ length: it.sets }, (_, i) => `<div class="ex-sl"><small>${i + 1}</small><div class="ex-fact${cur[i] > 0 ? "" : " none"}">${cur[i] > 0 ? cur[i] : "—"}</div></div>`).join("")}</div></div>`;
     }
     if (hist.length) {
       const mx = Math.max(...hist.map((x) => x.total), 1);
