@@ -2851,3 +2851,8 @@ label.check.iv:has(input:checked) .cb svg{display:block}
 :root[data-theme="dark"] .wk-pl.dn .wk-pd i { background: rgba(0, 0, 0, .25); }
 :root[data-theme="dark"] .wk-pl.dn .wk-pd i.on { background: #000; }
 .wk-mid b { color: var(--text); }
+
+/* v3.21 — видео упражнения первым слайдом карусели */
+.ex-ph-imgs video { display: block; flex: 0 0 100%; width: 100%; max-width: none; margin: 0; aspect-ratio: 1 / 1; object-fit: contain; background: #F2F2F7; border-radius: 10px; scroll-snap-align: center; scroll-snap-stop: always; }
+.wk-ph .ex-ph-imgs video { height: 100%; aspect-ratio: auto; }
+.ex-ph[data-i="2"] .ex-ph-dots i:nth-child(3) { background: var(--accent); transform: scale(1.25); }

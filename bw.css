@@ -2401,3 +2401,8 @@ button.wk-edrow { cursor:pointer; }
 :root[data-theme="dark"] .wk-edrow.fact .pen { background:#7BD99B; color:#000; }
 :root[data-theme="dark"] .overlay .ex-meta .pill.g { background:#1E3B2A !important; color:#7BD99B !important; }
 :root[data-theme="dark"] .eqr .ok { background:#1E3B2A; color:#7BD99B; }
+
+/* v3.21 — третья точка карусели (видео и две иллюстрации) и фон видео в тёмной теме */
+.hvw .ex-ph[data-i="2"] .ex-ph-dots i:nth-child(3),.overlay .ex-ph[data-i="2"] .ex-ph-dots i:nth-child(3) { background:#000 !important; }
+:root[data-theme="dark"] .hvw .ex-ph[data-i="2"] .ex-ph-dots i:nth-child(3),:root[data-theme="dark"] .overlay .ex-ph[data-i="2"] .ex-ph-dots i:nth-child(3) { background:#fff !important; }
+:root[data-theme="dark"] .ex-ph-imgs video { background:#2C2C2E; }
