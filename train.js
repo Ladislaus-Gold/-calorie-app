@@ -270,6 +270,61 @@ export const DAY_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"
 export const DEFAULT_DAYS = [0, 2, 4];
 
 /* ================= Упражнения ================= */
+/* ================= Свой инвентарь ================= */
+// Известный инвентарь для упражнений дома, в зале и на улице. w: весовой (вес обязателен). ex: упражнения, куда он подходит. lbl: название варианта в плане.
+export const EQ_GROUPS = ["Дома · с весом", "Дома · без веса", "Зал", "Улица"];
+export const EQ_CATALOG = [
+  { id: "barbell", g: 0, t: "Штанга", emo: "🏋️‍♂️", w: true, lbl: "Со штангой", ex: ["squat", "lunge", "rdl", "bridge", "bentrow", "shoulderpress", "calf"] },
+  { id: "kettlebell", g: 0, t: "Гиря", emo: "🔔", w: true, lbl: "С гирей", ex: ["squat", "lunge", "rdl", "bridge", "bentrow", "shoulderpress", "calf"] },
+  { id: "plates", g: 0, t: "Блины для штанги", emo: "⚫", w: true, lbl: "С блином", ex: ["squat", "rdl", "bridge", "triext"] },
+  { id: "vest", g: 0, t: "Жилет-утяжелитель", emo: "🦺", w: true, lbl: "С жилетом-утяжелителем", ex: ["squat", "lunge", "stepup", "pushup", "pullup"] },
+  { id: "medball", g: 0, t: "Медбол", emo: "⚽", w: true, lbl: "С медболом", ex: ["squat", "lunge", "crunch", "floorpress"] },
+  { id: "ankle", g: 0, t: "Утяжелители на ноги", emo: "🦵", w: true, lbl: "С утяжелителями на ногах", ex: ["donkey", "bridge", "legraise", "calf"] },
+  { id: "ezbar", g: 0, t: "Гриф EZ", emo: "🏋️", w: true, lbl: "С грифом EZ", ex: ["curl", "triext", "bentrow", "shoulderpress"] },
+  { id: "rope", g: 1, t: "Скакалка", emo: "🪢", w: false, lbl: "Со скакалкой", ex: ["march"] },
+  { id: "abwheel", g: 1, t: "Ролик для пресса", emo: "🛞", w: false, lbl: "С роликом для пресса", ex: ["plank", "crunch"] },
+  { id: "fitball", g: 1, t: "Фитбол", emo: "🔵", w: false, lbl: "С фитболом", ex: ["bridge", "crunch", "plank", "legraise"] },
+  { id: "step", g: 1, t: "Степ-платформа", emo: "🪜", w: false, lbl: "На степ-платформе", ex: ["stepup", "dips", "calf"] },
+  { id: "trx", g: 1, t: "Петли TRX", emo: "🪝", w: false, lbl: "С петлями TRX", ex: ["row", "pushup", "pullup", "squat"] },
+  { id: "sliders", g: 1, t: "Слайдеры", emo: "➖", w: false, lbl: "На слайдерах", ex: ["lunge", "mtnclimber", "plank"] },
+  { id: "balance", g: 1, t: "Балансировочная подушка", emo: "⚪", w: false, lbl: "На балансировочной подушке", ex: ["squat", "calf", "plank"] },
+  { id: "foamroll", g: 1, t: "Массажный ролл", emo: "🧻", w: false, lbl: "С массажным роллом", ex: ["st_quad", "st_ham", "st_calf"] },
+  { id: "smith", g: 2, t: "Машина Смита", emo: "🏗️", w: true, lbl: "В машине Смита", ex: ["squat", "shoulderpress", "calf", "bentrow"] },
+  { id: "legpress", g: 2, t: "Жим ногами (платформа)", emo: "🦿", w: true, lbl: "В жиме ногами", ex: ["squat"] },
+  { id: "lever", g: 2, t: "Рычажный тренажёр", emo: "⚙️", w: true, lbl: "На рычажном тренажёре", ex: ["chestpress", "row", "shoulderpress", "pulldown"] },
+  { id: "rings", g: 3, t: "Гимнастические кольца", emo: "⭕", w: false, lbl: "На кольцах", ex: ["pullup", "pushup", "row", "dips"] },
+  { id: "parallel", g: 3, t: "Брусья", emo: "🤸", w: false, lbl: "На брусьях", ex: ["dips", "legraise"] },
+  { id: "workout", g: 3, t: "Воркаут-площадка", emo: "🧗", w: false, lbl: "На воркаут-площадке", ex: ["pullup", "dips", "legraise", "pushup"] },
+  { id: "bikeout", g: 3, t: "Велосипед", emo: "🚴", w: false, lbl: "На велосипеде", ex: ["bike_out"] },
+];
+// Значки для своего инвентаря: спорт и движение
+export const EQ_EMOJI = ["🏋️‍♂️", "🏋️", "🔔", "🏃", "🚴", "🏊", "🤸", "🧗", "🥊", "⚽", "🏀", "🎾", "🏐", "🥋", "🧘", "🤾", "⛹️", "🚣", "🏄", "⛷️", "🛹", "🪢", "🛞", "⚙️", "🦵", "💪", "🧗‍♂️", "🤺", "🏓", "🏸", "🥏", "⛸️", "🛼", "🎽", "🏹", "🏇", "🚵", "🤼", "🏌️", "🧎"];
+export const CUSTOM_EQ_MAX = 20;
+export const isCustomEq = (k) => /^e\d{1,3}$/.test(String(k));
+function cleanCustomEq(a) {
+  const out = [];
+  if (Array.isArray(a)) for (const e of a) {
+    if (!e || typeof e !== "object") continue;
+    const id = String(e.id || ""), t = String(e.t || "").trim().slice(0, 28);
+    if (!isCustomEq(id) || !t || out.some((o) => o.id === id)) continue;
+    const w = !!e.w;
+    const kgs = w ? [...new Set((Array.isArray(e.kgs) ? e.kgs : []).map(Number).filter((v) => v > 0 && v < 500).map((v) => Math.round(v * 100) / 100))].sort((p, q) => p - q).slice(0, 24) : [];
+    if (w && !kgs.length) continue;
+    const ex = [...new Set((Array.isArray(e.ex) ? e.ex : []).map(String).filter((i) => EXERCISES[i]))];
+    out.push({ id, t, emo: String(e.emo || "🎒").slice(0, 12), w, kgs, ex, lbl: String(e.lbl || "").trim().slice(0, 40), cat: String(e.cat || "").slice(0, 24) });
+    if (out.length >= CUSTOM_EQ_MAX) break;
+  }
+  return out;
+}
+// Варианты упражнения: сначала свой инвентарь (если он подходит упражнению), затем обычные
+export function exVariants(ex, custom) {
+  const mine = (custom || []).filter((c) => c.ex.includes(ex.id)).map((c) => ({
+    k: c.id, need: [c.id], label: c.lbl || `С «${c.t}»`, custom: true, wt: c.w,
+    cue: c.w ? "Подберите вес так, чтобы последние 2–3 повторения были тяжёлыми, а техника чистой." : `Выполняйте с «${c.t}», техника важнее скорости.`,
+  }));
+  return mine.length ? [...mine, ...ex.variants] : ex.variants;
+}
+
 // need: все элементы обязательны; внутри элемента «a|b» значит «любое из». variants идут по предпочтению.
 // frames: два кадра (старт, финиш); frameV: другие кадры для варианта.
 const STAND = { t: 180, la: [0, 55, "f"] };
@@ -1089,11 +1144,11 @@ function cleanBandStyle(b) {
 }
 export const mgOf = (id) => MG_OF[id] || "";
 // Ручной выбор варианта упражнения: { id упражнения: ключ варианта }
-function cleanVpref(v) {
+function cleanVpref(v, custom) {
   const o = {};
   if (v && typeof v === "object") for (const [id, k] of Object.entries(v)) {
     const ex = EXERCISES[id];
-    if (ex && ex.variants && ex.variants.some((x) => x.k === k)) o[id] = k;
+    if (ex && ex.variants && exVariants(ex, custom).some((x) => x.k === k)) o[id] = k;
   }
   return o;
 }
@@ -1101,8 +1156,9 @@ export function normCfg(raw, today) {
   const r = raw || {};
   const place = PLACES.some((p) => p.v === r.place) ? r.place : "home";
   const days = Array.isArray(r.days) ? [...new Set(r.days.map(Number).filter((d) => d >= 0 && d <= 6))].sort((a, b) => a - b) : [];
+  const customEq = cleanCustomEq(r.customEq), cids = new Set(customEq.map((c) => c.id));
   const eq = {};
-  for (const p of PLACES) eq[p.v] = Array.isArray(r.equip && r.equip[p.v]) ? r.equip[p.v].filter((x) => EQUIP.some((e) => e.id === x)) : DEFAULT_EQUIP[p.v].slice();
+  for (const p of PLACES) eq[p.v] = Array.isArray(r.equip && r.equip[p.v]) ? r.equip[p.v].filter((x) => EQUIP.some((e) => e.id === x) || cids.has(x)) : DEFAULT_EQUIP[p.v].slice();
   const min = Number(r.minutes);
   const extraBands = cleanExtraBands(r.extraBands), dumbbells = cleanDumbbells(r.dumbbells, r.dumbbellKg);
   return {
@@ -1120,7 +1176,8 @@ export function normCfg(raw, today) {
     bandStyle: cleanBandStyle(r.bandStyle),
     startedAt: /^\d{4}-\d{2}-\d{2}$/.test(r.startedAt || "") ? r.startedAt : today,
     moves: cleanMoves(r.moves),
-    vpref: cleanVpref(r.vpref),
+    vpref: cleanVpref(r.vpref, customEq),
+    customEq,
   };
 }
 
@@ -1150,10 +1207,11 @@ const haveOf = (cfg) => new Set(cfg.equip[cfg.place] || DEFAULT_EQUIP[cfg.place]
 const needOk = (need, have) => (need || []).every((n) => n.split("|").some((x) => have.has(x)));
 
 function pickVariant(ex, ctx) {
+  const vs = exVariants(ex, ctx.custom);
   const pk = ctx.vpref && ctx.vpref[ex.id];
-  const pv = pk && ex.variants.find((v) => v.k === pk);
+  const pv = pk && vs.find((v) => v.k === pk);
   if (pv) return pv;
-  for (const v of ex.variants) {
+  for (const v of vs) {
     if (!needOk(v.need, ctx.have)) continue;
     if (v.lvl && !v.lvl.includes(ctx.level)) continue;
     return v;
@@ -1260,7 +1318,7 @@ export function customItem(spec, cfgRaw, date) {
   const ex = spec && EXERCISES[spec.id];
   if (!ex) return null;
   const cfg = normCfg(cfgRaw, date);
-  const ctx = { have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(), goal: "maintain", bump: 0, vpref: cfg.vpref, weeks: 0 };
+  const ctx = { have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(), goal: "maintain", bump: 0, vpref: cfg.vpref, custom: cfg.customEq, weeks: 0 };
   const v = pickVariant(ex, ctx) || ex.variants[0];
   const group = ["warm", "main", "cardio", "cool"].includes(spec.group) ? spec.group : GROUP_OF(ex);
   const it = { key: `x${spec.n}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, rot: ex.rot || null, muscles: ex.muscles, mg: MG_OF[ex.id] || "", custom: true, n: spec.n };
@@ -1329,7 +1387,7 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   if (!type) return null;
   const M = Math.max(10, Math.min(90, Number(minutesOverride) > 0 ? Number(minutesOverride) : cfg.minutes));
   const ctx = {
-    have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(cfg.limits), goal: (profile && profile.goal) || "maintain",
+    have: haveOf(cfg), custom: cfg.customEq, place: cfg.place, level: cfg.level, limits: new Set(cfg.limits), goal: (profile && profile.goal) || "maintain",
     bump: Math.max(-2, Math.min(2, Number(bump) || 0)), vpref: cfg.vpref,
     weeks: Math.max(0, Math.round((pd(mondayOf(date)).getTime() - pd(mondayOf(cfg.startedAt)).getTime()) / 604800000)),
   };

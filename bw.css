@@ -2318,3 +2318,27 @@ html body .bw-ov .tr-feel button.fv5.on b, html body .bw-ov .tr-feel button.fv5.
 /* v3.14: подписи тренда (▲ ▼ «без изменений») читаются в любой теме: светлая плашка и чёрный текст, в тёмной — тёмная плашка и белый текст */
 .hvw .xt,.overlay .xt,.hvw .xt.up,.overlay .xt.up,.hvw .xt.down,.overlay .xt.down { background:#F2F2F7 !important; color:#000 !important; }
 :root[data-theme="dark"] .hvw .xt,:root[data-theme="dark"] .overlay .xt,:root[data-theme="dark"] .hvw .xt.up,:root[data-theme="dark"] .overlay .xt.up,:root[data-theme="dark"] .hvw .xt.down,:root[data-theme="dark"] .overlay .xt.down { background:#2C2C2E !important; color:#fff !important; }
+
+/* v3.17: свой инвентарь: кнопка, окно «Добавить / Изменить» */
+.eq-add { display:flex; align-items:center; justify-content:center; gap:8px; margin:12px auto 2px; padding:10px 18px; border:0; border-radius:999px; background:#F2F2F7; color:#000; font:inherit; font-weight:700; font-size:15px; }
+.eq-add:active { opacity:.7 }
+.eq-form { margin-top:4px }
+.eq-emo { display:flex; flex-wrap:wrap; gap:6px }
+.eq-emo button { width:40px; height:40px; border:0; border-radius:11px; background:#F2F2F7; font-size:22px; line-height:1; padding:0 }
+.eq-emo button.on { background:#000; box-shadow:0 0 0 2px #000 }
+.eq-chips { display:flex; flex-wrap:wrap; gap:6px }
+.eq-chip { display:inline-flex; align-items:center; border:0; padding:7px 12px; border-radius:999px; background:#F2F2F7; color:#000; font:inherit; font-size:14px }
+button.eq-chip.on { background:#000; color:#fff }
+.eq-err { color:#FF3B30; font-size:13px; font-weight:600; margin:6px 2px 0 }
+.eq-list { display:flex; flex-direction:column; gap:6px; margin:10px 0 }
+.eq-row { display:flex; align-items:center; gap:12px; border:0; border-radius:14px; background:#F2F2F7; padding:10px 14px; text-align:left; font:inherit; color:#000 }
+.eq-row.on { box-shadow:0 0 0 2px #000 inset }
+.eq-row i { font-style:normal; font-size:24px }
+.eq-row span { flex:1; display:flex; flex-direction:column }
+.eq-row small { color:#8E8E93; font-size:13px }
+.eq-row em { font-style:normal; color:#8E8E93; font-size:20px }
+:root[data-theme="dark"] .eq-add, :root[data-theme="dark"] .eq-emo button, :root[data-theme="dark"] .eq-chip, :root[data-theme="dark"] .eq-row { background:#2C2C2E; color:#fff }
+:root[data-theme="dark"] .eq-emo button.on, :root[data-theme="dark"] button.eq-chip.on { background:#fff; color:#000 }
+:root[data-theme="dark"] .eq-row.on { box-shadow:0 0 0 2px #fff inset }
+#eq-body > .field, #eq-body .eq-form > .field, #eq-body .eq-form > label.field { margin-top:14px }
+#eq-body .eq-form > .row { margin-top:18px }
