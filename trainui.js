@@ -6,6 +6,8 @@ import * as TR from "./train.js?v=21";
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
 const PHOTOS = new Map([["bentrow:band", 2], ["birddog:bw", 1], ["bridge:bw", 1], ["calf:bw", 1], ["chestpress:band", 1], ["crunch:bw", 1], ["curl:band", 1], ["deadbug:bw", 1], ["donkey:bw", 1], ["facepull:band", 2], ["frontraise:band", 1], ["legraise:bw", 1], ["lunge:bw", 1], ["march:bw", 1], ["mob_ankle:bw", 1], ["mob_arm:bw", 1], ["mob_catcow:bw", 1], ["mob_elbow:bw", 1], ["mob_hip:bw", 1], ["mob_knee:bw", 1], ["mob_legswing:bw", 1], ["mob_neck:bw", 1], ["mob_shoulder:bw", 1], ["mob_twist:bw", 1], ["mob_wrist:bw", 1], ["mtnclimber:bw", 1], ["plank:bw", 1], ["pulldown:band", 2], ["pushdown:band", 1], ["pushup:bw", 1], ["rdl:band", 2], ["row:band", 2], ["run_tm:bw", 1], ["shoulderpress:band", 1], ["squat:band", 2], ["squat:bw", 2], ["st_calf:bw", 1], ["st_child:bw", 1], ["st_ham:band", 1], ["st_quad:bw", 1], ["superman:bw", 1], ["triext:band", 1], ["walk_out:bw", 1], ["walk_tm:bw", 1], ["wristcurl:band", 1], ["wristext:band", 1]]);
+/* Видео упражнений (папка vid/): `${id}-${vk}.mp4` (квадрат, без звука) и постер `${id}-${vk}.jpg`. Показываются первым слайдом только в карточке упражнения и режиме тренировки. */
+const VIDEOS = new Set(["frontraise:band"]);
 // Первая иллюстрация упражнения для списков (любой вариант, лучше без инвентаря)
 const thumbOf = (id) => { for (const vk of ["bw", "band", "bandf", "db", "cable"]) if (PHOTOS.has(`${id}:${vk}`)) return `img/${id}-${vk}-1.webp`; return ""; };
 const hasPhoto = (id, vk) => PHOTOS.has(`${id}:${vk}`);
@@ -13,22 +15,41 @@ function exFig(id, vk) {
   const n = PHOTOS.get(`${id}:${vk}`);
   if (!n) return "";
   const b = `img/${id}-${vk}`;
+  const vid = VIDEOS.has(`${id}:${vk}`);
   const imgs = Array.from({ length: n }, (_, i) => `<img src="${b}-${i + 1}.webp" alt="Иллюстрация упражнения" decoding="async">`).join("");
-  return `<div class="ex-ph" data-i="0" data-n="${n}" data-id="${id}" data-vk="${vk}">
-    <div class="ex-ph-imgs">${imgs}</div>
-    <div class="ex-ph-dots">${"<i></i>".repeat(n)}</div></div>`;
+  // Видео — первый слайд (без звука, по кругу); списки и «Следом» берут только иллюстрации
+  const video = vid ? `<video src="vid/${id}-${vk}.mp4" poster="vid/${id}-${vk}.jpg" muted loop autoplay playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-label="Видео упражнения"></video>` : "";
+  const t = n + (vid ? 1 : 0);
+  return `<div class="ex-ph" data-i="0" data-n="${t}" data-id="${id}" data-vk="${vk}">
+    <div class="ex-ph-imgs">${video}${imgs}</div>
+    <div class="ex-ph-dots">${"<i></i>".repeat(t)}</div></div>`;
 }
-// Листание картинок свайпом (scroll-snap), точки показывают текущий вид (профиль / анфас): слушатель на документе, перерисовка ему не мешает
+// Листание слайдов свайпом (scroll-snap), точки показывают текущий слайд (видео / профиль / анфас): слушатель на документе, перерисовка ему не мешает.
+// Видео играет только на своём слайде
 if (typeof document !== "undefined" && !window.__exPh) {
   window.__exPh = true;
   document.addEventListener("scroll", (e) => {
     const s = e.target;
     if (!s || !s.classList || !s.classList.contains("ex-ph-imgs")) return;
-    s.parentElement.dataset.i = s.scrollLeft > s.clientWidth / 2 ? "1" : "0";
+    const i = Math.round(s.scrollLeft / Math.max(1, s.clientWidth));
+    s.parentElement.dataset.i = String(i);
+    const v = s.querySelector("video");
+    if (v) { if (i === 0) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause(); }
   }, true);
-  // нет файла картинки (например, папка img/ не загружена) — убираем сломанную рамку
+  // нет файла (например, папка img/ или vid/ не загружена): сломанное видео убираем вместе с его точкой, сломанную картинку — всю рамку
   document.addEventListener("error", (e) => {
-    const im = e.target, box = im && im.closest && im.closest(".ex-ph");
+    const im = e.target;
+    if (im && im.tagName === "VIDEO") {
+      const box = im.closest && im.closest(".ex-ph");
+      if (!box) return;
+      im.remove();
+      const dot = box.querySelector(".ex-ph-dots i");
+      if (dot) dot.remove();
+      box.dataset.n = String(Math.max(0, Number(box.dataset.n) - 1));
+      box.dataset.i = "0";
+      return;
+    }
+    const box = im && im.closest && im.closest(".ex-ph");
     if (box) box.remove();
   }, true);
 }

@@ -12,6 +12,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (/\.mp4$/i.test(url.pathname)) return; // видео отдаёт сеть напрямую (Safari запрашивает диапазоны байт)
   const ours = url.origin === self.location.origin;
   const sdk = url.hostname === "www.gstatic.com" && url.pathname.includes("/firebasejs/");
   const fonts = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
