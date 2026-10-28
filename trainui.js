@@ -233,7 +233,7 @@ function trainBannerHtml(day) {
   const mid = fin
     ? `<span>Вау, вы молодец! 💪 ${k} из ${n}</span>`
     : `<span class="tr-ban-sub">${esc(ses.title)}</span><span class="tr-ban-chips"><span class="chip">⏱ ${ses.est} мин</span><span class="chip">${n} ${plExer(n)}</span></span>`;
-  const tail = fin ? "" : `<span class="tr-ban-btn">${k > 0 ? "Далее" : "Начать"}</span>`;
+  const tail = fin ? "" : `<span class="tr-ban-btn" data-act="trainStart" data-date="${day}">${k > 0 ? "Далее" : "Начать"}</span>`;
   return `<button type="button" class="card tr-banner${fin ? " done" : ""}" data-act="goTab" data-tab="health" data-h="train">
     <span class="tr-ban-ic">${fin ? "🏆" : "💪"}</span>
     <span class="tr-ban-main"><b>${head}${fin ? " 🎉" : ""}</b>${mid}<span class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></span></span>
@@ -457,9 +457,10 @@ function openTrainWorkout(date) {
       setNo = Math.min(sv.length, it.sets);
       if (sv.length >= it.sets) { markDone(it); review = true; } else if (dn && sv.length === 0) review = true;
     } else {
-      mins = factMin(it) || it.minutes || 0;
-      secv = it.secs ? it.secs[1] : 0;
       review = isDone(it);
+      // Таймер = цель. Прошлая запись «по факту» подставляется только у уже выполненного
+      mins = review ? factMin(it) || it.minutes || 0 : it.minutes || 0;
+      secv = it.secs ? it.secs[1] : 0;
       if (review) sdone = [true, true];
     }
   };
