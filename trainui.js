@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=21";
+import * as TR from "./train.js?v=22";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -222,7 +222,22 @@ function exHist(id, date) {
     return { date: l.date, sets: s, total, best: Math.max(...s), kg: comboKg(ids), wkg, vol: Math.round(total * (wkg || 1) * 10) / 10, band: bandName(((l.ebands) || {})[id]) };
   });
 }
-const topReached = (id, date, hi) => { const h = exHist(id, addDays(date, -1)); const last = h[h.length - 1]; return !!(last && hi && last.sets.length && last.sets.every((r) => r >= hi)); };
+// Сколько последних тренировок подряд (до 4) все подходы были на верхней границе при одной и той же нагрузке
+const TOP_NEED = 4;
+function topStreak(id, date, hi) {
+  if (!hi) return 0;
+  const h = exHist(id, addDays(date, -1)).slice().reverse();
+  if (!h.length) return 0;
+  const ref = h[0];
+  let n = 0;
+  for (const x of h) {
+    if (!x.sets.length || !x.sets.every((r) => r >= hi) || x.kg !== ref.kg || x.wkg !== ref.wkg) break;
+    if (++n >= TOP_NEED) break;
+  }
+  return n;
+}
+const topReached = (id, date, hi) => topStreak(id, date, hi) >= TOP_NEED;
+const streakDots = (id, date, hi) => { const n = topStreak(id, date, hi); return n > 0 && n < TOP_NEED ? `<p class="ex-streak">На верхней границе: ${"●".repeat(n)}${"○".repeat(TOP_NEED - n)} из ${TOP_NEED} тренировок подряд</p>` : ""; };
 
 function trainProgress(d, ses) {
   const l = trainLogOn(d), done = (l && l.done) || {};
@@ -860,20 +875,32 @@ function openTrainExercise(date, key) {
   let selDb = Number((((trainLogOn(date) || {}).edb) || {})[it.id]) || lastDb(it.id, date) || 0;
   const dbUp = () => {
     const top = it.reps && topReached(it.id, date, it.reps[1]);
-    if (!selDb || !(trainAdvice(date).bump > 0 || top)) return "";
+    if (!selDb || !top) return "";
     const nx = dbs.find((v) => v > selDb + 0.01);
     if (!nx) return `<p class="ex-up">Это самый тяжёлый вес из набора. Чтобы расти дальше: медленнее опускание (3 сек), пауза 1–2 сек в конце, больше повторов.</p>`;
-    return `<div class="ex-up">${top ? `В прошлый раз все подходы были на верхней границе (${it.reps[1]}).` : "В последних тренировках было легко."} Чтобы был прогресс, попробуйте <b>${fmt(nx)} кг</b>. <button type="button" class="ex-up-b" data-edbset="${nx}">Выбрать</button></div>`;
+    return `<div class="ex-up">Уже ${TOP_NEED} тренировки подряд все подходы на верхней границе (${it.reps[1]}). Пора усложнять, попробуйте <b>${fmt(nx)} кг</b>. <button type="button" class="ex-up-b" data-edbset="${nx}">Выбрать</button></div>`;
+  };
+  // Переход с «без веса» на вариант с нагрузкой (мостик: гантель, отведение: эспандер) и обратно
+  const LOADED = { db: "с гантелью", band: "с трубчатым эспандером" };
+  const loadUp = () => {
+    const vs = exVs(ex);
+    if (it.vk === "bw") {
+      const ld = vs.find((v) => LOADED[v.k] && v.k !== "bw");
+      if (!ld || !it.reps || !topReached(it.id, date, it.reps[1]) || !["bridge", "donkey"].includes(it.id)) return "";
+      return `<div class="ex-up">Уже ${TOP_NEED} тренировки подряд все подходы на верхней границе (${it.reps[1]}). Теперь можно ${LOADED[ld.k]}.${ld.k === "band" ? " Начните с самой лёгкой резинки." : ""}<button type="button" class="ex-up-b" data-vk="${esc(ld.k)}">Попробовать</button></div>`;
+    }
+    if (["bridge", "donkey"].includes(it.id) && vs.some((v) => v.k === "bw")) return `<p class="ex-back"><button type="button" class="ex-up-l" data-vk="bw">Вернуть без веса</button></p>`;
+    return "";
   };
   const dbBlock = () => `<span class="ex-vars-t">${it.vk === "db" ? "Какие гантели" : "Какой вес"}${selDb ? ` · ${fmt(selDb)} кг` : ""}</span><div class="chips" style="margin:0">${dbs.map((v) => `<button type="button" class="chip${v === selDb ? " sel" : ""}" data-edb="${v}" aria-pressed="${v === selDb}">${fmt(v)} кг</button>`).join("")}</div>${dbUp()}`;
   const upHint = () => {
     const top = it.reps && topReached(it.id, date, it.reps[1]);
-    if (!selBand.length || !(trainAdvice(date).bump > 0 || top)) return "";
+    if (!selBand.length || !top) return "";
     const nx = nextBandCombo(selBand);
     if (!nx) return `<p class="ex-up">Сейчас у вас самое тяжёлое сочетание из имеющихся цветов. Чтобы расти дальше: медленнее опускание (3 сек), пауза 1–2 сек в конце, больше повторов.</p>`;
     const k = comboKey(nx.ids);
     const same = comboKey(selBand) === k;
-    return `<div class="ex-up">${top ? `В прошлый раз все подходы были на верхней границе (${it.reps[1]}).` : "В последних тренировках было легко."} Чтобы был прогресс, попробуйте: <b>${esc(bandName(k))}</b> (около ${fmt(nx.kg)} кг)${nx.ids.length > 1 ? ". Сложите трубки вместе и держите обе за ручки" : ""}.${same ? "" : ` <button type="button" class="ex-up-b" data-ebset="${k}">Выбрать</button>`}</div>`;
+    return `<div class="ex-up">Уже ${TOP_NEED} тренировки подряд все подходы на верхней границе (${it.reps[1]}). Пора усложнять, попробуйте: <b>${esc(bandName(k))}</b> (около ${fmt(nx.kg)} кг)${nx.ids.length > 1 ? ". Сложите трубки вместе и держите обе за ручки" : ""}.${same ? "" : ` <button type="button" class="ex-up-b" data-ebset="${k}">Выбрать</button>`}</div>`;
   };
   const bandsBlock = () => `<span class="ex-vars-t">Какой резинкой${!((((trainLogOn(date) || {}).ebands) || {})[it.id]) && lastB && comboKey(selBand) === comboKey(comboIds(lastB)) ? " · как в прошлый раз, можно сменить" : ""}${selBand.length ? ` · около ${fmt(comboKg(selBand))} кг` : ""}</span><div class="ex-bandrow">${TR.BAND_COLORS.map((c) => `<button type="button" class="ex-bd${selBand.includes(c.id) ? " on" : ""}" data-eb="${c.id}" style="--c:${c.hex}" aria-pressed="${selBand.includes(c.id)}"><i></i>${c.t}</button>`).join("")}</div><span class="ex-vars-t" style="margin-top:6px;font-weight:500">Можно выбрать несколько цветов: трубки складываются.</span>${upHint()}`;
   const GROUP_RU = { main: "Основная часть", warm: "Разминка", cool: "Растяжка", cardio: "Кардио" };
@@ -908,6 +935,8 @@ function openTrainExercise(date, key) {
   };
   const howNow = [
     exVs(ex).length > 1 ? `<div class="chips ex-seg" style="margin:0">${[["", "Авто"], ...exVs(ex).map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div>` : "",
+    it.reps ? streakDots(it.id, date, it.reps[1]) : "",
+    loadUp(),
     recText(it, date) ? `<p class="ex-rec">Рекомендуемый вес: <b>${esc(recText(it, date))}</b></p>` : "",
     it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : "",
     wtI && dbs.length ? `<div class="ex-vars ex-dbs">${dbBlock()}</div>` : "",
