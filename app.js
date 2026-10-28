@@ -12,8 +12,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
-import * as TR from "./train.js?v=23";
-import { createTrainUI } from "./trainui.js?v=66";
+import * as TR from "./train.js?v=22";
+import { createTrainUI } from "./trainui.js?v=65";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
