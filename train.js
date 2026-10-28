@@ -388,7 +388,10 @@ export const EXERCISES = {
   },
   bridge: {
     name: "Ягодичный мостик", muscles: "Ягодицы и задняя поверхность бёдер", reps: [12, 18], rest: 35, floor: true, mat: true,
-    variants: [{ k: "bw", need: [], label: "Без веса", cue: "На верхней точке сделайте паузу 1–2 секунды." }],
+    variants: [
+      { k: "bw", need: [], label: "Без веса", cue: "На верхней точке сделайте паузу 1–2 секунды." },
+      { k: "db", need: ["dumbbell"], label: "С гантелью на тазу", cue: "Гантель лежит поперёк таза, придерживайте её за концы двумя руками." },
+    ],
     anchor: "ankle", track: ["hip"],
     frames: [
       { t: -90, ...FLOOR_LEG, hd: -100, a: [90, 90] },
@@ -403,7 +406,10 @@ export const EXERCISES = {
   },
   donkey: {
     name: "Отведение ноги назад на четвереньках", muscles: "Ягодицы", reps: [10, 15], side: true, rest: 35, floor: true, mat: true, avoid: ["wrists"],
-    variants: [{ k: "bw", need: [], label: "Без веса", cue: "Тянитесь пяткой, а не носком." }],
+    variants: [
+      { k: "bw", need: [], label: "Без веса", cue: "Тянитесь пяткой, а не носком." },
+      { k: "band", need: ["tube"], label: "С трубчатым эспандером", cue: "Середина трубки под стопой рабочей ноги, ручки в кулаках у пола под плечами." },
+    ],
     anchor: "handF", track: ["ankle"],
     frames: [
       { t: 90, la: [-27, 28, "d"], f: -90, a: [0, 0], LA: [-27, 28, "d"], F: -90, A: [0, 0] },
