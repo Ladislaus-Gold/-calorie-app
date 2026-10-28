@@ -593,21 +593,21 @@ export const EXERCISES = {
     ],
     mistakes: ["Раскачивание корпусом и прогиб в пояснице.", "Руки выше уровня плеч: нагрузка уходит на шею."],
   },
-  wristext: {
-    name: "Разгибания кистей (предплечья)", muscles: "Предплечья, разгибатели кисти", reps: [15, 22], rest: 30,
+  wristcurl: {
+    name: "Сгибания кистей (предплечья)", muscles: "Предплечья, сгибатели кисти", reps: [15, 22], rest: 30,
     variants: [
-      { k: "db", need: ["dumbbell"], label: "С гантелями", cue: "Предплечья на бёдрах, ладони смотрят вниз." },
-      { k: "band", need: ["loop|tube"], label: "С резинкой под ногами", cue: "Встаньте на середину резинки, предплечья горизонтально, ладони вниз." },
+      { k: "db", need: ["dumbbell"], label: "С гантелями", cue: "Предплечья на бёдрах или на весу, ладони смотрят вверх." },
+      { k: "band", need: ["loop|tube"], label: "С резинкой под ногами", cue: "Встаньте на середину резинки, предплечья горизонтально, ладони вверх." },
     ],
     band: { t: "foot", col: BAND_COL.tube }, track: ["hand"],
-    frames: [{ ...STAND, a: [0, 90], hdir: -55 }, { ...STAND, a: [0, 90], hdir: 50 }],
+    frames: [{ ...STAND, a: [0, 90], hdir: 55 }, { ...STAND, a: [0, 90], hdir: -50 }],
     steps: [
-      "Согните руки в локтях под 90°, прижмите локти к корпусу, ладони смотрят вниз.",
-      "Опустите кисти вниз, плавно, не роняя.",
-      "Поднимите кисти вверх, разгибая запястья, двигаются только кисти.",
+      "Согните руки в локтях под 90°, прижмите локти к корпусу, ладони смотрят вверх.",
+      "Опустите кисти вниз, дав ручке чуть раскрыться в пальцах.",
+      "Сожмите ручку и согните кисти вверх, к себе, двигаются только кисти.",
       "Медленно вернитесь вниз.",
     ],
-    mistakes: ["Двигаются локти и плечи: фиксируйте предплечья.", "Слишком большое сопротивление: берите лёгче, суставы запястий мелкие."],
+    mistakes: ["Двигаются локти и плечи: фиксируйте предплечья.", "Слишком большое сопротивление: движение только кистью, без рывка."],
   },
   pushdown: {
     name: "Разгибания рук вниз", muscles: "Трицепсы", reps: [12, 15], rest: 35,
@@ -1192,7 +1192,7 @@ const BLUEPRINT = {
   },
 };
 
-const ACCESSORY = new Set(["calf", "wristext"]);
+const ACCESSORY = new Set(["calf", "wristcurl"]);
 const haveOf = (cfg) => new Set(cfg.equip[cfg.place] || DEFAULT_EQUIP[cfg.place]);
 const needOk = (need, have) => (need || []).every((n) => n.split("|").some((x) => have.has(x)));
 
@@ -1243,7 +1243,7 @@ export const MG_OF = {
   squat: "legs", lunge: "legs", stepup: "legs", calf: "legs",
   rdl: "glutes", bridge: "glutes", donkey: "glutes",
   row: "back", bentrow: "back", pulldown: "back", pullup: "back", superman: "back", facepull: "shoulders",
-  curl: "biceps", triext: "triceps", pushdown: "triceps", dips: "triceps", wristext: "forearms", hammer: "biceps", frontraise: "shoulders",
+  curl: "biceps", triext: "triceps", pushdown: "triceps", dips: "triceps", wristcurl: "forearms", hammer: "biceps", frontraise: "shoulders",
   pushup: "chest", chestpress: "chest", floorpress: "chest", shoulderpress: "shoulders",
   plank: "core", deadbug: "core", crunch: "core", legraise: "core", mtnclimber: "core", birddog: "core",
 };
