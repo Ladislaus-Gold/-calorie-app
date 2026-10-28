@@ -2342,3 +2342,8 @@ button.eq-chip.on { background:#000; color:#fff }
 :root[data-theme="dark"] .eq-row.on { box-shadow:0 0 0 2px #fff inset }
 #eq-body > .field, #eq-body .eq-form > .field, #eq-body .eq-form > label.field { margin-top:14px }
 #eq-body .eq-form > .row { margin-top:18px }
+
+/* v3.19: факт из тренировки показывается плиткой, не полем ввода */
+.ex-fact { padding: 12px 14px; border-radius: 14px; background: var(--chip, #f1f2f6); font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; pointer-events: none; user-select: none; }
+.ex-fact.none { color: var(--muted); font-weight: 500; }
+.ex-sets > .ex-fact { text-align: left; }
