@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=20";
+import * as TR from "./train.js?v=21";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -143,6 +143,10 @@ export function createTrainUI(env) {
 // Отметки «выполнено» хранятся отдельно (users/{uid}/trainlog) и не попадают ни в тренировки, ни в отчёты, ни в ИИ-анализ.
 const DUMBBELL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>';
 const trainCfg = () => { const c = TR.normCfg(state.trainCfg, todayStr()); TR.applyBands(c); return c; };
+// Свой инвентарь: весовой вариант (гантели из анкеты или свой весовой предмет) и список вариантов упражнения
+const customOf = (vk) => (trainCfg().customEq || []).find((c) => c.id === vk) || null;
+const wtOf = (vk) => { if (vk === "db") return { kgs: trainCfg().dumbbells || [] }; const c = customOf(vk); return c && c.w ? { kgs: c.kgs } : null; };
+const exVs = (ex) => { const c = trainCfg(), h = c.equip[c.place] || []; return TR.exVariants(ex, c.customEq).filter((v) => !v.custom || h.includes(v.k)); };
 const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
 // Кардио-пункт со временем в минутах (разминка-дорожка или кардио); суставные упражнения разминки идут по секундам
 const isMinIt = (it) => it.group === "cardio" || (it.group === "warm" && Number(it.minutes) > 0);
@@ -193,7 +197,8 @@ function exHist(id, date) {
   return state.trainLog.filter((l) => l.date <= date && l.sets && Array.isArray(l.sets[id]) && l.sets[id].some((v) => Number(v) > 0)).sort((p, q) => (p.date < q.date ? -1 : 1)).slice(-8).map((l) => {
     const s = l.sets[id].map((v) => Number(v) || 0);
     const ids = comboIds(((l.ebands) || {})[id]);
-    return { date: l.date, sets: s, total: s.reduce((p, q) => p + q, 0), best: Math.max(...s), kg: comboKg(ids), band: bandName(((l.ebands) || {})[id]) };
+    const wkg = Number(((l.edb) || {})[id]) || 0, total = s.reduce((p, q) => p + q, 0);
+    return { date: l.date, sets: s, total, best: Math.max(...s), kg: comboKg(ids), wkg, vol: Math.round(total * (wkg || 1) * 10) / 10, band: bandName(((l.ebands) || {})[id]) };
   });
 }
 const topReached = (id, date, hi) => { const h = exHist(id, addDays(date, -1)); const last = h[h.length - 1]; return !!(last && hi && last.sets.length && last.sets.every((r) => r >= hi)); };
@@ -242,7 +247,7 @@ function trainRowHtml(day, it, done) {
   const fm = Number((lg.mins || {})[it.key]) || 0;
   const sd = it.reps ? (((lg.sets || {})[it.id]) || []).filter((v) => Number(v) > 0).length : 0;
   const part = !on && sd > 0 && sd < it.sets ? ` · сделано ${sd} из ${it.sets} подх.` : "";
-  const sub = isMinIt(it) ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${it.vk === "db" && Number((lg.edb || {})[it.id]) > 0 ? ` · ${fmt(Number(lg.edb[it.id]))} кг` : ""}${part}`;
+  const sub = isMinIt(it) ? `${fm ? `${fm} мин (по факту)` : it.text} · ${it.sub}` : `${it.text}${it.vlabel ? ` · ${it.vlabel}` : ""}${eb && bandName(eb) ? ` · ${bandName(eb)}` : ""}${wtOf(it.vk) && Number((lg.edb || {})[it.id]) > 0 ? ` · ${fmt(Number(lg.edb[it.id]))} кг` : ""}${part}`;
   return `<div class="tr-row${on ? " on" : ""}">
     <button type="button" class="tr-check" data-act="trainTick" data-date="${day}" data-key="${esc(it.key)}" aria-pressed="${on}" aria-label="Отметить выполненным">${TICK}</button>
     <button type="button" class="tr-main" data-act="trainOpen" data-date="${day}" data-key="${esc(it.key)}"><span class="tr-name">${esc(it.name)}</span><span class="tr-sub">${esc(sub)}</span></button>
@@ -461,7 +466,7 @@ function openTrainWorkout(date) {
   };
   const next = () => { idx = retMode ? items.length : idx + 1; retMode = false; enterItem(); draw(); };
   const planOf = (x) => (x.reps ? `${x.sets}×${x.reps[1]}` : x.secs ? `${x.secs[1]} сек` : x.minutes ? `${x.minutes} мин` : "");
-  const varOf = (x) => { const c = trainCfg(); return [lc1(x.vlabel || ""), x.vk === "db" && dbKgOf(x.id, date) ? `${fmt(dbKgOf(x.id, date))} кг` : ""].filter(Boolean).join(" · "); };
+  const varOf = (x) => { const c = trainCfg(); return [lc1(x.vlabel || ""), wtOf(x.vk) && dbKgOf(x.id, date) ? `${fmt(dbKgOf(x.id, date))} кг` : ""].filter(Boolean).join(" · "); };
   // Шапка: кольцо прогресса (зелёное — сделано, красное — пропущено), название, вариант
   const bandHtml = (title, sub, label) => {
     const n = items.length, dn = items.filter(isDone).length, sk = items.filter((i) => !isDone(i) && skipped.has(i.key)).length;
@@ -770,7 +775,7 @@ function openTrainExercise(date, key) {
   const isDone = () => !!((trainLogOn(date) || {}).done || {})[key];
   const res = it.vk === "band" || it.vk === "bandf" || it.vk === "cable"
     ? `<p class="ex-note">Подберите сопротивление так, чтобы последние 2–3 повторения давались тяжело, но техника не ломалась. Когда верхняя граница диапазона даётся легко, возьмите резинку потяжелее или добавьте паузу внизу.</p>`
-    : it.vk === "db" ? `<p class="ex-note">Вес гантелей подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая.${cfg.dumbbellKg ? ` Ваши гантели: ${fmt(cfg.dumbbellKg)} кг. Если легко, замедлите движение: 3 секунды вниз.` : ""}</p>` : "";
+    : it.vk === "db" ? `<p class="ex-note">Вес гантелей подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая.${cfg.dumbbellKg ? ` Ваши гантели: ${fmt(cfg.dumbbellKg)} кг. Если легко, замедлите движение: 3 секунды вниз.` : ""}</p>` : wtOf(it.vk) ? `<p class="ex-note">Вес подбирайте так же: последние 2–3 повторения тяжёлые, но техника чистая. Если легко, замедлите движение: 3 секунды вниз.</p>` : "";
   const exExtraHtml = () => {
     if (isMinIt(it)) { const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0; return `<div class="ex-sets"><span class="ex-vars-t">Сколько прошли, мин · время выбираете сами</span><input class="input" id="ex-mins" inputmode="numeric" placeholder="${it.minutes}" value="${fm || ""}"></div>`; }
     if (!it.reps && it.group !== "main") return "";
@@ -796,16 +801,16 @@ function openTrainExercise(date, key) {
   const savedBand = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || "";
   const lastB = lastBand(it.id, date);
   let selBand = comboIds(savedBand || lastB);
-  const dbs = cfg.dumbbells || [];
+  const wtI = wtOf(it.vk), dbs = wtI ? wtI.kgs : [];
   let selDb = Number((((trainLogOn(date) || {}).edb) || {})[it.id]) || lastDb(it.id, date) || 0;
   const dbUp = () => {
     const top = it.reps && topReached(it.id, date, it.reps[1]);
     if (!selDb || !(trainAdvice(date).bump > 0 || top)) return "";
     const nx = dbs.find((v) => v > selDb + 0.01);
-    if (!nx) return `<p class="ex-up">Это самые тяжёлые гантели из набора. Чтобы расти дальше: медленнее опускание (3 сек), пауза 1–2 сек в конце, больше повторов.</p>`;
+    if (!nx) return `<p class="ex-up">Это самый тяжёлый вес из набора. Чтобы расти дальше: медленнее опускание (3 сек), пауза 1–2 сек в конце, больше повторов.</p>`;
     return `<div class="ex-up">${top ? `В прошлый раз все подходы были на верхней границе (${it.reps[1]}).` : "В последних тренировках было легко."} Чтобы был прогресс, попробуйте <b>${fmt(nx)} кг</b>. <button type="button" class="ex-up-b" data-edbset="${nx}">Выбрать</button></div>`;
   };
-  const dbBlock = () => `<span class="ex-vars-t">Какие гантели${selDb ? ` · ${fmt(selDb)} кг` : ""}</span><div class="chips" style="margin:0">${dbs.map((v) => `<button type="button" class="chip${v === selDb ? " sel" : ""}" data-edb="${v}" aria-pressed="${v === selDb}">${fmt(v)} кг</button>`).join("")}</div>${dbUp()}`;
+  const dbBlock = () => `<span class="ex-vars-t">${it.vk === "db" ? "Какие гантели" : "Какой вес"}${selDb ? ` · ${fmt(selDb)} кг` : ""}</span><div class="chips" style="margin:0">${dbs.map((v) => `<button type="button" class="chip${v === selDb ? " sel" : ""}" data-edb="${v}" aria-pressed="${v === selDb}">${fmt(v)} кг</button>`).join("")}</div>${dbUp()}`;
   const upHint = () => {
     const top = it.reps && topReached(it.id, date, it.reps[1]);
     if (!selBand.length || !(trainAdvice(date).bump > 0 || top)) return "";
@@ -822,8 +827,8 @@ function openTrainExercise(date, key) {
     <div class="ex-meta"><span class="pill">${esc(ex.muscles)}</span></div>
     ${recText(it, date) ? `<p class="ex-rec">Рекомендуемый вес: <b>${esc(recText(it, date))}</b></p>` : ""}
     ${it.vk === "band" || it.vk === "bandf" ? `<div class="ex-vars ex-bands">${bandsBlock()}</div>` : ""}
-    ${it.vk === "db" && dbs.length ? `<div class="ex-vars ex-dbs">${dbBlock()}</div>` : ""}
-    ${ex.variants && ex.variants.length > 1 ? `<div class="ex-vars"><span class="ex-vars-t">Как выполнять сейчас</span><div class="chips" style="margin:0">${[["", "Авто"], ...ex.variants.map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div></div>` : ""}
+    ${wtI && dbs.length ? `<div class="ex-vars ex-dbs">${dbBlock()}</div>` : ""}
+    ${exVs(ex).length > 1 ? `<div class="ex-vars"><span class="ex-vars-t">Как выполнять сейчас</span><div class="chips" style="margin:0">${[["", "Авто"], ...exVs(ex).map((v) => [v.k, v.label])].map(([k, t]) => `<button type="button" class="chip${(cfg.vpref[it.id] || "") === k ? " sel" : ""}" data-vk="${esc(k)}">${esc(t)}</button>`).join("")}</div></div>` : ""}
     <p class="ex-do"><b>${esc(trainDetail(it))}</b>${it.cue ? ` ${esc(it.cue)}` : ""}</p>
     ${res}
     <div id="ex-extra">${exExtraHtml()}</div>
@@ -912,12 +917,12 @@ function openTrainForm() {
     bk: Object.fromEntries(baseBands().map((c) => [c.id, String(cur.bandKg[c.id] || TR.BAND_DEFAULT_KG[c.id] || "").replace(".", ",")])), rm: new Set(cur.removedBands),
     bs: Object.fromEntries(baseBands().map((c) => [c.id, { t: (cur.bandStyle[c.id] || {}).t || c.t, hex: (cur.bandStyle[c.id] || {}).hex || c.hex }])),
     // свои резинки (второй комплект и т.п.) и набор гантелей
-    xb: cur.extraBands.map((e) => ({ id: e.id, t: e.t, hex: e.hex, kg: String(e.kg).replace(".", ",") })), db: [...cur.dumbbells], dbIn: "" };
+    xb: cur.extraBands.map((e) => ({ id: e.id, t: e.t, hex: e.hex, kg: String(e.kg).replace(".", ",") })), db: [...cur.dumbbells], dbIn: "", ce: cur.customEq.map((c) => ({ ...c, kgs: [...c.kgs], ex: [...c.ex] })) };
   const ov = openSheet(`<div class="sheet-head"><h2>Анкета тренировок</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="tf-body"></div>`, { bw: true });
   const body = $("#tf-body", ov);
   const draw = () => {
     const eq = new Set(f.equip[f.place]);
-    const list = TR.EQUIP_BY_PLACE[f.place].map((id) => TR.EQUIP.find((e) => e.id === id));
+    const list = [...TR.EQUIP_BY_PLACE[f.place].map((id) => TR.EQUIP.find((e) => e.id === id)), ...f.ce.map((c) => ({ id: c.id, t: c.t, emo: c.emo }))];
     const placeHint = { home: "Отметьте, что есть у вас дома.", outdoor: "Отметьте, что вы берёте с собой или что есть на площадке.", gym: "Свободные веса и блоки есть почти в любом зале, отметьте нужное." }[f.place];
     const sec = (e, cls, tt, s, inner) => `<div class="tf-sec"><div class="tf-st"><span class="fl-ic ${cls}">${e}</span><div><b>${tt}</b>${s ? `<small>${s}</small>` : ""}</div></div>${inner}</div>`;
     const LIM_EMO = { knees: "🦵", back: "🧍", shoulders: "💪", wrists: "🤚" };
@@ -929,13 +934,112 @@ function openTrainForm() {
       ${sec("⏱️", "ic-wt", "Времени на тренировку, мин", "", `<div class="chips" data-tf="minutes" style="margin:0">${TR.TIMES.map((t) => `<button type="button" data-v="${t}" class="chip${t === f.minutes ? " sel" : " muted"}">${t}</button>`).join("")}</div>
         <div class="tf-hint amb">💡 <span>В любой день время можно поменять прямо в плане, упражнения подстроятся.</span></div>`)}
       ${sec("📈", "ic-prog", "Уровень", "", `<div class="seg full" data-tf="level">${TR.TRAIN_LEVELS.map((l) => `<button type="button" data-v="${l.v}" class="${l.v === f.level ? "on" : ""}">${l.t}</button>`).join("")}</div>`)}
-      ${sec("🎒", "ic-plan", "Инвентарь", placeHint, `<div class="tf-inv">${list.map((e) => `<label class="tf-iv${eq.has(e.id) ? " on" : ""}"><input type="checkbox" data-eq="${e.id}" ${eq.has(e.id) ? "checked" : ""}><i>${EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div>`)}
+      ${sec("🎒", "ic-plan", "Инвентарь", placeHint, `<div class="tf-inv">${list.map((e) => `<label class="tf-iv${eq.has(e.id) ? " on" : ""}"><input type="checkbox" data-eq="${e.id}" ${eq.has(e.id) ? "checked" : ""}><i>${e.emo || EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div><button type="button" class="eq-add" data-eqopen>＋ Добавить / изменить</button>`)}
       ${eq.has("dumbbell") ? sec("🏋️", "ic-plan", "Гантели", "Какие веса у вас есть, в упражнении выберете нужный", `<div class="tf-dbs">${f.db.map((v) => `<span class="tf-dbc">${esc(fmt(v))} кг<button type="button" data-dbdel="${v}" aria-label="Убрать ${esc(fmt(v))} кг">×</button></span>`).join("") || `<small class="foot-note" style="margin:0">Пока пусто: добавьте вес одной гантели в кг.</small>`}</div>
         <div class="tf-dbadd"><input id="tf-dbn" class="input" inputmode="decimal" placeholder="вес, кг" value="${esc(f.dbIn)}" autocomplete="off" aria-label="Вес гантели, кг"><button type="button" class="btn ghost" data-dbadd${f.db.length >= TR.DUMBBELL_MAX ? " disabled" : ""}>Добавить</button></div>`) : ""}
       ${eq.has("tube") ? sec("🎨", "ic-band", "Резинки: цвет и вес", "Можно поправить название, цвет и вес в кг. Есть второй комплект или резинка порвалась? Добавьте свои или удалите ненужные", `<div class="tf-bands">${baseBands().filter((c) => !f.rm.has(c.id)).map((c) => `<div class="tf-bd"><input type="color" class="tf-bc" data-bs="hex" data-id="${c.id}" value="${esc(f.bs[c.id].hex)}" aria-label="Цвет"><input class="input tf-bn" data-bs="t" data-id="${c.id}" value="${esc(f.bs[c.id].t)}" maxlength="16" autocomplete="off" aria-label="Название"><input class="input tf-bk" data-bs="kg" data-id="${c.id}" inputmode="decimal" value="${esc(f.bk[c.id])}" placeholder="кг" autocomplete="off" aria-label="Вес, кг"><span>кг</span><button type="button" class="tf-x" data-bdel="${c.id}" aria-label="Удалить резинку">×</button></div>`).join("")}${f.xb.map((c) => `<div class="tf-bd tf-xb"><input type="color" class="tf-bc" data-xb="hex" data-id="${c.id}" value="${esc(c.hex)}" aria-label="Цвет"><input class="input tf-bn" data-xb="t" data-id="${c.id}" value="${esc(c.t)}" maxlength="16" autocomplete="off" aria-label="Название"><input class="input tf-bk" data-xb="kg" data-id="${c.id}" inputmode="decimal" value="${esc(c.kg)}" placeholder="кг" autocomplete="off" aria-label="Вес, кг"><span>кг</span><button type="button" class="tf-x" data-xdel="${c.id}" aria-label="Удалить резинку">×</button></div>`).join("")}</div><div class="tf-bact"><button type="button" class="tf-add" data-xadd${f.xb.length >= TR.BAND_X_MAX ? " disabled" : ""}>+ Добавить резинку</button></div>`) : ""}
       ${sec("🩹", "ic-shoe", "Есть ограничения?", "Такие упражнения заменим", `<div class="chips" data-tf="limits" style="margin:0">${TR.LIMITS.map((l) => `<button type="button" data-v="${l.id}" class="chip${f.limits.has(l.id) ? " sel" : " muted"}">${LIM_EMO[l.id] || ""} ${l.t}</button>`).join("")}</div>`)}
       <div class="tf-warn"><i>⚠️</i><span>Это общий ориентир для здоровых взрослых, а не лечебная программа. При болезнях сердца, травмах, беременности и других состояниях согласуйте нагрузку с врачом.</span></div>
       <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="tf-save">Сохранить и собрать план</button></div>`;
+  };
+  // Окно «Инвентарь»: добавить из списка известного инвентаря или изменить своё
+  const parseKgs = (txt) => {
+    const out = [];
+    for (let t of String(txt || "").split(/[;\s]+/)) {
+      t = t.replace(/^,+|,+$/g, "");
+      if (!t) continue;
+      for (const part of /,.*,/.test(t) ? t.split(",") : [t.replace(",", ".")]) { const v = Number(part); if (Number.isFinite(v) && v > 0 && v < 500) out.push(Math.round(v * 100) / 100); }
+    }
+    return [...new Set(out)].sort((p, q) => p - q).slice(0, 24);
+  };
+  const strengthEx = Object.values(TR.EXERCISES).filter((e) => e.kind !== "cardio" && e.kind !== "stretch");
+  const openEq = () => {
+    const m = { tab: "add", pick: "", id: "", name: "", emo: "🎒", w: false, kg: "", ex: new Set(), cat: "" };
+    const ov2 = openSheet(`<div class="sheet-head"><h2>Инвентарь</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="eq-body"></div>`, { bw: true });
+    const b2 = $("#eq-body", ov2);
+    const catOf = () => TR.EQ_CATALOG.find((c) => c.id === m.cat);
+    const exNames = (ids) => ids.map((i) => TR.EXERCISES[i]).filter(Boolean).map((e) => `<span class="eq-chip">${esc(e.name)}</span>`).join("");
+    const used = () => new Set(f.ce.map((c) => c.cat).filter(Boolean));
+    const valid = () => (m.id || f.ce.length < TR.CUSTOM_EQ_MAX) && !!m.name.trim() && (!m.w || parseKgs(m.kg).length > 0) && (m.cat ? true : m.ex.size > 0);
+    const sync = () => {
+      const bt = $("#eq-save", ov2); if (bt) bt.disabled = !valid();
+      const er = $("#eq-kgerr", ov2); if (er) er.style.display = m.w && !parseKgs(m.kg).length ? "block" : "none";
+    };
+    const form = () => {
+      const c = catOf(), exIds = c ? c.ex : [...m.ex];
+      return `<div class="eq-form">
+        <label class="field"><span>Название</span><input id="eq-name" class="input" maxlength="28" value="${esc(m.name)}" placeholder="Например: Штанга" autocomplete="off"></label>
+        <div class="field"><span>Значок</span><div class="eq-emo">${TR.EQ_EMOJI.map((e) => `<button type="button" class="${e === m.emo ? "on" : ""}" data-emo="${e}" aria-label="Значок ${e}">${e}</button>`).join("")}</div></div>
+        ${c ? "" : `<div class="field"><span>Тип</span><div class="seg full" data-eqw><button type="button" data-w="0" class="${m.w ? "" : "on"}">Без веса</button><button type="button" data-w="1" class="${m.w ? "on" : ""}">Весовой</button></div></div>`}
+        ${m.w ? `<label class="field"><span>Вес, кг · обязательно</span><input id="eq-kg" class="input" inputmode="decimal" value="${esc(m.kg)}" placeholder="Например: 20 30 40" autocomplete="off"></label><p class="eq-err" id="eq-kgerr" style="display:${parseKgs(m.kg).length ? "none" : "block"}">Для весового инвентаря нужно указать вес. Несколько весов через пробел, дробные через запятую: 12,5.</p>` : ""}
+        <div class="field"><span>${c ? "Будет использоваться в упражнениях" : "В каких упражнениях использовать"}</span>
+          ${c ? `<div class="eq-chips">${exNames(exIds)}</div><small class="foot-note" style="margin:6px 2px 0">Подобрано автоматически. ${m.w ? "Вес считается в прогрессе упражнения." : ""}</small>`
+              : `<div class="eq-chips">${strengthEx.map((e) => `<button type="button" class="eq-chip${m.ex.has(e.id) ? " on" : ""}" data-exid="${e.id}">${esc(e.name)}</button>`).join("")}</div>`}
+        </div>
+        <div class="row">${m.id ? `<button type="button" class="btn danger" id="eq-del">Удалить</button>` : ""}<button type="button" class="btn primary grow" id="eq-save" ${valid() ? "" : "disabled"}>${m.id ? "Сохранить" : "Добавить"}</button></div>
+      </div>`;
+    };
+    const draw2 = () => {
+      const have = used();
+      let main;
+      if (m.tab === "add") {
+        main = `<div class="field"><span>Выберите из списка</span><select id="eq-pick" class="input"><option value="">Выберите инвентарь…</option>${TR.EQ_GROUPS.map((g, gi) => { const it = TR.EQ_CATALOG.filter((c) => c.g === gi && !have.has(c.id)); return it.length ? `<optgroup label="${esc(g)}">${it.map((c) => `<option value="${c.id}"${m.pick === c.id ? " selected" : ""}>${c.emo} ${esc(c.t)}${c.w ? " · вес" : ""}</option>`).join("")}</optgroup>` : ""; }).join("")}<optgroup label="Другое"><option value="own"${m.pick === "own" ? " selected" : ""}>✏️ Свой вариант…</option></optgroup></select></div>
+          ${m.pick ? form() : `<p class="foot-note" style="margin:6px 2px">Выберите инвентарь: название, значок и упражнения подставятся сами. Для весового нужно указать вес.</p>`}`;
+      } else {
+        main = f.ce.length ? `<div class="eq-list">${f.ce.map((c) => `<button type="button" class="eq-row${m.id === c.id ? " on" : ""}" data-eqedit="${c.id}"><i>${c.emo}</i><span><b>${esc(c.t)}</b><small>${c.w ? `${c.kgs.map((v) => fmt(v)).join(" · ")} кг` : "без веса"}</small></span><em>›</em></button>`).join("")}</div>${m.id ? form() : ""}`
+          : `<p class="foot-note" style="margin:10px 2px">Своего инвентаря пока нет. Добавьте его на вкладке «Добавить».</p>`;
+      }
+      b2.innerHTML = `<div class="seg full" data-eqtab><button type="button" data-t="add" class="${m.tab === "add" ? "on" : ""}">Добавить</button><button type="button" data-t="edit" class="${m.tab === "edit" ? "on" : ""}">Изменить</button></div>${main}`;
+    };
+    draw2();
+    const reset = () => { Object.assign(m, { pick: "", id: "", name: "", emo: "🎒", w: false, kg: "", cat: "" }); m.ex = new Set(); };
+    ov2.addEventListener("input", (e) => {
+      if (e.target.id === "eq-name") m.name = e.target.value;
+      if (e.target.id === "eq-kg") m.kg = e.target.value;
+      sync();
+    });
+    ov2.addEventListener("change", (e) => {
+      if (e.target.id !== "eq-pick") return;
+      reset();
+      m.pick = e.target.value;
+      const c = TR.EQ_CATALOG.find((x) => x.id === m.pick);
+      if (c) Object.assign(m, { cat: c.id, name: c.t, emo: c.emo, w: c.w });
+      draw2();
+    });
+    ov2.addEventListener("click", (e) => {
+      const tb = e.target.closest("[data-eqtab] [data-t]");
+      if (tb) { m.tab = tb.dataset.t; reset(); draw2(); return; }
+      const em = e.target.closest("[data-emo]");
+      if (em) { m.emo = em.dataset.emo; draw2(); return; }
+      const wb = e.target.closest("[data-eqw] [data-w]");
+      if (wb) { m.w = wb.dataset.w === "1"; draw2(); return; }
+      const xe = e.target.closest("[data-exid]");
+      if (xe) { const id = xe.dataset.exid; if (m.ex.has(id)) m.ex.delete(id); else m.ex.add(id); xe.classList.toggle("on", m.ex.has(id)); sync(); return; }
+      const ed = e.target.closest("[data-eqedit]");
+      if (ed) {
+        const c = f.ce.find((x) => x.id === ed.dataset.eqedit);
+        if (c) { reset(); Object.assign(m, { id: c.id, name: c.t, emo: c.emo, w: c.w, kg: c.kgs.map((v) => String(v).replace(".", ",")).join(" "), cat: c.cat || "" }); m.ex = new Set(c.ex); draw2(); }
+        return;
+      }
+      if (e.target.closest("#eq-del")) {
+        if (!confirm(`Удалить «${m.name}» из инвентаря?`)) return;
+        f.ce = f.ce.filter((x) => x.id !== m.id);
+        for (const p of Object.keys(f.equip)) f.equip[p] = f.equip[p].filter((x) => x !== m.id);
+        draw(); ov2.close();
+        return;
+      }
+      if (e.target.closest("#eq-save")) {
+        if (!valid()) return;
+        const c = catOf();
+        const item = { id: m.id || `e${Math.max(0, ...f.ce.map((x) => Number(x.id.slice(1)) || 0)) + 1}`, t: m.name.trim(), emo: m.emo, w: m.w, kgs: m.w ? parseKgs(m.kg) : [], ex: c ? [...c.ex] : [...m.ex], lbl: c ? c.lbl : "", cat: m.cat || "" };
+        if (m.id) f.ce = f.ce.map((x) => (x.id === m.id ? { ...x, ...item } : x));
+        else {
+          f.ce = [...f.ce, item];
+          f.equip[f.place] = [...new Set([...(f.equip[f.place] || []), item.id])];
+        }
+        draw(); ov2.close();
+      }
+    });
   };
   draw();
   const toggle = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); };
@@ -953,10 +1057,11 @@ function openTrainForm() {
     if (!id) return;
     const arr = new Set(f.equip[f.place]);
     if (e.target.checked) arr.add(id); else arr.delete(id);
-    f.equip[f.place] = TR.EQUIP.map((x) => x.id).filter((x) => arr.has(x));
+    f.equip[f.place] = [...TR.EQUIP.map((x) => x.id), ...f.ce.map((c) => c.id)].filter((x) => arr.has(x));
     draw();
   });
   ov.addEventListener("click", (e) => {
+    if (e.target.closest("[data-eqopen]")) { openEq(); return; }
     const bd = e.target.closest("[data-bdel]");
     if (bd) { f.rm.add(bd.dataset.bdel); draw(); return; }
     if (e.target.closest("[data-xadd]")) {
@@ -1003,6 +1108,7 @@ function openTrainForm() {
         bandKg, bandStyle: clean, extraBands, removedBands: [...f.rm], dumbbells,
         place: f.place, days: [...f.days].sort((a, b) => a - b), equip: f.equip, minutes: f.minutes, level: f.level, limits: [...f.limits],
         dumbbellKg: dumbbells.length ? Math.max(...dumbbells) : 0,
+        customEq: TR.normCfg({ customEq: f.ce }, todayStr()).customEq,
         startedAt: (state.trainCfg && state.trainCfg.startedAt) || todayStr(), moves: mv, vpref: cur.vpref || {}, updatedAt: serverTimestamp(),
       }).catch(writeFail);
       ov.close();
@@ -1184,8 +1290,9 @@ function recText(it, date) {
     const b = last.length ? { ids: last, kg: comboKg(last) } : bestCombo(bigMuscle(it.id) ? 9 : 4.5);
     return b ? `${bandName(comboKey(b.ids))} · около ${fmt(b.kg)} кг` : "";
   }
-  if (it.vk === "db") {
-    const dbs = trainCfg().dumbbells || [];
+  const wtR = wtOf(it.vk);
+  if (wtR) {
+    const dbs = wtR.kgs;
     if (!dbs.length) return "";
     const last = lastDb(it.id, date), t = bigMuscle(it.id) ? 8 : 3;
     const v = last || dbs.reduce((b, x) => (Math.abs(x - t) < Math.abs(b - t) ? x : b), dbs[0]);
@@ -1320,12 +1427,13 @@ function exProgressHtml() {
   const rep = (n) => { const m = Math.abs(n) % 100, l = m % 10; return m > 10 && m < 20 ? "повторов" : l === 1 ? "повтор" : l >= 2 && l <= 4 ? "повтора" : "повторов"; };
   const trend = (v, p) => (v > 0 ? `<i class="xt up">▲ +${v}${p !== null ? ` · ${p >= 0 ? "+" : ""}${p}%` : ""}</i>` : v < 0 ? `<i class="xt down">▼ ${v}${p !== null ? ` · ${p}%` : ""}</i>` : `<i class="xt">без изменений</i>`);
   const exBlock = ({ id, h }) => {
-    const last = h[h.length - 1], pr = h.reduce((b, x) => (x.total > b.total ? x : b), h[0]);
-    const dl = h.length > 1 ? last.total - h[0].total : 0;
+    const last = h[h.length - 1], wtd = h.some((x) => x.wkg > 0), pr = h.reduce((b, x) => ((wtd ? x.vol > b.vol : x.total > b.total) ? x : b), h[0]);
+    const dl = h.length > 1 ? (wtd ? Math.round((last.vol - h[0].vol) * 10) / 10 : last.total - h[0].total) : 0;
+    const maxKg = wtd ? Math.max(...h.map((x) => x.wkg)) : 0;
     const bestSet = Math.max(...h.map((x) => x.best));
     return `<div class="xe"><div class="xe-h"><b>${esc(TR.EXERCISES[id].name)}</b>${h.length > 1 ? trend(dl, null) : ""}</div>
-      <p class="xe-last"><small>${dd(last.date)}</small>${last.sets.join(" · ")}${last.band ? ` <em>${esc(last.band)}</em>` : ""}${last.kg ? ` <em>≈${fmt(last.kg)} кг</em>` : ""}</p>
-      <div class="xe-chips"><span class="rc">🏆 рекорд <b>${pr.total}</b> <small>(${dd(pr.date)})</small></span><span class="rc2">лучший <b>${bestSet}</b></span><span class="rc2"><b>${h.length}</b> трен.</span></div>${h.length > 1 ? `<div class="xe-sp">${sparkLine(h.slice(-8).map((x) => x.total))}</div>` : ""}</div>`;
+      <p class="xe-last"><small>${dd(last.date)}</small>${last.sets.join(" · ")}${last.band ? ` <em>${esc(last.band)}</em>` : ""}${last.kg ? ` <em>≈${fmt(last.kg)} кг</em>` : ""}${last.wkg ? ` <em>${fmt(last.wkg)} кг</em>` : ""}</p>
+      <div class="xe-chips"><span class="rc">🏆 рекорд <b>${wtd ? `${pr.total} × ${fmt(pr.wkg || 1)} кг` : pr.total}</b> <small>(${dd(pr.date)})</small></span><span class="rc2">лучший <b>${bestSet}</b></span>${maxKg ? `<span class="rc2">макс. вес <b>${fmt(maxKg)} кг</b></span>` : ""}<span class="rc2"><b>${h.length}</b> трен.</span></div>${h.length > 1 ? `<div class="xe-sp">${sparkLine(h.slice(-8).map((x) => (wtd ? x.vol : x.total)))}</div>` : ""}</div>`;
   };
   // Группы мышц: свёрнутая карточка с главными цифрами, внутри упражнения
   const groups = {};
@@ -1413,7 +1521,7 @@ function openTrainFinish(date) {
   };
   for (const c of new Set(Object.values(old.ebands || {}).flatMap((s) => comboIds(s)))) if (!(c in f.bands)) f.bands[c] = 0;
   const have = cfg.equip[cfg.place] || [];
-  const list = have.map((id) => TR.EQUIP.find((e) => e.id === id)).filter(Boolean);
+  const list = have.map((id) => TR.EQUIP.find((e) => e.id === id) || (cfg.customEq || []).find((c) => c.id === id)).filter(Boolean);
   const eff = (id) => Number(cfg.bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
   const { k, n } = trainProgress(date, ses);
   const ov = openSheet(`<div class="sheet-head"><h2>Завершить тренировку</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="fn-body"></div>`, { bw: true });
@@ -1425,7 +1533,7 @@ function openTrainFinish(date) {
       <div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-prog">💭</span><div><b>Как вы себя чувствуете?</b><small>1 — совсем легко, 5 — на пределе</small></div></div>
         <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="fv fv${v}${f.feel === v ? " on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div></div>
       <div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-plan">🎒</span><div><b>Какой инвентарь использовали</b></div></div>
-        <div class="tf-inv">${list.map((e) => `<label class="tf-iv${f.used.has(e.id) ? " on" : ""}"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}><i>${EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div></div>
+        <div class="tf-inv">${list.map((e) => `<label class="tf-iv${f.used.has(e.id) ? " on" : ""}"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}><i>${e.emo || EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div></div>
       ${band ? `<div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-band">🎨</span><div><b>Резинки: цвета и вес, кг</b></div></div>
         <small class="foot-note" style="margin:0 4px 4px">Вес подставлен по типовому набору из 5 трубок: жёлтая 10, красная 15, синяя 20, зелёная 25, чёрная 30 фунтов (4,5 · 6,8 · 9,1 · 11,3 · 13,6 кг). Точные значения зависят от продавца: поправьте один раз, приложение запомнит.</small>
         ${TR.BAND_COLORS.map((c) => {
