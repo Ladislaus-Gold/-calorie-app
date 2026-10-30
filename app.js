@@ -13,7 +13,7 @@ import {
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=26";
-import { createTrainUI } from "./trainui.js?v=78";
+import { createTrainUI } from "./trainui.js?v=79";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 338;
-const APP_VERSION_LABEL = "3.37"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 339;
+const APP_VERSION_LABEL = "3.38"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -201,6 +201,7 @@ const state = {
   goal: 2000,
   repDays: 7,
   repCustom: null,
+  repMenu: false,
   ai: { busy: false, error: "", detail: "", step: "" },
   aiLast: null,
   insOpen: false, trainOpen: false, trainDayOpen: false,
@@ -1209,8 +1210,8 @@ function viewProducts() {
 
 /* ================= Отчёты ================= */
 /* ================= Аналитика: период, итоги, выводы, анализ через Gemini ================= */
-const REP_PRESETS = [7, 14, 30, 90, 365, 0]; // 0 = за всё время
-const presetLabel = (v) => (v === 0 ? "Всё" : v === 365 ? "Год" : `${v} дн.`);
+const REP_PRESETS = [1, 7, 14, 30, 90, 365, 0]; // 1 = сегодня, 0 = за всё время
+const presetLabel = (v) => (v === 0 ? "Всё" : v === 1 ? "Сегодня" : v === 365 ? "Год" : `${v} дн.`);
 const isSoupName = (n) => /суп|борщ|щи\b|бульон|солянк|харчо|окрошк|\bуха\b|рассольник|лапш/i.test(String(n || ""));
 const MEAL_NAME = Object.fromEntries(MEALS.map((m) => [m.id, m.name]));
 
@@ -2002,6 +2003,7 @@ const R2I = {
   dumb: '<svg viewBox="0 0 24 24"><path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/></svg>',
   link: '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
   cal: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+  inf: '<svg viewBox="0 0 24 24"><path d="M7 8.5a3.5 3.5 0 1 0 0 7c3.5 0 6-7 10-7a3.5 3.5 0 1 1 0 7c-4 0-6.5-7-10-7z"/></svg>',
 };
 const r2Ch = (color, ic, title, right = "") => `<div class="r2-ch"><span class="r2-ic" style="background:${color}">${R2I[ic]}</span><h2>${title}</h2>${right}</div>`;
 const r2Lk = (act, text, extra = "") => `<button type="button" class="r2-lk" data-act="${act}"${extra}>${text}<svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg></button>`;
@@ -2011,6 +2013,86 @@ const r2Row = (color, text) => {
   const i = text.indexOf(": "), head = i > 0 && i <= 42 ? text.slice(0, i) : "";
   return `<div class="r2-rw"><span class="r2-dot" style="background:${color}"></span><div class="tx">${head ? `<b>${esc(head)}</b><span>${esc(text.slice(i + 2))}</span>` : `<span class="one">${esc(text)}</span>`}</div></div>`;
 };
+
+const dayWord = (n) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "день" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "дня" : "дней"}`;
+// «Сегодня»: всё за текущий день на одном экране
+function reportTodayHtml(a) {
+  const today = todayStr(), p = a.per[0], plan = a.plan, goal = state.goal;
+  const hd = healthOn(today), hr = hd ? hrDoc(hd) : null;
+  const hasAny = p.has || p.hyd > 0 || p.actMin > 0 || p.steps > 0 || p.sleep > 0 || (hr && hr.max > 0);
+  if (!hasAny) return `<div class="empty"><b>Сегодня пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится картина дня.</div>`;
+  const kp = p.has ? p.kcal / goal : 0, pp = p.has && plan && plan.protein ? p.protein / plan.protein : 0, wp = p.target ? p.hyd / p.target : 0;
+  let lead;
+  if (!p.has) lead = "Еда сегодня ещё не записана.";
+  else {
+    const rem = Math.round(goal - p.kcal), remP = plan && plan.protein ? Math.round(plan.protein - p.protein) : 0;
+    lead = rem >= 0 ? `Осталось ${r2Num(rem)} ккал${plan && plan.protein ? (remP > 0 ? ` и ${r2Num(remP)} г белка` : ", белок в норме") : ""}.` : `Цель по калориям превышена на ${r2Num(-rem)} ккал.`;
+  }
+  const hero = `<section class="r2-card r2-hero"><div class="r2-hr"><svg viewBox="0 0 120 120" width="104" height="104" aria-hidden="true">${r2Ring(52, kp, "#FF3B30")}${r2Ring(38, pp, "#34C759")}${r2Ring(24, wp, "#0A84FF")}</svg>
+    <div class="r2-hl">
+      <div><b style="color:#FF3B30">${p.has ? r2Num(p.kcal) : "—"}</b> <span>из ${r2Num(goal)} ккал${p.has ? ` · ${Math.round(kp * 100)}%` : ""}</span></div>
+      <div><b style="color:#2faa4f">${p.has ? r2Num(p.protein) : "—"}</b> <span>${plan && plan.protein ? `из ${plan.protein} г белка${p.has ? ` · ${Math.round(pp * 100)}%` : ""}` : "г белка"}</span></div>
+      <div><b style="color:#0A84FF">${r2Num(p.hyd)}</b> <span>из ${r2Num(p.target)} мл воды · ${Math.round(wp * 100)}%</span></div>
+    </div></div><p class="r2-lead">${esc(lead)}</p></section>`;
+
+  // пульс за день: диапазон, средний, в покое (почасовых замеров приложение не хранит)
+  let pulse;
+  if (hr && hr.max > 0) {
+    const mn = hr.min > 0 ? hr.min : hr.rest || hr.avg || hr.max;
+    const lo = Math.min(40, Math.floor((Math.min(mn, hr.rest || mn)) / 10) * 10), hi = Math.max(180, Math.ceil(hr.max / 10) * 10), pc = (v) => ((v - lo) / (hi - lo)) * 100;
+    const prev = healthOn(addDays(today, -1)), prevRest = prev ? Number(prev.restingHr) || 0 : 0;
+    const dRest = hr.rest > 0 && prevRest > 0 ? Math.round(hr.rest - prevRest) : null;
+    const upd = hd && hd.updatedAt ? timeOf(hd.updatedAt) : "";
+    pulse = `<section class="r2-card">${r2Ch("#FF3B30", "heart", "Пульс сегодня")}
+      <div class="r2-big">${Math.round(hr.rest || hr.avg)}<small>уд/мин ${hr.rest ? "в покое" : "средний"}</small></div>
+      <div class="r2-sub">${upd ? `обновлено в ${upd}` : "по данным часов"}${dRest !== null ? ` · ${dRest === 0 ? "как вчера" : `<span class="${dRest < 0 ? "r2-up" : "r2-dn"}">${r2Sgn(dRest)}${Math.abs(dRest)}</span> к вчера`}` : ""}</div>
+      <div class="r2-gauge"><div class="tr"></div><div class="cap" style="left:${pc(mn).toFixed(1)}%;width:${Math.max(2, pc(hr.max) - pc(mn)).toFixed(1)}%"></div>${hr.avg ? `<div class="av" style="left:${pc(hr.avg).toFixed(1)}%"></div>` : ""}${hr.rest ? `<div class="rs" style="left:${pc(hr.rest).toFixed(1)}%"></div>` : ""}
+        <div class="lb" style="left:${Math.max(6, Math.min(94, pc(mn))).toFixed(1)}%;top:0"><b>${Math.round(mn)}</b>мин</div><div class="lb" style="left:${Math.max(6, Math.min(94, pc(hr.max))).toFixed(1)}%;top:0"><b>${Math.round(hr.max)}</b>макс</div>
+        <span class="sc" style="left:0;transform:none">${lo}</span><span class="sc" style="left:50%">${Math.round((lo + hi) / 2)}</span><span class="sc" style="right:0;left:auto;transform:none">${hi}</span></div>
+      <div class="r2-leg"><span><i style="background:#FF453A"></i>диапазон за сегодня</span>${hr.rest ? '<span><i style="background:#0A84FF"></i>в покое</span>' : ""}${hr.avg ? `<span><i style="background:var(--ink)"></i>средний ${Math.round(hr.avg)}</span>` : ""}</div></section>`;
+  } else pulse = `<section class="r2-card">${r2Ch("#FF3B30", "heart", "Пульс сегодня")}<p class="r2-sub" style="margin:0">Данных о пульсе за сегодня пока нет. Они приходят с часов Apple Watch через Health Auto Export.</p></section>`;
+
+  // калории по приёмам
+  const mealKc = (id) => p.list.filter((e) => e.meal === id).reduce((t, e) => t + (e.kcal || 0), 0);
+  const mealColors = { breakfast: "#FFCC00", lunch: "#34C759", dinner: "#5E5CE6", snack: "#FF3B30" };
+  const over = MEALS.map((m) => ({ m, v: mealKc(m.id), t: mealTarget(m.id) })).filter((x) => x.t > 0 && x.v > x.t * 1.1).sort((x, y) => y.v / y.t - x.v / x.t)[0];
+  const mealCard = p.has ? `<section class="r2-card">${r2Ch("#FF9F0A", "flame", "Калории по приёмам")}
+    ${MEALS.map((m) => { const v = mealKc(m.id), t = mealTarget(m.id); return `<div class="r2-mrow"><span class="n">${esc(m.name)}</span><span class="bar"><i style="width:${Math.min(100, t ? (v / t) * 100 : 0).toFixed(1)}%;background:${v > t * 1.1 ? "#FF3B30" : mealColors[m.id] || "#8E8E93"}"></i></span><span class="m"><b>${v ? r2Num(v) : "—"}</b> / ${r2Num(t)}</span></div>`; }).join("")}
+    <p class="r2-sub" style="margin:6px 0 0">${over ? `${esc(over.m.name)} выше нормы на ${r2Num(over.v - over.t)} ккал. ` : ""}Жиры ${r2Num(p.fat)} г · углеводы ${r2Num(p.carbs)} г${plan && plan.protein ? "" : ` · белок ${r2Num(p.protein)} г`}.</p></section>` : "";
+
+  // вода и кофеин: лента за день
+  const hydRows = [
+    ...(byDateIndex("water").get(today) || EMPTY).map((x) => ({ ts: createdMs(x), name: "Вода", sub: `засчитано ${r2Num(Number(x.ml) || 0)} мл`, v: Number(x.ml) || 0, c: "#0A84FF" })),
+    ...fluidItems(today).map((i) => ({ ts: i.ts, name: i.name, sub: itemCaf(i) > 0 ? `кофеин ${r2Num(itemCaf(i))} мг` : i.pct < 0 ? "алкоголь" : `засчитано ${r2Num(itemHyd(i))} мл`, v: i.ml, c: i.pct < 0 ? "#FF3B30" : itemCaf(i) > 0 ? "#8A5A3B" : "#30B0C7" })),
+  ].sort((x, y) => x.ts - y.ts);
+  const tl = (rows) => rows.map((r) => `<div class="r2-tl"><span class="t">${esc(r.t || "")}</span><i class="d" style="background:${r.c}"></i><span class="x">${esc(r.name)}<small>${esc(r.sub)}</small></span><span class="v">${esc(r.v)}</span></div>`).join("");
+  const hydShow = hydRows.slice(-8);
+  const hydCard = p.hyd > 0 || p.caf > 0 ? `<section class="r2-card">${r2Ch("#0A84FF", "drop", "Вода и кофеин")}
+    <div class="r2-big">${r2Num(p.hyd)}<small>мл из ${r2Num(p.target)}</small></div><div class="r2-pb"><i style="width:${Math.min(100, wp * 100).toFixed(1)}%;background:#0A84FF"></i></div>
+    ${hydShow.length ? `<div style="margin-top:8px">${tl(hydShow.map((r) => ({ ...r, t: timeOf(r.ts), v: r2Num(r.v) })))}${hydRows.length > hydShow.length ? `<p class="r2-sub" style="margin:6px 0 0">Показаны последние ${hydShow.length} из ${hydRows.length}</p>` : ""}</div>` : ""}
+    ${p.caf > 0 ? `<div class="r2-rw r2-sep"><div class="tx"><b>Кофеин за день</b><span>норма ${cafLimit()} мг</span></div><div class="v">${r2Num(p.caf)}<small>мг</small></div></div>` : ""}</section>` : "";
+
+  // сон прошлой ночи и шаги
+  const sl = sleepOn(today);
+  const deep = sl ? Number(sl.sleepDeepH) || 0 : 0, rem = sl ? Number(sl.sleepRemH) || 0 : 0, core = sl ? Math.max(0, p.sleep - deep - rem) : 0;
+  const tileSleep = sl ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#5E5CE6"></i>Сон прошлой ночи</div><div class="r2-big">${r2HM(p.sleep)}</div><div class="r2-sub">${deep > 0 ? `глубокий ${fmtDur(deep)}` : p.sleep < SLEEP_MIN ? `короче ${SLEEP_MIN} ч` : "в норме"}</div>${deep + rem > 0 ? `<div class="r2-sbar"><i style="width:${(deep / p.sleep * 100).toFixed(1)}%;background:#5E5CE6"></i><i style="width:${(rem / p.sleep * 100).toFixed(1)}%;background:#0A84FF"></i><i style="width:${(core / p.sleep * 100).toFixed(1)}%;background:#64D2FF"></i></div>` : ""}</section>` : "";
+  const tileSteps = p.steps > 0 ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#34C759"></i>Шаги</div><div class="r2-big">${r2Num(p.steps)}</div><div class="r2-sub">из ${r2Num(STEPS_GOAL)} · ${Math.round((p.steps / STEPS_GOAL) * 100)}%</div><div class="r2-pb" style="margin-top:20px"><i style="width:${Math.min(100, (p.steps / STEPS_GOAL) * 100).toFixed(1)}%;background:#34C759"></i></div></section>` : "";
+  const tiles = tileSleep || tileSteps ? `<div class="r2-g2${tileSleep && tileSteps ? "" : " one"}">${tileSleep}${tileSteps}</div>` : "";
+
+  // нагрузка
+  const actRows = [
+    ...workoutsOn(today).map((w) => ({ ts: (w.start && w.start.seconds ? w.start.seconds * 1000 : 0), t: timeOf(w.start), name: w.name || "Тренировка", sub: "Apple Watch", v: w.minutes ? `${r2Num(w.minutes)} мин` : "", c: "#FF2D55" })),
+    ...actOn(today).map((x) => ({ ts: createdMs(x), t: timeOf(x.createdAt), name: x.name || "Нагрузка", sub: "записано вручную", v: x.minutes ? `${r2Num(x.minutes)} мин` : "", c: "#34C759" })),
+  ].sort((x, y) => x.ts - y.ts);
+  const loadCard = actRows.length || p.actMin > 0 ? `<section class="r2-card">${r2Ch("#FF2D55", "dumb", "Нагрузка")}
+    <div class="r2-big">${r2Num(p.actMin)}<small>мин${p.burned > 0 ? ` · ${r2Num(p.burned)} ккал` : ""}</small></div>
+    ${actRows.length ? `<div style="margin-top:8px">${tl(actRows)}</div>` : ""}</section>` : "";
+  const trainCard = state.trainCfg ? trainDynCardHtml(today) : "";
+
+  return hero + pulse + mealCard + hydCard + tiles + loadCard + trainCard + `
+    <button type="button" class="r2-cta" data-act="openDay" data-d="${today}">Открыть дневник за сегодня</button>
+    <p class="foot-note" style="margin:10px 4px 0;text-align:center">Пульс показан диапазоном за день: почасовых замеров приложение не хранит.</p>`;
+}
 
 function viewReports() { return `<div class="dv hvw hrp r2">${viewReportsInner()}</div>`; }
 function viewReportsInner() {
@@ -2030,12 +2112,20 @@ function viewReportsInner() {
   const kper = grouped ? gIdx.map((i) => { const seg = a.per.slice(i, i + step).filter((x) => x.has); return seg.length ? seg.reduce((t, x) => t + x.kcal, 0) / seg.length : 0; }) : a.per.map((x) => (x.has ? x.kcal : 0));
   const active = (v) => (!state.repCustom && state.repDays === v ? "on" : "");
   const tab = state.rTab === "detail" ? "detail" : "over";
-  const presets = [[7, "7 дн"], [30, "30 дн"], [90, "90 дн"], [365, "Год"], [0, "Всё"]];
+  const presets = [[1, "Сегодня"], [7, "7 дн"], [30, "30 дн"], [90, "90 дн"], [365, "Год"]];
+  const isAll = !state.repCustom && state.repDays === 0, isToday = !state.repCustom && state.repDays === 1, special = !!state.repCustom || isAll;
+  const menu = state.repMenu ? `<div class="r2-dim" data-act="repMenu"></div><div class="r2-menu" role="menu">
+      <button type="button" role="menuitem" data-act="repCustom">${R2I.cal}<span class="tx">Свой период…</span>${state.repCustom ? '<b class="ck">✓</b>' : ""}</button>
+      <button type="button" role="menuitem" data-act="repAll">${R2I.inf}<span class="tx">Всё время<small>с ${esc(shortDate(earliestDate()))} · ${dayWord(Math.max(1, Math.round((parseD(todayStr()) - parseD(earliestDate())) / 86400000) + 1))}</small></span>${isAll ? '<b class="ck">✓</b>' : ""}</button></div>` : "";
+  const chip = special ? `<div class="r2-chip">${state.repCustom ? esc(periodText(days)) : `Всё время · с ${esc(shortDate(days[0]))}`}<button type="button" data-act="repReset" aria-label="Сбросить период">×</button></div>` : "";
+  const rngTxt = isToday ? `${esc(periodText(days))} · ${new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : `${esc(periodText(days))} · ${dayWord(n)} · еда записана в ${a.L} из ${n}${state.histBusy ? " · загружаю историю…" : ""}`;
   const head = `
-    ${pageHead("Статистика", "Отчёты", `<button type="button" class="iconbtn r2-cal${state.repCustom ? " on" : ""}" data-act="repCustom" aria-label="Свой период">${R2I.cal}</button>`)}
+    ${pageHead("Статистика", "Отчёты", `<button type="button" class="iconbtn r2-cal${special || state.repMenu ? " on" : ""}" data-act="repMenu" aria-label="Период: свой или всё время" aria-haspopup="menu" aria-expanded="${!!state.repMenu}">${R2I.cal}</button>${menu}`)}
     <div class="r2-sg" role="group" aria-label="Период">${presets.map(([v, t]) => `<button type="button" data-act="repDays" data-n="${v}" class="${active(v)}">${t}</button>`).join("")}</div>
-    <p class="r2-rng">${esc(periodText(days))} · ${n} дн. · еда записана в ${a.L} из ${n}${state.histBusy ? " · загружаю историю…" : ""}</p>
+    ${chip}
+    <p class="r2-rng">${rngTxt}</p>
     <div class="r2-sg r2-sgt" data-seg="rtab">${[["over", "Общее"], ["detail", "Детали"]].map(([v, t]) => `<button type="button" data-act="reportTab" data-v="${v}" class="${tab === v ? "on" : ""}">${t}</button>`).join("")}</div>`;
+  if (tab !== "detail" && isToday) return head + reportTodayHtml(a);
   if (tab === "detail") return head + reportDetailHtml(a, days) + `<p class="foot-note" style="margin:6px 4px 0">Нажмите на день, чтобы увидеть записи. Все записи хранятся в вашем аккаунте без ограничения по времени.</p>`;
 
   // сравнение с предыдущим периодом такой же длины
@@ -5663,11 +5753,15 @@ const actions = {
     const v = Number(ds.n);
     state.repDays = REP_PRESETS.includes(v) ? v : 7;
     state.repCustom = null;
+    state.repMenu = false;
     render();
     if (state.repDays === 0) loadHistory(FLOOR_DATE);
     else if (state.repDays > HISTORY_DAYS) loadHistory(addDays(todayStr(), -state.repDays));
   },
-  repCustom() { openCustomPeriod(); },
+  repCustom() { state.repMenu = false; render(); openCustomPeriod(); },
+  repMenu() { state.repMenu = !state.repMenu; render(); },
+  repAll() { state.repDays = 0; state.repCustom = null; state.repMenu = false; render(); loadHistory(FLOOR_DATE); },
+  repReset() { state.repDays = 7; state.repCustom = null; state.repMenu = false; render(); },
   pulseRange(ds) { state.pulseRange = Number(ds.v); state.pulseSel = null; lsSet("pulseRange", ds.v); render(); },
   pulseSel(ds) { const i = Number(ds.i); state.pulseSel = state.pulseSel === i ? null : i; render(); },
   aiRun() { runAi(); },
