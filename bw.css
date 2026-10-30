@@ -2487,6 +2487,45 @@ html body .bw-ov .tb-row.sel { box-shadow:0 0 0 2px #000, 0 6px 18px rgba(0,0,0,
 .dv.r2 .r2-rng { font-size: 13px; color: var(--sec); margin: 8px 2px 14px; }
 .dv.r2 .r2-cal.on { background: #000; color: #fff; }
 :root[data-theme="dark"] .dv.r2 .r2-cal.on { background: #fff; color: #000; }
+/* v3.38: меню периода, чип, экран «Сегодня» */
+.dv.r2 .head-actions { position: relative; }
+.dv.r2 .r2-dim { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .06); }
+.dv.r2 .r2-menu { position: absolute; right: 0; top: 52px; z-index: 41; width: 262px; border-radius: 16px; background: rgba(250, 250, 252, .94); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); box-shadow: 0 0 0 .5px rgba(0, 0, 0, .1), 0 12px 40px rgba(0, 0, 0, .22); overflow: hidden; }
+:root[data-theme="dark"] .dv.r2 .r2-menu { background: rgba(44, 44, 46, .94); }
+.dv.r2 .r2-menu button { display: flex; align-items: center; gap: 12px; width: 100%; height: 52px; padding: 0 16px; border: 0; background: none; font: inherit; font-size: 17px; color: var(--ink); text-align: left; }
+.dv.r2 .r2-menu button + button { border-top: .5px solid var(--hair); }
+.dv.r2 .r2-menu .tx { flex: 1; }
+.dv.r2 .r2-menu small { display: block; font-size: 12px; color: var(--sec); margin-top: 1px; }
+.dv.r2 .r2-menu svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.dv.r2 .r2-menu .ck { color: #0A84FF; font-weight: 700; }
+.dv.r2 .r2-chip { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; height: 36px; padding: 0 6px 0 14px; border-radius: 18px; background: var(--fill); width: max-content; max-width: 100%; font-size: 14px; font-weight: 600; color: var(--ink); }
+.dv.r2 .r2-chip button { width: 26px; height: 26px; border-radius: 13px; border: 0; background: rgba(60, 60, 67, .18); display: grid; place-items: center; color: var(--ink); font-size: 15px; line-height: 1; padding: 0; }
+:root[data-theme="dark"] .dv.r2 .r2-chip button { background: rgba(255, 255, 255, .18); }
+.dv.r2 .r2-gauge { position: relative; height: 104px; margin: 18px 0 6px; }
+.dv.r2 .r2-gauge .tr { position: absolute; left: 0; right: 0; top: 52px; height: 12px; border-radius: 6px; background: var(--fill); }
+.dv.r2 .r2-gauge .cap { position: absolute; top: 48px; height: 20px; border-radius: 10px; background: linear-gradient(90deg, #FF9F9A, #FF453A); }
+.dv.r2 .r2-gauge .av { position: absolute; top: 44px; width: 3px; height: 28px; border-radius: 2px; background: var(--ink); margin-left: -1px; }
+.dv.r2 .r2-gauge .rs { position: absolute; top: 48px; width: 20px; height: 20px; border-radius: 10px; background: #fff; border: 3px solid #0A84FF; margin-left: -10px; box-sizing: border-box; }
+.dv.r2 .r2-gauge .lb { position: absolute; font-size: 12px; color: var(--sec); transform: translateX(-50%); white-space: nowrap; text-align: center; }
+.dv.r2 .r2-gauge .lb b { display: block; font-size: 17px; color: var(--ink); font-weight: 700; }
+.dv.r2 .r2-gauge .sc { position: absolute; top: 78px; font-size: 11px; color: var(--sec); transform: translateX(-50%); }
+.dv.r2 .r2-mrow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.dv.r2 .r2-mrow .n { width: 74px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.dv.r2 .r2-mrow .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--fill); overflow: hidden; }
+.dv.r2 .r2-mrow .bar i { display: block; height: 100%; border-radius: 5px; }
+.dv.r2 .r2-mrow .m { min-width: 92px; text-align: right; font-size: 13px; color: var(--sec); font-variant-numeric: tabular-nums; }
+.dv.r2 .r2-mrow .m b { color: var(--ink); font-size: 15px; }
+.dv.r2 .r2-tl { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: .5px solid var(--hair); }
+.dv.r2 .r2-tl:first-child { border-top: 0; }
+.dv.r2 .r2-tl .t { width: 44px; font-size: 13px; color: var(--sec); font-variant-numeric: tabular-nums; }
+.dv.r2 .r2-tl .d { width: 10px; height: 10px; border-radius: 5px; flex: none; }
+.dv.r2 .r2-tl .x { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.dv.r2 .r2-tl .x small { display: block; font-size: 12px; color: var(--sec); font-weight: 400; }
+.dv.r2 .r2-tl .v { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.dv.r2 .r2-pb { height: 12px; border-radius: 6px; background: var(--fill); overflow: hidden; margin-top: 12px; }
+.dv.r2 .r2-pb i { display: block; height: 100%; border-radius: 6px; }
+.dv.r2 .r2-sbar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; margin-top: 12px; }
+
 .dv.r2 .iconbtn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .dv.r2 .r2-card { background: #fff; border: .5px solid var(--hair); border-radius: 24px; box-shadow: var(--cardsh); padding: 16px; margin-bottom: 14px; color: var(--ink); }
