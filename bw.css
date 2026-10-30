@@ -2471,3 +2471,4 @@ html body .bw-ov .tb-row.sel { box-shadow:0 0 0 2px #000, 0 6px 18px rgba(0,0,0,
 .cp-list { display:grid; gap:8px; }
 .cp-list .tb-row { box-sizing:border-box; width:100%; max-width:100%; min-width:0; }
 .cp-tx b { white-space:normal; overflow-wrap:anywhere; }
+.ex-stats:has(.st:nth-child(2):last-child) { grid-template-columns:repeat(2,1fr); }
