@@ -1625,17 +1625,28 @@ function trainPlanData(from, to) {
 // Динамика: как меняются выполнение, тяжесть и вес резинок по тренировкам плана (отдельно от Apple Health)
 function trainDynCardHtml(day) {
   if (!state.trainCfg) return "";
-  const today = todayStr();
-  const mon0 = TR.mondayOf(addDays(today, -49));
-  const st = trainStats(mon0, today);
+  const cfg = trainCfg(), today = todayStr();
+  const st = trainStats(addDays(today, -49), today);
   const logs = finishedLogs().sort((p, q) => (p.date < q.date ? -1 : 1));
   if (!st.planned && !logs.length) return "";
-  const weeks = Array.from({ length: 8 }, (_, i) => addDays(mon0, i * 7));
-  const wk = weeks.map((w) => ({ w, x: st.weeks[w] || { plan: 0, done: 0 } }));
-  const bars = wk.map(({ w, x }) => { const p = x.plan ? Math.round((x.done / x.plan) * 100) : 0; return `<div class="col">${x.plan && p > 0 ? `<i class="bv">${p}</i>` : ""}<div class="${x.plan ? "b" : "b zero"}" style="height:${x.plan ? Math.max(3, p) : 2}%" title="${esc(dateShort(w))}: ${p}%"></div></div>`; }).join("");
-  const labels = `<div class="chart-labels">${wk.map(({ w }) => `<span>${esc(dateShort(w).split(" ")[0])}</span>`).join("")}</div>`;
-  const last = logs.slice(-12);
-  const feelBars = last.map((l) => `<div class="col"><div class="b${Number(l.feel) >= 4 ? " over" : ""}" style="height:${Math.max(8, (Number(l.feel) || 0) * 20)}%" title="${esc(dateShort(l.date))}: ${esc(feelLabel(Number(l.feel)))}"></div></div>`).join("");
+  const planned = (d) => d >= cfg.startedAt && (!!TR.sessionType(cfg, d) || ((((trainLogOn(d) || {}).custom) || []).length > 0));
+  const wkCount = (mon) => { let p = 0, f = 0; for (let i = 0; i < 7; i++) { const d = addDays(mon, i); if (d > today && !trainFinished(d)) { if (planned(d)) p++; continue; } if (planned(d) || trainFinished(d)) { p++; if (trainFinished(d)) f++; } } return { p, f }; };
+  const mon = TR.mondayOf(today);
+  const cur = wkCount(mon);
+  const DN = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const strip = DN.map((n, i) => {
+    const d = addDays(mon, i), fin = trainFinished(d), pl = planned(d);
+    const cls = fin ? "done" : pl ? (d < today ? "miss" : "todo") : "rest";
+    return `<div class="tp-d ${cls}${d === today ? " today" : ""}"><i>${fin ? "✓" : pl ? (d < today ? "✕" : "") : "·"}</i><span>${n}</span></div>`;
+  }).join("");
+  const wlab = (s) => `${Number(s.slice(8))}.${s.slice(5, 7)}`;
+  const prev = [1, 2, 3].map((k) => { const m = addDays(mon, -7 * k), c = wkCount(m); return { m, c }; }).filter(({ m, c }) => c.p > 0 && addDays(m, 6) >= cfg.startedAt);
+  const prevRows = prev.map(({ m, c }) => `<div class="tp-wk"><span>${esc(wlab(m))}–${esc(wlab(addDays(m, 6)))}</span><div class="bar"><i style="width:${Math.round((c.f / c.p) * 100)}%"></i></div><b>${c.f} из ${c.p}</b></div>`).join("");
+  const word = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
+  const last = logs.slice(-5).reverse();
+  const fcls = (v) => (v >= 4 ? "f4" : v === 3 ? "f3" : "f2");
+  const feelRows = last.map((l) => { const v = Number(l.feel); return `<div class="tp-fl"><span>${esc(wlab(l.date))}</span><b class="${fcls(v)}">${v ? esc(feelLabel(v)) : "Без оценки"}</b></div>`; }).join("");
+  const l7 = logs.slice(-7).map((l) => Number(l.feel)).filter(Boolean), heavy = l7.filter((v) => v >= 4).length;
   const bandRows = TR.BAND_COLORS.map((c) => {
     const pts = logs.filter((l) => l.bands && l.bands[c.id] > 0).map((l) => l.bands[c.id]);
     if (!pts.length) return "";
@@ -1643,31 +1654,15 @@ function trainDynCardHtml(day) {
     const up = pts[pts.length - 1] - pts[0];
     return `<div class="tr-band-r"><i style="--c:${c.hex}"></i><span>${c.t}</span><b>${fmt(pts[pts.length - 1])} кг</b><small>${seq.length > 1 ? seq.map((v) => fmt(v)).join(" → ") + " кг" : "вес не менялся"}${seq.length > 1 ? (up > 0 ? ", растёт" : up < 0 ? ", снижен" : "") : ""}</small></div>`;
   }).join("");
-  const wDone = wk.filter(({ x }) => x.plan);
-  const pctOf = (x) => (x.plan ? Math.round((x.done / x.plan) * 100) : 0);
-  const wlab = (s) => `${Number(s.slice(8))}.${s.slice(5, 7)}`;
-  const nowW = wk[wk.length - 1].x, firstW = wDone[0], lastW = wDone[wDone.length - 1];
-  const word = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
-  // Подписи: столбики выполнения подписаны датой понедельника (дд.мм), столбики самочувствия числом оценки над ними и датой тренировки под ними
-  const barsFixed = wk.map(({ w, x }) => { const p = pctOf(x); return `<div class="col">${x.plan && p > 0 ? `<i class="bv">${p}%</i>` : ""}<div class="${x.plan ? "b" : "b zero"}" style="height:${x.plan ? Math.max(3, p) : 2}%" title="неделя с ${esc(wlab(w))}: ${p}%"></div></div>`; }).join("");
-  const labelsFixed = `<div class="chart-labels">${wk.map(({ w }) => `<span>${esc(wlab(w))}</span>`).join("")}</div>`;
-  const feelBars2 = last.map((l) => `<div class="col"><i class="bv">${Number(l.feel) || "–"}</i><div class="b${Number(l.feel) >= 4 ? " over" : ""}" style="height:${Math.max(8, (Number(l.feel) || 0) * 20)}%" title="${esc(dateShort(l.date))}: ${esc(feelLabel(Number(l.feel)))}"></div></div>`).join("");
-  const flab = (s) => (last.length > 8 ? String(Number(s.slice(8))) : wlab(s)); // при 9+ столбиках дд.мм не помещается: подписываем числом месяца
-  const feelLabels = `<div class="chart-labels">${last.map((l) => `<span>${esc(flab(l.date))}</span>`).join("")}</div>`;
-  const tiles = wDone.length ? `<div class="dn-tiles">
-      <div class="dn-t t-g"><b>${nowW.plan ? `${nowW.done} из ${nowW.plan}` : "—"}</b><span>${nowW.plan ? "упражнений сделано на этой неделе" : "на этой неделе тренировок по плану нет"}</span></div>
-      <div class="dn-t t-y"><b>${st.daysDone} из ${st.days}</b><span>тренировок завершено за 8 недель</span></div>
-      <div class="dn-t t-p"><b>${st.streak}</b><span>${word(st.streak, "тренировка", "тренировки", "тренировок")} подряд без пропусков</span></div></div>` : "";
-  const trend = wDone.length >= 2 ? `Сейчас вы выполняете ${pctOf(lastW.x)}% плана, а на первой неделе с планом было ${pctOf(firstW.x)}%.` : "Пока есть одна неделя с планом. Сравнение появится, когда их будет хотя бы две.";
   return `<section class="card">
     <div class="card-top fl-top"><span class="fl-ic sl-sq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><h2 class="h2">Тренировки по плану</h2></div>
-    <p class="chart-note" style="margin:0 0 12px">Здесь собрано то, что вы делали в разделе «Тренировки»: упражнения вашего плана с отметками «сделано». Тренировки с Apple Watch сюда не входят, они показаны выше.</p>
-    ${tiles}
-    <p class="tr-lab" style="margin-top:0"><b>Сколько упражнений плана вы сделали</b></p>
-    <div class="chart tr-feel-chart">${barsFixed}</div>${labelsFixed}
-    <p class="chart-note">Один столбик — одна неделя, под ним дата понедельника. Число над столбиком — сколько процентов запланированных упражнений вы сделали (100% — всё). ${trend}</p>
-    ${last.length ? `<p class="tr-lab" style="margin-top:16px"><b>Как вы себя чувствовали после тренировок</b></p><div class="chart tr-feel-chart">${feelBars2}</div>${feelLabels}<p class="chart-note">Один столбик — одна тренировка (последние ${last.length}), под ним ${last.length > 8 ? "число месяца" : "дата"}. Число над столбиком — ваша оценка от 1 до 5: 1 — очень легко, 5 — очень тяжело. Красным выделены тяжёлые (4 и 5): если их много подряд, нагрузку стоит снизить.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Оценка самочувствия появится после первой завершённой тренировки.</p>`}
-    ${bandRows ? `<p class="tr-lab" style="margin-top:16px"><b>Резинки: какой вес вы берёте сейчас</b></p>${bandRows}<p class="chart-note">Слева цвет резинки, справа текущий вес. Стрелками показано, как вес менялся.</p>` : ""}
+    <p class="tp-sub">Ваши тренировки из раздела «Тренировки». Apple Watch сюда не входит.</p>
+    ${cur.p ? `<div class="tp-head"><b>${cur.f} из ${cur.p}</b><span>${word(cur.p, "тренировка", "тренировки", "тренировок")} на этой неделе</span></div>` : `<div class="tp-head"><span style="font-size:17px">На этой неделе по плану отдых</span></div>`}
+    <div class="tp-week">${strip}</div>
+    ${prevRows ? `<p class="tp-h">Прошлые недели</p>${prevRows}` : ""}
+    ${st.streak ? `<p class="tp-note">Подряд без пропусков: ${st.streak} ${word(st.streak, "тренировка", "тренировки", "тренировок")}.</p>` : ""}
+    ${last.length ? `<p class="tp-h" style="margin-top:22px">Как давались тренировки</p>${feelRows}<p class="tp-note">${l7.length ? `Из последних ${l7.length} ${word(l7.length, "оценённой тренировки", "оценённых тренировок", "оценённых тренировок")} тяжёлых было ${heavy}. ` : ""}Если тяжёлых много подряд, нагрузку стоит снизить.</p>` : `<p class="tp-note">Оценка появится после первой завершённой тренировки.</p>`}
+    ${bandRows ? `<p class="tp-h" style="margin-top:22px">Резинки: какой вес вы берёте сейчас</p>${bandRows}<p class="tp-note">Слева цвет резинки, справа текущий вес. Стрелками показано, как вес менялся.</p>` : ""}
   </section>`;
 }
 
