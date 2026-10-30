@@ -1321,6 +1321,12 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
 }
 
 // Своё упражнение, добавленное пользователем в день: spec { n, id, group, sets, reps, minutes, secs }
+// Кардио, доступное по оборудованию и месту из анкеты (для замены кардио)
+export function cardioOptions(cfgRaw, date) {
+  const cfg = normCfg(cfgRaw, date);
+  const ctx = { have: haveOf(cfg), place: cfg.place, level: cfg.level, limits: new Set(), goal: "maintain", bump: 0, vpref: cfg.vpref, custom: cfg.customEq, weeks: 0 };
+  return Object.keys(EXERCISES).filter((id) => EXERCISES[id].kind === "cardio" && pickVariant(EXERCISES[id], ctx));
+}
 export const GROUP_OF = (ex) => (ex.kind === "cardio" ? "cardio" : ex.warm ? "warm" : ex.kind === "stretch" ? "cool" : "main");
 const clampN = (v, lo, hi, d) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x > 0 ? Math.max(lo, Math.min(hi, x)) : d; };
 export function customItem(spec, cfgRaw, date) {
@@ -1390,7 +1396,7 @@ function jointWarm(mainItems, ctx, count) {
 
 // Чем заменять упражнения пропущенной группы мышц (по типу тренировки): берём ближайшую подходящую группу, где ещё есть что делать
 const SKIP_REPL = { A: ["legs", "glutes", "core", "back"], B: ["back", "legs", "core", "glutes"], C: ["core", "chest", "back", "legs"] };
-export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds, skip, exAdv) {
+export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds, skip, exAdv, cardioId) {
   const cfg = normCfg(cfgRaw, date);
   const type = sessionType(cfg, date);
   if (!type) return null;
@@ -1452,7 +1458,10 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   }
   const left = budget - spent;
   if (left >= 150 && cardioEx) cardioMin = Math.min(15, cardioMin + Math.floor(left / 60));
-  const fin = cardioEx && cardioMin > 0 ? [itemFor(cardioEx, ctx, "cardio", 1, cardioMin)] : [];
+  // Своё кардио: выбранное упражнение заменяет основное кардио в конце (разминка остаётся ходьбой)
+  const chosen = cardioId && EXERCISES[cardioId] && EXERCISES[cardioId].kind === "cardio" && pickVariant(EXERCISES[cardioId], ctx) ? EXERCISES[cardioId] : null;
+  const finEx = chosen || cardioEx;
+  const fin = finEx && cardioMin > 0 ? [itemFor(finEx, ctx, "cardio", 1, cardioMin)] : [];
   const warm = [...warmCardio, ...jointWarm(main, ctx, nMob)];
   const items = [...warm, ...main, ...fin, ...cool];
   return {

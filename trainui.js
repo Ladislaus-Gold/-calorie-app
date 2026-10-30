@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=25";
+import * as TR from "./train.js?v=26";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -188,7 +188,7 @@ const trainSession = (d, extraAvoid, noSkip) => {
   const adv = d >= todayStr() ? trainAdvice(d) : null;
   const avoid = [...(adv ? adv.avoid : []), ...(d >= todayStr() ? painIds(d) : []), ...(((trainLogOn(d) || {}).swapped) || []), ...(extraAvoid || [])];
   const sk = noSkip ? [] : skipOf(d);
-  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null, adv ? adv.ex : null);
+  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null, adv ? adv.ex : null, (trainLogOn(d) || {}).cardioId || (state.trainCfg && state.trainCfg.cardioId) || "");
   const cs = customItems(d);
   if (!cs.length) return base;
   const rank = { warm: 0, main: 1, cardio: 2, cool: 3 };
@@ -882,6 +882,32 @@ function openTrainWorkout(date) {
 }
 
 // Добавление своего упражнения в день: выбираете упражнение, группу и объём, дальше оно идёт как обычное
+// Выбор кардио: заменяет основное кардио дня, по желанию запоминается на следующие тренировки
+function openCardioPick(date, it) {
+  const ids = TR.cardioOptions(state.trainCfg, date);
+  const f = { id: it.id, rem: true };
+  const ov = openSheet(`<div class="sheet-head"><h2>Какое кардио сделать?</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button></div><div id="cp-body"></div>`, { bw: true });
+  const body = $("#cp-body", ov);
+  const draw = () => {
+    body.innerHTML = `<p class="foot-note" style="margin:-4px 2px 10px">Время останется прежним, ${it.minutes} мин. Можно сменить и позже.</p>
+      <div class="tb-list cp-list">${ids.map((id) => { const e = TR.EXERCISES[id], th = thumbOf(id), v = (e.variants && e.variants[0]) || {}; return `<button type="button" class="tb-row cd${id === f.id ? " sel" : ""}" data-cp="${esc(id)}"><span class="tb-im">${th ? `<img src="${th}" alt="">` : `<i>${esc(e.name[0])}</i>`}</span><span class="cp-tx"><b>${esc(e.name)}</b><small>${esc(v.label || e.muscles)}</small></span>${id === it.id ? `<span class="cp-cur">Сейчас</span>` : ""}</button>`; }).join("")}</div>
+      <label class="cp-rem"><span>Запомнить как моё кардио</span><input type="checkbox" id="cp-rem" ${f.rem ? "checked" : ""}></label>
+      <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="cp-ok">Выбрать</button></div>`;
+  };
+  draw();
+  ov.addEventListener("change", (e) => { if (e.target.id === "cp-rem") f.rem = e.target.checked; });
+  ov.addEventListener("click", (e) => {
+    const r = e.target.closest("[data-cp]");
+    if (r) { f.id = r.dataset.cp; draw(); return; }
+    if (!e.target.closest("#cp-ok")) return;
+    if (f.id !== it.id) saveTrainLog(date, { cardioId: f.id });
+    if (f.rem && (state.trainCfg || {}).cardioId !== f.id) {
+      state.trainCfg = { ...(state.trainCfg || {}), cardioId: f.id };
+      setDoc(docRef("settings", "training"), { cardioId: f.id, updatedAt: serverTimestamp() }, { merge: true }).catch(writeFail);
+    }
+    ov.close(); render();
+  });
+}
 function openTrainAdd(date) {
   const f = { cat: "all", id: "", group: "", sets: 3, reps: 12, secs: 40, minutes: 10 };
   const cats = [["all", "Все"], ["main", "💪 Силовые"], ["cardio", "🏃 Кардио"], ["cool", "🧘 Растяжка"]];
@@ -1045,7 +1071,7 @@ function openTrainExercise(date, key) {
     <div class="ex-sec"><h4>Как выполнять</h4><ol class="ex-steps">${ex.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></div>
     <div class="ex-sec"><h4>Частые ошибки</h4><ul class="ex-mist">${ex.mistakes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p class="foot-note" style="margin:8px 2px 0">При боли в суставах, головокружении или боли в груди остановитесь.</p></div>
     ${exExtraHtml() ? `<div class="ex-sec"><h4>Ваши результаты</h4><div id="ex-extra">${exExtraHtml()}</div></div>` : ""}
-    ${it.custom ? `<button type="button" class="more-btn red" id="ex-del" style="margin:0 0 10px">Убрать из тренировки</button>` : it.group === "main" ? `<button type="button" class="more-btn" id="ex-swap" style="margin:0 0 10px">Заменить упражнение</button><p class="foot-note" id="ex-swap-msg" style="margin:0 2px 10px"></p>` : ""}
+    ${it.custom ? `<button type="button" class="more-btn red" id="ex-del" style="margin:0 0 10px">Убрать из тренировки</button>` : it.group === "cardio" ? `<button type="button" class="more-btn" id="ex-cardio" style="margin:0 0 10px">Сменить кардио</button>` : it.group === "main" ? `<button type="button" class="more-btn" id="ex-swap" style="margin:0 0 10px">Заменить упражнение</button><p class="foot-note" id="ex-swap-msg" style="margin:0 2px 10px"></p>` : ""}
     <button type="button" class="btn primary full" id="tx-done">${isDone() ? "Снять отметку" : "Отметить выполненным"}</button>`, { bw: true });
   $("#tx-done", ov).addEventListener("click", () => {
     if (selBand.length && !isDone() && (((trainLogOn(date) || {}).ebands) || {})[it.id] !== comboKey(selBand)) {
@@ -1073,6 +1099,8 @@ function openTrainExercise(date, key) {
     saveTrainLog(date, { custom: (((trainLogOn(date) || {}).custom) || []).filter((c) => c.n !== it.n), done: { [key]: false } });
     ov.close(); render();
   });
+  const cardioBtn = $("#ex-cardio", ov);
+  if (cardioBtn) cardioBtn.addEventListener("click", () => { ov.close(); openCardioPick(date, it); });
   const swapBtn = $("#ex-swap", ov);
   if (swapBtn) swapBtn.addEventListener("click", () => {
     const s2 = trainSession(date, [it.id]);
