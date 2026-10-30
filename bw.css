@@ -2444,3 +2444,15 @@ button.wk-edrow { cursor:pointer; }
 :root[data-theme="dark"] .fq.on { box-shadow:0 0 0 2px #fff; }
 #fn-body > .row:last-child { position:sticky; bottom:-1px; z-index:2; background:#fff; padding:10px 0 6px; margin-bottom:0; }
 :root[data-theme="dark"] #fn-body > .row:last-child { background:#1C1C1E; }
+/* v3.33: бегунок резинки / веса и ряд выбора в итогах */
+.rs.pk { margin-bottom:-2px; }
+.rs .th u { position:absolute; left:50%; top:50%; width:14px; height:14px; margin:-7px; border-radius:50%; box-shadow:0 0 0 1.5px rgba(0,0,0,.18) inset; }
+.rt .q + .rs.pk + .rl + .rh + .q { margin-top:4px; }
+.fx-pk { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:600; color:#8E8E93; touch-action:none; }
+.bds { display:flex; gap:6px; padding:2px 4px; background:rgba(120,120,128,.14); border-radius:16px; -webkit-user-select:none; user-select:none; }
+.bds .bd { width:26px; height:26px; margin:2px; border-radius:50%; background:var(--c); opacity:.55; }
+.bds .bd.on { opacity:1; box-shadow:0 0 0 3px #fff,0 0 0 5px var(--c); }
+.bds .bk { min-width:34px; padding:6px 4px; text-align:center; border-radius:12px; font-size:12px; font-weight:700; color:#8E8E93; }
+.bds .bk.on { background:#000; color:#fff; }
+:root[data-theme="dark"] .bds .bd.on { box-shadow:0 0 0 3px #1C1C1E,0 0 0 5px #fff; }
+:root[data-theme="dark"] .bds .bk.on { background:#fff; color:#000; }

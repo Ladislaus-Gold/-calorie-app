@@ -502,13 +502,48 @@ function openTrainWorkout(date) {
   const feelOf = (key) => Number((((trainLogOn(date) || {}).feels) || {})[key]) || 0;
   const prevFeel = (id) => { for (const l of state.trainLog.filter((x) => x.date < date && x.feels).sort((a, b) => (a.date < b.date ? 1 : -1))) for (const [k, v] of Object.entries(l.feels)) if (k.split(":")[1] === id && Number(v)) return Number(v); return 0; };
   const restNote = (it, v) => { const a = TR.exAdvFrom(v, prevFeel(it.id)); return `В следующий раз отдых между подходами: ${Math.max(20, (it.restBase || it.rest || 40) + (a ? a.rest : 0))} с`; };
+  // Резинка или вес на упражнение: бегунок по возрастанию тяжести, значение «как в прошлый раз» подставляется само
+  const isBandIt = (it) => it.vk === "band" || it.vk === "bandf";
+  const curBand = (it) => ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date) || "";
+  const curDb = (it) => Number((((trainLogOn(date) || {}).edb) || {})[it.id]) || lastDb(it.id, date) || 0;
+  const pickInfo = (it) => {
+    if (!it.reps) return null;
+    if (isBandIt(it)) {
+      const st = bandStops(), cur = curBand(it), ids = comboIds(cur).sort((a, b) => bandKgOf(b) - bandKgOf(a));
+      const idx = ids.length ? Math.max(0, st.findIndex((c) => c.id === ids[0])) : -1;
+      return { kind: "band", st, idx, label: ids.length ? `${cap1(bandName(cur))} · около ${fmt(comboKg(ids))} кг` : "выберите", hex: st.map((c) => c.hex), title: "Резинка", lo: "Лёгкая", hi: "Тяжёлая" };
+    }
+    const w = wtOf(it.vk);
+    if (w && w.kgs && w.kgs.length > 1) {
+      const kgs = w.kgs, cur = curDb(it), idx = cur ? kgs.reduce((b, v, i) => (Math.abs(v - cur) < Math.abs(kgs[b] - cur) ? i : b), 0) : -1;
+      return { kind: "db", st: kgs, idx, label: cur ? `${fmt(cur)} кг` : "выберите", hex: null, title: it.vk === "db" ? "Гантели" : "Вес", lo: `${fmt(kgs[0])} кг`, hi: `${fmt(kgs[kgs.length - 1])} кг` };
+    }
+    return null;
+  };
+  const pickHtml = (it) => {
+    const pi = pickInfo(it);
+    if (!pi) return "";
+    const n = pi.st.length, track = pi.hex ? `linear-gradient(90deg,${pi.hex.map((c, i) => `${c} ${Math.round((i / (n - 1)) * 100)}%`).join(",")})` : "linear-gradient(90deg,#D1D1D6,#6E6E73)";
+    const stops = pi.kind === "band" ? pi.st.map((c) => c.id).join(",") : pi.st.join(",");
+    const ticks = Array.from({ length: n - 2 }, (_, i) => `<i class="tk" style="--p:${(i + 1) / (n - 1)}"></i>`).join("");
+    const dot = pi.kind === "band" && pi.idx >= 0 ? `<u style="background:${pi.hex[pi.idx]}"></u>` : "";
+    return `<div class="q"><span>${pi.title}</span><b class="pv">${esc(pi.label)}</b></div><div class="rs pk" data-kind="${pi.kind}" data-rate="${esc(it.id)}" data-n="${n}" data-stops="${esc(stops)}" data-hex="${esc((pi.hex || []).join(","))}"><div class="tr" style="background:${track}"></div>${ticks}<div class="th" style="--p:${pi.idx < 0 ? 0 : pi.idx / (n - 1)}">${dot}</div></div><div class="rl"><span>${esc(pi.lo)}</span><span>${esc(pi.hi)}</span></div><div class="rh" style="text-align:left;margin:0 0 8px">${pi.idx >= 0 && !((((trainLogOn(date) || {})[pi.kind === "band" ? "ebands" : "edb"]) || {})[it.id]) ? "Как в прошлый раз · можно сменить" : "&nbsp;"}</div>`;
+  };
+  // Как в прошлый раз: резинка/вес упражнения записываются в день, если их ещё нет
+  const carryOver = (it) => {
+    if (!it.reps || isDone(it)) return;
+    const lg = trainLogOn(date) || {};
+    if (isBandIt(it)) { const b = lastBand(it.id, date); if (b && !((lg.ebands || {})[it.id])) return { ebands: { [it.id]: b } }; }
+    else if (wtOf(it.vk)) { const k = lastDb(it.id, date); if (k && !((lg.edb || {})[it.id])) return { edb: { [it.id]: k } }; }
+    return null;
+  };
   const shownRate = new Set();
   const rateHtml = (it) => {
     shownRate.add(it.key);
     const v = feelOf(it.key) || 3;
-    return `<div class="rt"><div class="q"><span>Как прошло упражнение?</span><b class="rv f${v}">${esc(feelLabel(v))}</b></div><div class="rs" data-rate="${esc(it.key)}"><div class="tr"></div><i class="tk" style="--p:.25"></i><i class="tk" style="--p:.5"></i><i class="tk" style="--p:.75"></i><div class="th" style="--p:${(v - 1) / 4}"></div></div><div class="rl"><span>Легко</span><span>Нормально</span><span>Тяжело</span></div><div class="rh">${esc(restNote(it, v))}</div></div>`;
+    return `<div class="rt">${pickHtml(it)}<div class="q"><span>Как прошло упражнение?</span><b class="rv f${v}">${esc(feelLabel(v))}</b></div><div class="rs" data-rate="${esc(it.key)}"><div class="tr"></div><i class="tk" style="--p:.25"></i><i class="tk" style="--p:.5"></i><i class="tk" style="--p:.75"></i><div class="th" style="--p:${(v - 1) / 4}"></div></div><div class="rl"><span>Легко</span><span>Нормально</span><span>Тяжело</span></div><div class="rh rhr">${esc(restNote(it, v))}</div></div>`;
   };
-  const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true }, ...(i.reps && !feelOf(i.key) ? { feels: { [i.key]: 3 } } : {}) }); };
+  const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true }, ...(i.reps && !feelOf(i.key) ? { feels: { [i.key]: 3 } } : {}), ...(carryOver(i) || {}) }); };
   // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
   const enterItem = () => {
     phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = []; side = 0; sdone = [false, false]; dir = 0; half = 0;
@@ -719,12 +754,22 @@ function openTrainWorkout(date) {
   let rg = null;
   const rateAt = (el, x) => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(1, (x - r.left) / Math.max(1, r.width))); };
   const rateShow = (el, pos, snap) => {
-    const v = 1 + Math.round(pos * 4), card = el.closest(".rt"), th = $(".th", el);
-    th.style.setProperty("--p", snap ? (v - 1) / 4 : pos);
+    const n = Number(el.dataset.n) || 5, v = 1 + Math.round(pos * (n - 1)), card = el.closest(".rt"), th = $(".th", el);
+    th.style.setProperty("--p", snap ? (v - 1) / (n - 1) : pos);
+    if (el.dataset.kind) {
+      const stops = el.dataset.stops.split(","), hex = el.dataset.hex ? el.dataset.hex.split(",") : [], pv = $(".pv", card);
+      if (el.dataset.kind === "band") {
+        const c = TR.BAND_COLORS.find((x) => x.id === stops[v - 1]);
+        pv.textContent = `${c ? c.t : ""} · около ${fmt(bandKgOf(stops[v - 1]))} кг`;
+        let u = $("u", th); if (!u) { u = document.createElement("u"); th.appendChild(u); }
+        u.style.background = hex[v - 1] || "#999";
+      } else pv.textContent = `${fmt(Number(stops[v - 1]))} кг`;
+      return v;
+    }
     const rv = $(".rv", card);
     rv.className = `rv f${v}`; rv.textContent = feelLabel(v);
     const it = items.find((x) => x.key === el.dataset.rate);
-    if (it) $(".rh", card).textContent = restNote(it, v);
+    if (it) $(".rhr", card).textContent = restNote(it, v);
     return v;
   };
   ov.addEventListener("pointerdown", (e) => {
@@ -745,7 +790,9 @@ function openTrainWorkout(date) {
     const { el } = rg; rg = null;
     el.classList.remove("drag");
     const v = rateShow(el, rateAt(el, e.clientX), true);
-    if (v !== feelOf(el.dataset.rate)) saveTrainLog(date, { feels: { [el.dataset.rate]: v } });
+    if (el.dataset.kind === "band") saveTrainLog(date, { ebands: { [el.dataset.rate]: el.dataset.stops.split(",")[v - 1] } });
+    else if (el.dataset.kind === "db") saveTrainLog(date, { edb: { [el.dataset.rate]: Number(el.dataset.stops.split(",")[v - 1]) } });
+    else if (v !== feelOf(el.dataset.rate)) saveTrainLog(date, { feels: { [el.dataset.rate]: v } });
   };
   ov.addEventListener("pointerup", rateEnd);
   ov.addEventListener("pointercancel", rateEnd);
@@ -1481,6 +1528,8 @@ function recText(it, date) {
 const ebandsText = (l) => Object.entries((l && l.ebands) || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `${TR.EXERCISES[id].name}: ${bandName(c)}`).join("; ");
 const lastBand = (id, date) => { const l = state.trainLog.filter((x) => x.date < date && x.ebands && x.ebands[id]).sort((p, q) => (p.date < q.date ? 1 : -1))[0]; return l ? l.ebands[id] : ""; };
 // Гантели: вес на упражнение выбирается из набора (cfg.dumbbells), запоминается в журнале дня (edb) и подставляется в следующий раз
+const cap1 = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+const bandStops = () => [...TR.BAND_COLORS].sort((a, b) => bandKgOf(a.id) - bandKgOf(b.id));
 const lastDb = (id, date) => { const l = state.trainLog.filter((x) => x.date < date && x.edb && Number(x.edb[id]) > 0).sort((p, q) => (p.date < q.date ? 1 : -1))[0]; return l ? Number(l.edb[id]) : 0; };
 const dbKgOf = (id, date) => { const c = trainCfg(); return Number(((trainLogOn(date) || {}).edb || {})[id]) || lastDb(id, date) || (c.dumbbells.length === 1 ? c.dumbbells[0] : 0); };
 const bandsText = (l) => {
@@ -1696,6 +1745,7 @@ function openTrainFinish(date) {
   const { done: doneMap } = trainProgress(date, ses);
   const exRows = ses.items.filter((i) => i.group === "main");
   const f = {
+    eb: {}, edb: {},
     feels: Object.fromEntries(exRows.filter((i) => doneMap[i.key]).map((i) => [i.key, Number(((old.feels) || {})[i.key]) || 3])),
     used: new Set(Array.isArray(old.used) ? old.used : prev.used || []),
     bands: { ...(old.finished ? old.bands : prev.bands) || {} },
@@ -1719,7 +1769,11 @@ function openTrainFinish(date) {
         const im = hasPhoto(i.id, i.vk) ? `<span class="fx-im ${cls}"><img src="img/${k}-1.webp" alt=""></span>` : `<span class="fx-im"></span>`;
         if (!dn) return `<div class="fx-r skip">${im}<div class="fx-t"><b>${esc(i.name)}</b><small>${esc(i.text)} · пропущено</small></div></div>`;
         const a = TR.exAdvFrom(v, 0), chip = a && a.rest > 0 ? `<span class="fx-chip">⏱ ${Math.max(20, (i.restBase || i.rest || 40) + a.rest)} с</span>` : "";
-        return `<div class="fx-r">${im}<div class="fx-t"><b>${esc(i.name)}</b><small>${esc(i.text)} · <span class="fx-l f${v}">${esc(feelLabel(v))}</span></small></div>${chip}<div class="fx-sc">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-fx="${esc(i.key)}" data-v="${n}" class="fq fq${n}${v === n ? " on" : ""}">${n}</button>`).join("")}</div></div>`;
+        const bs = bandStops(), ex = (old.ebands || {})[i.id] || lastBand(i.id, date), exIds = comboIds(f.eb[i.id] != null ? f.eb[i.id] : ex).sort((p, q) => bandKgOf(q) - bandKgOf(p));
+        const w = wtOf(i.vk), dbv = f.edb[i.id] != null ? f.edb[i.id] : Number((old.edb || {})[i.id]) || lastDb(i.id, date) || 0;
+        const pk = (i.vk === "band" || i.vk === "bandf") ? `<div class="fx-pk"><span>Резинка${exIds.length ? ` · ${esc(bandName(exIds.join("+")))}` : ""}</span><div class="bds" data-pk="${esc(i.id)}">${bs.map((c) => `<span class="bd${exIds[0] === c.id ? " on" : ""}" data-c="${c.id}" style="--c:${c.hex}"></span>`).join("")}</div></div>`
+          : w && w.kgs && w.kgs.length > 1 ? `<div class="fx-pk"><span>${i.vk === "db" ? "Гантели" : "Вес"}${dbv ? ` · ${fmt(dbv)} кг` : ""}</span><div class="bds kg" data-pk="${esc(i.id)}">${w.kgs.map((k) => `<span class="bk${Math.abs(k - dbv) < 0.01 ? " on" : ""}" data-k="${k}">${fmt(k)}</span>`).join("")}</div></div>` : "";
+        return `<div class="fx-r">${im}<div class="fx-t"><b>${esc(i.name)}</b><small>${esc(i.text)} · <span class="fx-l f${v}">${esc(feelLabel(v))}</span></small></div>${chip}<div class="fx-sc">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-fx="${esc(i.key)}" data-v="${n}" class="fq fq${n}${v === n ? " on" : ""}">${n}</button>`).join("")}</div>${pk}</div>`;
       }).join("")}</div>` : ""}
       <div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-plan">🎒</span><div><b>Какой инвентарь использовали</b></div></div>
         <div class="tf-inv">${list.map((e) => `<label class="tf-iv${f.used.has(e.id) ? " on" : ""}"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}><i>${e.emo || EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div></div>
@@ -1744,6 +1798,29 @@ function openTrainFinish(date) {
     if (e.target.checked) f.used.add(id); else f.used.delete(id);
     draw();
   });
+  // Ряд цветов резинки / весов: тап или проведение пальцем; значение запоминается и идёт в запись дня
+  let pg = null;
+  const pkPick = (el, x) => {
+    const kids = [...el.children], r = el.getBoundingClientRect();
+    const i = Math.max(0, Math.min(kids.length - 1, Math.floor(((x - r.left) / Math.max(1, r.width)) * kids.length)));
+    kids.forEach((k, j) => k.classList.toggle("on", j === i));
+    return kids[i];
+  };
+  ov.addEventListener("pointerdown", (e) => {
+    const el = e.target.closest("[data-pk]");
+    if (!el) return;
+    pg = { el, pid: e.pointerId, k: pkPick(el, e.clientX) };
+    try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  });
+  ov.addEventListener("pointermove", (e) => { if (pg && e.pointerId === pg.pid) pg.k = pkPick(pg.el, e.clientX); });
+  const pkEnd = (e) => {
+    if (!pg || e.pointerId !== pg.pid) return;
+    const k = pkPick(pg.el, e.clientX), id = pg.el.dataset.pk; pg = null;
+    if (k.dataset.c) f.eb[id] = k.dataset.c; else f.edb[id] = Number(k.dataset.k);
+    draw();
+  };
+  ov.addEventListener("pointerup", pkEnd);
+  ov.addEventListener("pointercancel", pkEnd);
   ov.addEventListener("click", (e) => {
     const fb = e.target.closest("[data-fx]");
     if (fb) { f.feels[fb.dataset.fx] = Number(fb.dataset.v); draw(); return; }
@@ -1756,7 +1833,7 @@ function openTrainFinish(date) {
     const useBand = f.used.has("tube") || f.used.has("loop");
     const bands = useBand ? f.bands : {};
     const rec = {
-      date, finished: true, finishedAt: Date.now(), feel, feels: f.feels, used: [...f.used], bands,
+      date, finished: true, finishedAt: Date.now(), feel, feels: f.feels, ...(Object.keys(f.eb).length ? { ebands: { ...(old.ebands || {}), ...f.eb } } : {}), ...(Object.keys(f.edb).length ? { edb: { ...(old.edb || {}), ...f.edb } } : {}), used: [...f.used], bands,
       dumbbellKg: f.used.has("dumbbell") && Number.isFinite(kg) ? kg : 0,
       plan: ses.items.map((i) => i.key), updatedAt: serverTimestamp(),
     };
