@@ -2456,3 +2456,18 @@ button.wk-edrow { cursor:pointer; }
 .bds .bk.on { background:#000; color:#fff; }
 :root[data-theme="dark"] .bds .bd.on { box-shadow:0 0 0 3px #1C1C1E,0 0 0 5px #fff; }
 :root[data-theme="dark"] .bds .bk.on { background:#fff; color:#000; }
+/* v3.34: выбор кардио */
+.cp-tx { flex:1; min-width:0; text-align:left; } .cp-tx b { display:block; font-size:16px; font-weight:800; } .cp-tx small { font-size:13px; color:#8E8E93; }
+.cp-cur { flex:none; font-size:12px; font-weight:700; color:#fff; background:#000; border-radius:10px; padding:4px 9px; }
+html body .bw-ov .tb-row.sel { box-shadow:0 0 0 2px #000, 0 6px 18px rgba(0,0,0,.07); }
+.cp-rem { display:flex; align-items:center; justify-content:space-between; margin:12px 2px; font-size:15px; font-weight:600; }
+.cp-rem input { appearance:none; -webkit-appearance:none; width:51px; height:31px; border-radius:16px; background:#E5E5EA; position:relative; transition:background .2s; margin:0; }
+.cp-rem input:checked { background:#34C759; }
+.cp-rem input::after { content:""; position:absolute; left:2px; top:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,.3); transition:transform .2s; }
+.cp-rem input:checked::after { transform:translateX(20px); }
+:root[data-theme="dark"] .cp-cur { background:#fff; color:#000; }
+:root[data-theme="dark"] html body .bw-ov .tb-row.sel, html:root[data-theme="dark"] body .bw-ov .tb-row.sel { box-shadow:0 0 0 2px #fff; }
+:root[data-theme="dark"] .cp-rem input { background:#39393D; } :root[data-theme="dark"] .cp-rem input:checked { background:#34C759; }
+.cp-list { display:grid; gap:8px; }
+.cp-list .tb-row { box-sizing:border-box; width:100%; max-width:100%; min-width:0; }
+.cp-tx b { white-space:normal; overflow-wrap:anywhere; }
