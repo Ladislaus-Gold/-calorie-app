@@ -1252,12 +1252,30 @@ export const MG_OF = {
 const GROUP_LIST = {};
 for (const id of Object.keys(EXERCISES)) { const g = MG_OF[id]; if (g) (GROUP_LIST[g] = GROUP_LIST[g] || []).push(id); }
 
+// Подстройка по оценке упражнения (r0 — последняя оценка 1–5, r1 — предыдущая):
+// тяжело → отдых больше (+10, «очень тяжело» +15, при повторе ещё +10, максимум +30), легко → меньше (−5, «очень легко» −10); нормально → обычный отдых.
+// Повторы: легко → +1 (две лёгких подряд +2), очень тяжело → −1 (после тяжёлой −2), тяжело два раза подряд → −1.
+export function exAdvFrom(r0, r1) {
+  r0 = Number(r0) || 0; r1 = Number(r1) || 0;
+  if (!r0) return null;
+  let rest = 0, reps = 0;
+  if (r0 >= 4) { rest = r0 === 5 ? 15 : 10; if (r1 >= 4) rest = Math.min(30, rest + 10); }
+  else if (r0 === 2) rest = -5;
+  else if (r0 === 1) rest = -10;
+  if (r0 <= 2) reps = r1 && r1 <= 2 ? 2 : 1;
+  else if (r0 === 5) reps = r1 >= 4 ? -2 : -1;
+  else if (r0 === 4) reps = r1 >= 4 ? -1 : 0;
+  return { rest, reps };
+}
+
 function itemFor(ex, ctx, group, sets, cardioMin) {
   const v = pickVariant(ex, ctx);
   const prog = Math.min(3, ctx.weeks);
-  const adj = ({ n: -2, m: 0, a: 2 }[ctx.level] || 0) + (ctx.bump || 0);
+  const xa = ctx.exAdv && ctx.exAdv[ex.id];
+  const adj = ({ n: -2, m: 0, a: 2 }[ctx.level] || 0) + (xa ? xa.reps : ctx.bump || 0);
   const it = { key: `${group}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, rot: ex.rot || null, muscles: ex.muscles, mg: MG_OF[ex.id] || "" };
-  const rest = Math.max(20, (ex.rest || 40) + (ctx.goal === "gain" ? 20 : ctx.goal === "lose" ? -5 : 0));
+  const restBase = Math.max(20, (ex.rest || 40) + (ctx.goal === "gain" ? 20 : ctx.goal === "lose" ? -5 : 0));
+  const rest = xa ? Math.max(20, restBase + xa.rest) : restBase;
   if (ex.kind === "cardio") {
     it.minutes = cardioMin;
     it.est = cardioMin * 60;
@@ -1283,6 +1301,7 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
   }
   it.sets = sets;
   it.rest = rest;
+  it.restBase = restBase;
   if (ex.reps) {
     const lo = Math.max(ex.reps[0] <= 5 ? 2 : 5, ex.reps[0] + adj + prog), hi = Math.max(lo, ex.reps[1] + adj + prog);
     it.reps = [lo, hi];
@@ -1371,14 +1390,14 @@ function jointWarm(mainItems, ctx, count) {
 
 // Чем заменять упражнения пропущенной группы мышц (по типу тренировки): берём ближайшую подходящую группу, где ещё есть что делать
 const SKIP_REPL = { A: ["legs", "glutes", "core", "back"], B: ["back", "legs", "core", "glutes"], C: ["core", "chest", "back", "legs"] };
-export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds, skip) {
+export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds, skip, exAdv) {
   const cfg = normCfg(cfgRaw, date);
   const type = sessionType(cfg, date);
   if (!type) return null;
   const M = Math.max(10, Math.min(90, Number(minutesOverride) > 0 ? Number(minutesOverride) : cfg.minutes));
   const ctx = {
     have: haveOf(cfg), custom: cfg.customEq, place: cfg.place, level: cfg.level, limits: new Set(cfg.limits), goal: (profile && profile.goal) || "maintain",
-    bump: Math.max(-2, Math.min(2, Number(bump) || 0)), vpref: cfg.vpref,
+    bump: Math.max(-2, Math.min(2, Number(bump) || 0)), vpref: cfg.vpref, exAdv: exAdv || null,
     weeks: Math.max(0, Math.round((pd(mondayOf(date)).getTime() - pd(mondayOf(cfg.startedAt)).getTime()) / 604800000)),
   };
   const bp = BLUEPRINT[type];
