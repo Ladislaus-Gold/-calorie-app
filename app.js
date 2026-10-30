@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 336;
-const APP_VERSION_LABEL = "3.35"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 337;
+const APP_VERSION_LABEL = "3.36"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4351,7 +4351,6 @@ function viewHealth() {
       <div class="wkd-hd">
         <span class="wkd-medal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v4M8.5 20h7M10 17h4"/></svg></span>
         <div class="wkd-tt"><div class="wkd-k">НЕДЕЛЯ ЗАКРЫТА</div><div class="wkd-h">План выполнен</div></div>
-        <svg class="wkd-ok" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.8l4.2 4.2L18.5 7.8"/></svg>
       </div>
       <div class="wkd-st">
         <div><b>${esc(wkTime)}</b><span>тренировок<br>за неделю</span></div>
