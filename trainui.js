@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=24";
+import * as TR from "./train.js?v=25";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -188,7 +188,7 @@ const trainSession = (d, extraAvoid, noSkip) => {
   const adv = d >= todayStr() ? trainAdvice(d) : null;
   const avoid = [...(adv ? adv.avoid : []), ...(d >= todayStr() ? painIds(d) : []), ...(((trainLogOn(d) || {}).swapped) || []), ...(extraAvoid || [])];
   const sk = noSkip ? [] : skipOf(d);
-  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null);
+  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null, adv ? adv.ex : null);
   const cs = customItems(d);
   if (!cs.length) return base;
   const rank = { warm: 0, main: 1, cardio: 2, cool: 3 };
@@ -498,7 +498,17 @@ function openTrainWorkout(date) {
       else draw();
     }
   }, 250);
-  const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true } }); };
+  // Оценка упражнения 1–5 (по умолчанию 3 — «нормально»): ставится бегунком на экране отдыха, влияет на отдых и повторы в следующий раз
+  const feelOf = (key) => Number((((trainLogOn(date) || {}).feels) || {})[key]) || 0;
+  const prevFeel = (id) => { for (const l of state.trainLog.filter((x) => x.date < date && x.feels).sort((a, b) => (a.date < b.date ? 1 : -1))) for (const [k, v] of Object.entries(l.feels)) if (k.split(":")[1] === id && Number(v)) return Number(v); return 0; };
+  const restNote = (it, v) => { const a = TR.exAdvFrom(v, prevFeel(it.id)); return `В следующий раз отдых между подходами: ${Math.max(20, (it.restBase || it.rest || 40) + (a ? a.rest : 0))} с`; };
+  const shownRate = new Set();
+  const rateHtml = (it) => {
+    shownRate.add(it.key);
+    const v = feelOf(it.key) || 3;
+    return `<div class="rt"><div class="q"><span>Как прошло упражнение?</span><b class="rv f${v}">${esc(feelLabel(v))}</b></div><div class="rs" data-rate="${esc(it.key)}"><div class="tr"></div><i class="tk" style="--p:.25"></i><i class="tk" style="--p:.5"></i><i class="tk" style="--p:.75"></i><div class="th" style="--p:${(v - 1) / 4}"></div></div><div class="rl"><span>Легко</span><span>Нормально</span><span>Тяжело</span></div><div class="rh">${esc(restNote(it, v))}</div></div>`;
+  };
+  const markDone = (i) => { if (!isDone(i)) saveTrainLog(date, { done: { [i.key]: true }, ...(i.reps && !feelOf(i.key) ? { feels: { [i.key]: 3 } } : {}) }); };
   // Вход в упражнение: продолжаем с невыполненного подхода; выполненное показываем как «Выполнено» с возможностью повторить
   const enterItem = () => {
     phase = "work"; endAt = 0; tmDone = false; review = false; setNo = 0; reps = []; side = 0; sdone = [false, false]; dir = 0; half = 0;
@@ -555,7 +565,7 @@ function openTrainWorkout(date) {
       nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
     }
     const rt = recText(it, date);
-    return `${infoCard([rt ? ["Рекомендуемый вес", `${recDots(it, date)}${esc(rt)}`] : null, ["Цель", `${lo === hi ? hi : `${lo}–${hi}`} ${plur(hi, "повторение", "повторения", "повторений")}${rs ? ` ${sideAcc(it)}` : ""}`], prev ? ["В прошлый раз", prev.sets.join(" / ")] : null])}<div class="wk-pls">${plates}</div>${rc}${ctl}${nxHtml}${HINT}`;
+    return `${phase === "restx" ? "" : infoCard([rt ? ["Рекомендуемый вес", `${recDots(it, date)}${esc(rt)}`] : null, ["Цель", `${lo === hi ? hi : `${lo}–${hi}`} ${plur(hi, "повторение", "повторения", "повторений")}${rs ? ` ${sideAcc(it)}` : ""}`], prev ? ["В прошлый раз", prev.sets.join(" / ")] : null])}<div class="wk-pls">${plates}</div>${phase === "restx" ? rateHtml(it) : ""}${rc}${ctl}${nxHtml}${HINT}`;
   };
   // Кардио, разминка, растяжка: одна плашка со значением (минуты или секунды), таймер в той же «карточке», что и отдых
   const simpleHtml = (it) => {
@@ -599,7 +609,9 @@ function openTrainWorkout(date) {
       const val = d ? (x.reps ? doneSets(x).join(" / ") : factMin(x) ? `${factMin(x)} мин` : "") : "";
       return `<div class="wk-sr${d ? "" : " no"}"><span class="ic">${d ? TICK : "→"}</span><span class="nm">${esc(x.name)}</span>${d ? `<span class="v">${esc(val)}</span>` : `<button type="button" class="back" data-w="ret" data-k="${k}">Вернуть</button>`}</div>`;
     }).join("");
-    return `${bandHtml("Готово", "", `${n}/${n}`)}<div class="wk-sum"><div class="wk-cnt"><span class="g">${dn} выполнено</span>${sk ? ` · <span class="r">${sk} пропущено</span>` : ""}</div><div class="wk-sl">${rows}</div></div><div class="wk-foot"><button type="button" class="btn primary full" data-w="finish">Завершить тренировку</button><button type="button" class="btn ghost full" data-close style="margin-top:8px">Закрыть</button></div>`;
+    const lastS = items.filter((x) => x.reps && isDone(x)).pop();
+    const lastRate = lastS && !shownRate.has(lastS.key) ? `<p class="rt-for">${esc(lastS.name)}</p>${rateHtml(lastS)}` : "";
+    return `${bandHtml("Готово", "", `${n}/${n}`)}${lastRate}<div class="wk-sum"><div class="wk-cnt"><span class="g">${dn} выполнено</span>${sk ? ` · <span class="r">${sk} пропущено</span>` : ""}</div><div class="wk-sl">${rows}</div></div><div class="wk-foot"><button type="button" class="btn primary full" data-w="finish">Завершить тренировку</button><button type="button" class="btn ghost full" data-close style="margin-top:8px">Закрыть</button></div>`;
   };
   const draw = () => {
     if (idx >= items.length) {
@@ -610,7 +622,7 @@ function openTrainWorkout(date) {
     }
     winOn = false;
     const it = items[idx], ex = TR.EXERCISES[it.id] || {};
-    const fig = hasPhoto(it.id, it.vk) ? `<div class="ex-fig wk-fig wk-ph${it.reps ? "" : " tapfig"}"${it.reps ? "" : ' data-g="pl" data-i="0"'}>${exFig(it.id, it.vk)}</div>` : "";
+    const fig = hasPhoto(it.id, it.vk) && !(it.reps && phase === "restx") ? `<div class="ex-fig wk-fig wk-ph${it.reps ? "" : " tapfig"}"${it.reps ? "" : ' data-g="pl" data-i="0"'}>${exFig(it.id, it.vk)}</div>` : "";
     const eb = ((((trainLogOn(date) || {}).ebands) || {})[it.id]) || lastBand(it.id, date);
     const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
     const head = bandHtml(it.name, sub);
@@ -703,6 +715,40 @@ function openTrainWorkout(date) {
     ov.appendChild(box);
     try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* ignore */ }
   };
+  // Бегунок оценки: тянем пальцем, на отпускании прилипает к 1–5 и сразу сохраняется
+  let rg = null;
+  const rateAt = (el, x) => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(1, (x - r.left) / Math.max(1, r.width))); };
+  const rateShow = (el, pos, snap) => {
+    const v = 1 + Math.round(pos * 4), card = el.closest(".rt"), th = $(".th", el);
+    th.style.setProperty("--p", snap ? (v - 1) / 4 : pos);
+    const rv = $(".rv", card);
+    rv.className = `rv f${v}`; rv.textContent = feelLabel(v);
+    const it = items.find((x) => x.key === el.dataset.rate);
+    if (it) $(".rh", card).textContent = restNote(it, v);
+    return v;
+  };
+  ov.addEventListener("pointerdown", (e) => {
+    const el = e.target.closest("[data-rate]");
+    if (!el) return;
+    rg = { el, pid: e.pointerId, v: 0 };
+    try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    el.classList.add("drag");
+    rg.v = rateShow(el, rateAt(el, e.clientX), false);
+  });
+  ov.addEventListener("pointermove", (e) => {
+    if (!rg || e.pointerId !== rg.pid) return;
+    const v = rateShow(rg.el, rateAt(rg.el, e.clientX), false);
+    if (v !== rg.v) { rg.v = v; try { if (navigator.vibrate) navigator.vibrate(8); } catch { /* ignore */ } }
+  });
+  const rateEnd = (e) => {
+    if (!rg || e.pointerId !== rg.pid) return;
+    const { el } = rg; rg = null;
+    el.classList.remove("drag");
+    const v = rateShow(el, rateAt(el, e.clientX), true);
+    if (v !== feelOf(el.dataset.rate)) saveTrainLog(date, { feels: { [el.dataset.rate]: v } });
+  };
+  ov.addEventListener("pointerup", rateEnd);
+  ov.addEventListener("pointercancel", rateEnd);
   ov.addEventListener("pointerdown", (e) => {
     sndUnlock(true);
     const el = e.target.closest("[data-g]");
@@ -1328,6 +1374,17 @@ function trainAdvice(d) {
     }
   }
   const avoid = Object.keys(ex).filter((id) => ex[id].p >= 3 && ex[id].d / ex[id].p <= 0.25);
+  // Оценки по каждому упражнению (по последним двум тренировкам с оценкой): свой отдых и повторы
+  const rated = {}, exAdv = {};
+  for (const l of state.trainLog.filter((x) => x.date < d && x.feels).sort((a, b) => (a.date < b.date ? 1 : -1))) {
+    for (const [key, v] of Object.entries(l.feels)) {
+      const id = key.split(":")[1], n = Number(v);
+      if (!id || !n) continue;
+      const r = rated[id] = rated[id] || [];
+      if (r.length < 2) r.push(n);
+    }
+  }
+  for (const id of Object.keys(rated)) { const a = TR.exAdvFrom(rated[id][0], rated[id][1]); if (a) exAdv[id] = a; }
   // Резинка: самая тяжёлая, что брали в последний раз
   const cfg = trainCfg();
   const eff = (id) => Number(cfg.bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
@@ -1356,7 +1413,7 @@ function trainAdvice(d) {
   else if (bump > 0) tip = `Последние тренировки были лёгкими. Повторов в следующих планах больше на ${bump}.`;
   else if (bump < 0) tip = `Последние тренировки были тяжёлыми. Повторов в следующих планах меньше на ${-bump}: держите вес и не торопитесь.`;
   else tip = "Нагрузка в самый раз: держите ритм.";
-  return { bump, avoid, tip, band, bell, n: last.length };
+  return { bump, avoid, tip, band, bell, n: last.length, ex: exAdv };
 }
 const bandOk = (id) => TR.BAND_COLORS.some((c) => c.id === id);
 const comboIds = (s) => String(s || "").split("+").filter(bandOk);
@@ -1627,14 +1684,19 @@ function trainProgressCardHtml(day) {
 
 // Итоги тренировки: самочувствие, инвентарь, резинки по цветам и вес
 const EQ_EMO = { mat: "🧘", tube: "💪", anchor: "🚪", loop: "➰", dumbbell: "🏋️", bar: "🤸", bench: "🪑", treadmill: "🏃", cable: "🏗️" };
+// Миниатюра «старт» из иллюстрации с двумя позами: слева/справа (sd), сверху/снизу (ul) или целиком (full)
+const FX_UL = new Set(["bridge-bw", "crunch-bw", "deadbug-bw", "donkey-band", "donkey-bw", "mob_catcow-bw", "plank-bw", "pushup-knees-bw", "row-band", "row-bandf", "row-cable", "superman-bw", "pushup-knees"]);
+const FX_FULL = new Set(["bridge-db", "birddog-bw", "legraise-bw", "st_child-bw", "mtnclimber-bw"]);
 function openTrainFinish(date) {
   const ses = trainSession(date);
   if (!ses) return;
   const cfg = trainCfg();
   const old = trainLogOn(date) || {};
   const prev = finishedLogs().find((l) => l.date !== date) || {};
+  const { done: doneMap } = trainProgress(date, ses);
+  const exRows = ses.items.filter((i) => i.group === "main");
   const f = {
-    feel: Number(old.feel) || 0,
+    feels: Object.fromEntries(exRows.filter((i) => doneMap[i.key]).map((i) => [i.key, Number(((old.feels) || {})[i.key]) || 3])),
     used: new Set(Array.isArray(old.used) ? old.used : prev.used || []),
     bands: { ...(old.finished ? old.bands : prev.bands) || {} },
     kg: old.dumbbellKg || Math.max(0, ...Object.values(old.edb || {}).map(Number)) || prev.dumbbellKg || cfg.dumbbellKg || "",
@@ -1650,8 +1712,15 @@ function openTrainFinish(date) {
     const band = f.used.has("tube") || f.used.has("loop");
     body.innerHTML = `
       ${n > 0 && k >= n ? `<div class="tr-win"><span class="cf">🎉🔥</span><div class="em">🏆</div><h3>Тренировка выполнена!</h3><p>Класс, вы молодец, так держать 🙌</p><div class="bar"><i></i></div><div class="nn"><span>${k} из ${n}</span><span>100%</span></div></div>` : `<div class="fn-sum">Выполнено упражнений: <b>${k} из ${n}</b><div class="pb"><u style="width:${n ? Math.max(4, Math.round((k / n) * 100)) : 0}%"></u></div><p>Итоги нужны, чтобы считать прогресс и подбирать нагрузку.</p></div>`}
-      <div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-prog">💭</span><div><b>Как вы себя чувствуете?</b><small>1 — совсем легко, 5 — на пределе</small></div></div>
-        <div class="tr-feel">${[1, 2, 3, 4, 5].map((v) => `<button type="button" data-feel="${v}" class="fv fv${v}${f.feel === v ? " on" : ""}"><b>${v}</b><small>${esc(feelLabel(v))}</small></button>`).join("")}</div></div>
+      ${exRows.length ? `<div class="fx-all"><span>Оцените каждое упражнение: 1 — совсем легко, 5 — на пределе</span><button type="button" data-feel-all>Всем «Нормально»</button></div>
+      <div class="fx-list">${exRows.map((i) => {
+        const dn = !!doneMap[i.key], v = f.feels[i.key] || 0;
+        const k = `${i.id}-${i.vk}`, cls = FX_FULL.has(k) ? "full" : FX_UL.has(k) ? "ul" : "sd";
+        const im = hasPhoto(i.id, i.vk) ? `<span class="fx-im ${cls}"><img src="img/${k}-1.webp" alt=""></span>` : `<span class="fx-im"></span>`;
+        if (!dn) return `<div class="fx-r skip">${im}<div class="fx-t"><b>${esc(i.name)}</b><small>${esc(i.text)} · пропущено</small></div></div>`;
+        const a = TR.exAdvFrom(v, 0), chip = a && a.rest > 0 ? `<span class="fx-chip">⏱ ${Math.max(20, (i.restBase || i.rest || 40) + a.rest)} с</span>` : "";
+        return `<div class="fx-r">${im}<div class="fx-t"><b>${esc(i.name)}</b><small>${esc(i.text)} · <span class="fx-l f${v}">${esc(feelLabel(v))}</span></small></div>${chip}<div class="fx-sc">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-fx="${esc(i.key)}" data-v="${n}" class="fq fq${n}${v === n ? " on" : ""}">${n}</button>`).join("")}</div></div>`;
+      }).join("")}</div>` : ""}
       <div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-plan">🎒</span><div><b>Какой инвентарь использовали</b></div></div>
         <div class="tf-inv">${list.map((e) => `<label class="tf-iv${f.used.has(e.id) ? " on" : ""}"><input type="checkbox" data-used="${e.id}" ${f.used.has(e.id) ? "checked" : ""}><i>${e.emo || EQ_EMO[e.id] || "🎒"}</i><span>${esc(e.t)}</span><s></s></label>`).join("")}</div></div>
       ${band ? `<div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-band">🎨</span><div><b>Резинки: цвета и вес, кг</b></div></div>
@@ -1661,7 +1730,7 @@ function openTrainFinish(date) {
           return `<div class="tr-band${on ? " on" : ""}"><button type="button" data-band="${c.id}" class="tr-dot${on ? " on" : ""}" style="--c:${c.hex}" aria-pressed="${on}" aria-label="${c.t}"></button><span>${c.t}<small>${cfg.bandKg[c.id] ? "ваш вес" : "ориентир"} ${fmt(eff(c.id))} кг</small></span>${on ? `<input class="input" data-bkg="${c.id}" inputmode="decimal" placeholder="вес, кг" value="${f.bands[c.id] ? esc(String(f.bands[c.id]).replace(".", ",")) : esc(String(eff(c.id)).replace(".", ","))}" autocomplete="off">` : ""}</div>`;
         }).join("")}</div>` : ""}
       ${f.used.has("dumbbell") ? `<div class="tf-sec"><div class="tf-st"><span class="fl-ic ic-plan">🏋️</span><div><b>Вес гантелей, кг</b></div></div><input id="fn-kg" class="input" inputmode="decimal" value="${esc(String(f.kg).replace(".", ","))}" autocomplete="off"></div>` : ""}
-      <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="fn-save" ${f.feel ? "" : "disabled"}>Сохранить итоги</button></div>`;
+      <div class="row"><button type="button" class="btn ghost" data-close>Отмена</button><button type="button" class="btn primary grow" id="fn-save">Сохранить итоги</button></div>`;
   };
   draw();
   ov.addEventListener("input", (e) => {
@@ -1676,16 +1745,18 @@ function openTrainFinish(date) {
     draw();
   });
   ov.addEventListener("click", (e) => {
-    const fb = e.target.closest("[data-feel]");
-    if (fb) { f.feel = Number(fb.dataset.feel); draw(); return; }
+    const fb = e.target.closest("[data-fx]");
+    if (fb) { f.feels[fb.dataset.fx] = Number(fb.dataset.v); draw(); return; }
+    if (e.target.closest("[data-feel-all]")) { for (const key of Object.keys(f.feels)) f.feels[key] = 3; draw(); return; }
     const bb = e.target.closest("[data-band]");
     if (bb) { const c = bb.dataset.band; if (c in f.bands) delete f.bands[c]; else f.bands[c] = eff(c); draw(); return; }
-    if (!e.target.closest("#fn-save") || !f.feel) return;
+    if (!e.target.closest("#fn-save")) return;
+    const fv = Object.values(f.feels), feel = fv.length ? Math.max(1, Math.min(5, Math.round(fv.reduce((p, q) => p + q, 0) / fv.length))) : 3;
     const kg = num(f.kg);
     const useBand = f.used.has("tube") || f.used.has("loop");
     const bands = useBand ? f.bands : {};
     const rec = {
-      date, finished: true, finishedAt: Date.now(), feel: f.feel, used: [...f.used], bands,
+      date, finished: true, finishedAt: Date.now(), feel, feels: f.feels, used: [...f.used], bands,
       dumbbellKg: f.used.has("dumbbell") && Number.isFinite(kg) ? kg : 0,
       plan: ses.items.map((i) => i.key), updatedAt: serverTimestamp(),
     };
