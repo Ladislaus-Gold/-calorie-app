@@ -13,7 +13,7 @@ import {
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=26";
-import { createTrainUI } from "./trainui.js?v=79";
+import { createTrainUI } from "./trainui.js?v=80";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 339;
-const APP_VERSION_LABEL = "3.38"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 340;
+const APP_VERSION_LABEL = "3.39"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1602,7 +1602,7 @@ function aiPayload(a) {
     } : "нет данных с часов",
     сон: a.sleepDays ? {
       ночей_с_данными: a.sleepDays, среднее_часов_сна: r(a.sleepAvg), ночей_короче_7_часов: a.sleepShort,
-      глубокий_сон_в_среднем_ч: r(a.sleepDeepAvg), REM_в_среднем_ч: r(a.sleepRemAvg),
+      глубокий_сон_в_среднем_ч: r(a.sleepDeepAvg), быстрый_сон_в_среднем_ч: r(a.sleepRemAvg),
       среднее_время_засыпания: a.bedN ? minToClock(a.bedAvg) : null, разброс_времени_засыпания_мин: a.bedN > 1 ? Math.round(a.bedSd) : null,
     } : "данные о сне в этом периоде не поступили (интеграция с Apple Watch для сна предусмотрена, но ночей пока нет)",
     ...(a.days.length > 120
@@ -1629,7 +1629,7 @@ function aiPrompt(a) {
 - Пиши простым языком, без воды и без общих фраз про здоровый образ жизни.
 - Формат: заголовки второго уровня («## Общая картина», «## Питание», «## Жидкость и напитки», «## Кофеин», «## Сон», «## Нагрузка», «## Упражнения дома», «## Что получается хорошо», «## На что обратить внимание», «## План на ближайшую неделю»). Внутри разделов короткие абзацы и списки через «- ». Таблицы не используй. «План на ближайшую неделю»: 3–5 конкретных, выполнимых шагов.
 - Раздел «Кофеин» пропусти, если кофеина нет.
-- Если данных о сне нет, в разделе «Сон» одной-двумя фразами скажи, что сон в этом периоде не поступил с часов (приложение умеет его принимать через Health Auto Export, метрика Sleep Analysis), и не выдумывай цифры. Если данные есть, оцени длительность (ориентир 7–9 часов), глубокий сон и REM, регулярность времени засыпания и свяжи сон с кофеином, алкоголем, нагрузкой и питанием, если это видно в данных. Не ставь диагнозы.
+- Если данных о сне нет, в разделе «Сон» одной-двумя фразами скажи, что сон в этом периоде не поступил с часов (приложение умеет его принимать через Health Auto Export, метрика Sleep Analysis), и не выдумывай цифры. Если данные есть, оцени длительность (ориентир 7–9 часов), глубокий сон и быстрый сон, регулярность времени засыпания и свяжи сон с кофеином, алкоголем, нагрузкой и питанием, если это видно в данных. Не ставь диагнозы.
 - В разделе «Нагрузка» учти шаги, пульс и тренировки с часов Apple Watch, если они есть в данных: оцени уровень активности по шагам и пульсу и скажи, как это согласуется с целью. Пульс покоя и средний пульс не трактуй как диагноз.
 - Если в данных есть «тренировки_по_плану_приложения», в разделе «Нагрузка» отдельным абзацем оцени выполнение плана (процент, серия, какие упражнения и группы мышц пропускаются) и тяжесть (оценки 1–5, резинки и вес): скажи, пора ли усложнять или облегчать. Не смешивай эти данные с данными часов Apple Health: это разные источники.
 - Раздел «Упражнения дома» обязателен: 4–6 конкретных упражнений без оборудования или с минимумом (стул, бутылки с водой, коврик) под цель пользователя, его вес, возраст и текущую нагрузку из данных. Для каждого: название, сколько подходов и повторений (или минут), сколько раз в неделю и короткая подсказка по технике. Если нагрузок в данных нет или мало, начни с лёгкого уровня и укажи, как постепенно усложнять. Учитывай питание: если калорий или белка заметно не хватает, предупреди, что интенсивность лучше повышать позже. Не предлагай экстремальных нагрузок и добавь, что при болях, травмах или хронических заболеваниях стоит посоветоваться с врачом.
@@ -1865,32 +1865,43 @@ function r2Labs(keys, grouped) {
   });
 }
 // Столбики с пунктиром цели; over(v) красит столбик в красный
-function r2Bars({ vals, labs, goal, color, over, h = 116, max, fv = r2Num, top = 14 }) {
+// Нажатие на столбик (id, keys, sel): подсвечивает его, а сверху показывается подсказка с цифрами (r2Tip). Выбор хранится по ключу столбика (дата), поэтому при смене периода не «съезжает»
+function r2Hit(id, keys, n, gap, h) { return keys ? keys.map((k, i) => `<rect x="${(gap * i).toFixed(1)}" y="0" width="${gap.toFixed(1)}" height="${h}" fill="transparent" data-act="r2Sel" data-c="${id}" data-k="${esc(k)}"/>`).join("") : ""; }
+function r2PickIdx(id, keys) { const k = state.r2Sel && state.r2Sel[id]; const i = k && keys ? keys.indexOf(k) : -1; return i >= 0 ? i : null; }
+function r2Tip(sel, n, title, lines, wide) {
+  if (sel == null) return "";
+  const lo = wide ? 26 : 18, pct = Math.max(lo, Math.min(100 - lo, ((sel + 0.5) / n) * ((R2W - 38) / R2W) * 100));
+  return `<div class="r2-tip" style="left:${pct.toFixed(1)}%">${title}${lines.map((l) => `<small>${l}</small>`).join("")}</div>`;
+}
+function r2Bars({ vals, labs, goal, color, over, h = 116, max, fv = r2Num, top = 14, id, keys, sel = null }) {
   const n = vals.length || 1, mx = max || Math.max(...vals, goal || 0, 1) * 1.12;
   const gap = (R2W - 38) / n, bw = Math.min(26, gap * 0.62);
   let o = "";
   [0, 0.5, 1].forEach((k) => { const y = top + (h - top) * (1 - k); o += `<line class="r2-ax" x1="0" x2="${R2W - 38}" y1="${y}" y2="${y}"/>`; });
+  if (sel != null) o += `<rect x="${(gap * sel).toFixed(1)}" y="0" width="${gap.toFixed(1)}" height="${h}" rx="8" class="r2-sel"/>`;
   if (goal > 0) { const y = top + (h - top) * (1 - Math.min(1, goal / mx)); o += `<line class="r2-goal" x1="0" x2="${R2W - 38}" y1="${y}" y2="${y}"/><text x="${R2W - 34}" y="${y + 4}">${fv(goal)}</text>`; }
   vals.forEach((v, i) => {
     const x = gap * i + gap / 2 - bw / 2;
-    if (v > 0) { const bh = Math.max(3, (h - top) * v / mx); o += `<rect x="${x.toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${Math.min(7, bw / 2).toFixed(1)}" fill="${over && over(v, i) ? "#FF3B30" : color}"/>`; }
+    if (v > 0) { const bh = Math.max(3, (h - top) * v / mx); o += `<rect x="${x.toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${Math.min(7, bw / 2).toFixed(1)}" fill="${over && over(v, i) ? "#FF3B30" : color}"${sel != null && sel !== i ? ' opacity=".45"' : ""}/>`; }
     if (labs[i]) o += `<text x="${(x + bw / 2).toFixed(1)}" y="${h + 16}" text-anchor="middle"${i === vals.length - 1 ? ' class="r2-last"' : ""}>${labs[i]}</text>`;
   });
-  return r2Svg(h + 22, o);
+  return r2Svg(h + 22, o + r2Hit(id, keys, n, gap, h + 22));
 }
 // Столбики из слоёв (фазы сна)
-function r2Stack({ parts, labs, goal, colors, h = 116, top = 14, max }) {
+function r2Stack({ parts, labs, goal, colors, h = 116, top = 14, max, id, keys, sel = null }) {
   const n = parts[0].length || 1, tot = parts[0].map((_, i) => parts.reduce((s, p) => s + (p[i] || 0), 0));
   const mx = max || Math.max(...tot, goal || 0, 1) * 1.12, gap = (R2W - 38) / n, bw = Math.min(26, gap * 0.62);
   let o = "";
   [0, 0.5, 1].forEach((k) => { const y = top + (h - top) * (1 - k); o += `<line class="r2-ax" x1="0" x2="${R2W - 38}" y1="${y}" y2="${y}"/>`; });
+  if (sel != null) o += `<rect x="${(gap * sel).toFixed(1)}" y="0" width="${gap.toFixed(1)}" height="${h}" rx="8" class="r2-sel"/>`;
   if (goal > 0) { const y = top + (h - top) * (1 - goal / mx); o += `<line class="r2-goal" x1="0" x2="${R2W - 38}" y1="${y}" y2="${y}"/><text x="${R2W - 34}" y="${y + 4}">${goal} ч</text>`; }
   for (let i = 0; i < n; i++) {
     const x = gap * i + gap / 2 - bw / 2; let y = h;
-    parts.forEach((p, k) => { const v = p[i] || 0; if (v <= 0) return; const hh = (h - top) * v / mx; y -= hh; o += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" fill="${colors[k]}"${k === parts.length - 1 ? ` rx="${Math.min(4, bw / 2).toFixed(1)}"` : ""}/>`; });
+    const topK = parts.reduce((m, p, k) => ((p[i] || 0) > 0 ? k : m), -1); // верхний непустой слой: у него скруглённый верх
+    parts.forEach((p, k) => { const v = p[i] || 0; if (v <= 0) return; const hh = (h - top) * v / mx; y -= hh; o += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" fill="${colors[k]}"${k === topK ? ` rx="${Math.min(4, bw / 2).toFixed(1)}"` : ""}${sel != null && sel !== i ? ' opacity=".45"' : ""}/>`; });
     if (labs[i]) o += `<text x="${(x + bw / 2).toFixed(1)}" y="${h + 16}" text-anchor="middle"${i === n - 1 ? ' class="r2-last"' : ""}>${labs[i]}</text>`;
   }
-  return r2Svg(h + 22, o);
+  return r2Svg(h + 22, o + r2Hit(id, keys, n, gap, h + 22));
 }
 // Маленькие столбики для плиток «Сон» и «Шаги»
 function r2Mini(vals, color, h = 44, w = 130) {
@@ -2074,8 +2085,10 @@ function reportTodayHtml(a) {
 
   // сон прошлой ночи и шаги
   const sl = sleepOn(today);
-  const deep = sl ? Number(sl.sleepDeepH) || 0 : 0, rem = sl ? Number(sl.sleepRemH) || 0 : 0, core = sl ? Math.max(0, p.sleep - deep - rem) : 0;
-  const tileSleep = sl ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#5E5CE6"></i>Сон прошлой ночи</div><div class="r2-big">${r2HM(p.sleep)}</div><div class="r2-sub">${deep > 0 ? `глубокий ${fmtDur(deep)}` : p.sleep < SLEEP_MIN ? `короче ${SLEEP_MIN} ч` : "в норме"}</div>${deep + rem > 0 ? `<div class="r2-sbar"><i style="width:${(deep / p.sleep * 100).toFixed(1)}%;background:#5E5CE6"></i><i style="width:${(rem / p.sleep * 100).toFixed(1)}%;background:#0A84FF"></i><i style="width:${(core / p.sleep * 100).toFixed(1)}%;background:#64D2FF"></i></div>` : ""}</section>` : "";
+  const deep = sl ? Number(sl.sleepDeepH) || 0 : 0, rem = sl ? Number(sl.sleepRemH) || 0 : 0, awake = sl ? Number(sl.sleepAwakeH) || 0 : 0;
+  const core = sl ? (Number(sl.sleepCoreH) || Math.max(0, p.sleep - deep - rem)) : 0, stTot = deep + rem + core + awake;
+  const sPart = (v, c) => (v > 0 && stTot > 0 ? `<i style="width:${(v / stTot * 100).toFixed(1)}%;background:${c}"></i>` : "");
+  const tileSleep = sl ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#5E5CE6"></i>Сон прошлой ночи</div><div class="r2-big">${r2HM(p.sleep)}</div><div class="r2-sub">${deep > 0 ? `глубокий ${fmtDur(deep)}` : p.sleep < SLEEP_MIN ? `короче ${SLEEP_MIN} ч` : "в норме"}</div>${deep + rem > 0 ? `<div class="r2-sbar">${sPart(deep, "#5E5CE6")}${sPart(rem, "#BF5AF2")}${sPart(core, "#64D2FF")}${sPart(awake, "#FF9F0A")}</div>` : ""}</section>` : "";
   const tileSteps = p.steps > 0 ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#34C759"></i>Шаги</div><div class="r2-big">${r2Num(p.steps)}</div><div class="r2-sub">из ${r2Num(STEPS_GOAL)} · ${Math.round((p.steps / STEPS_GOAL) * 100)}%</div><div class="r2-pb" style="margin-top:20px"><i style="width:${Math.min(100, (p.steps / STEPS_GOAL) * 100).toFixed(1)}%;background:#34C759"></i></div></section>` : "";
   const tiles = tileSleep || tileSteps ? `<div class="r2-g2${tileSleep && tileSteps ? "" : " one"}">${tileSleep}${tileSteps}</div>` : "";
 
@@ -2109,7 +2122,13 @@ function viewReportsInner() {
   const gfn = (fn) => (grouped ? (k) => { const v = gmap[k].map(fn).filter((x) => x > 0); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : 0; } : fn);
   const serie = (fn) => chartKeys.map(gfn(fn));
   const labs = r2Labs(chartKeys, grouped);
-  const kper = grouped ? gIdx.map((i) => { const seg = a.per.slice(i, i + step).filter((x) => x.has); return seg.length ? seg.reduce((t, x) => t + x.kcal, 0) / seg.length : 0; }) : a.per.map((x) => (x.has ? x.kcal : 0));
+  // нажатие на столбик: подсветка и подсказка с цифрами этого дня (или недели/месяца, если столбики сгруппированы)
+  const keyLong = (k) => { if (!grouped) return shortDate(k); const g = gmap[k] || [k]; return g.length > 1 ? `${shortDate(g[0])} – ${shortDate(g[g.length - 1])}` : shortDate(k); };
+  const selCal = r2PickIdx("cal", chartKeys), selHyd = r2PickIdx("hyd", chartKeys), selAct = r2PickIdx("act", chartKeys), selSlp = r2PickIdx("slp", chartKeys);
+  const tipAt = (sel, fn, wide) => { if (sel == null) return ""; const [t, ls] = fn(sel); return r2Tip(sel, chartKeys.length, t, ls.filter(Boolean), wide); };
+  const box = (svg, tip) => `<div class="r2-chart r2-pw">${tip}${svg}</div>`;
+  const avgNote = grouped ? "среднее в день" : "";
+  const kper =grouped ? gIdx.map((i) => { const seg = a.per.slice(i, i + step).filter((x) => x.has); return seg.length ? seg.reduce((t, x) => t + x.kcal, 0) / seg.length : 0; }) : a.per.map((x) => (x.has ? x.kcal : 0));
   const active = (v) => (!state.repCustom && state.repDays === v ? "on" : "");
   const tab = state.rTab === "detail" ? "detail" : "over";
   const presets = [[1, "Сегодня"], [7, "7 дн"], [30, "30 дн"], [90, "90 дн"], [365, "Год"]];
@@ -2164,7 +2183,7 @@ function viewReportsInner() {
   const calCard = a.L ? `<section class="r2-card">${r2Ch("#FF9F0A", "flame", "Калории")}
     <div class="r2-big">${r2Num(a.kcalAvg)}<small>ккал в день</small></div>
     <div class="r2-sub">цель ${r2Num(goal)} · ${a.overDays ? `<span class="r2-dn">дней с перебором: ${a.overDays}</span>` : "перебора нет"}${prev && prev.kcalAvg ? ` · ${Math.round(a.kcalAvg - prev.kcalAvg) === 0 ? "как в прошлом периоде" : `${r2Sgn(a.kcalAvg - prev.kcalAvg)}${r2Num(Math.abs(a.kcalAvg - prev.kcalAvg))} к прошлому`}` : ""}</div>
-    <div class="r2-chart">${r2Bars({ vals: kper, labs, goal, color: "#FF9F0A", over: (v) => v > goal * 1.1, h: 120 })}</div>
+    ${box(r2Bars({ vals: kper, labs, goal, color: "#FF9F0A", over: (v) => v > goal * 1.1, h: 120, id: "cal", keys: chartKeys, sel: selCal }), tipAt(selCal, (i) => [`${esc(keyLong(chartKeys[i]))} · ${kper[i] > 0 ? `${r2Num(kper[i])} ккал` : "нет записей"}`, [kper[i] > 0 ? `цель ${r2Num(goal)}${kper[i] > goal * 1.1 ? " · перебор" : ""}` : "", avgNote]]))}
     <div class="r2-leg"><span><i style="background:#FF9F0A"></i>в пределах цели</span><span><i style="background:#FF3B30"></i>перебор больше 10%</span>${grouped ? `<span>${step === 30 ? "среднее по месяцам" : "среднее по неделям"}</span>` : ""}</div></section>` : "";
 
   // --- питание ---
@@ -2179,30 +2198,34 @@ function viewReportsInner() {
     ${plan ? "" : `<p class="r2-sub" style="margin:10px 0 0">Заполните профиль в «Я», чтобы увидеть ориентиры по белкам, жирам и углеводам.</p>`}</section>` : "";
 
   // --- вода и кофеин ---
+  const hydS = serie(hydrationOn);
   const hydCard = a.hydDays || a.cafDays ? `<section class="r2-card">${r2Ch("#0A84FF", "drop", "Вода и кофеин")}
     ${a.hydDays ? `<div class="r2-big">${r2Num(a.hydAvg)}<small>мл в день</small></div><div class="r2-sub">норма ${r2Num(a.targetAvg)} мл · дней с нормой ${a.normDays} из ${n}</div>
-    <div class="r2-chart">${r2Bars({ vals: serie(hydrationOn), labs, goal: a.targetAvg, color: "#0A84FF", h: 110 })}</div>` : `<p class="r2-sub" style="margin:0">Воду за период не записывали.</p>`}
+    ${box(r2Bars({ vals: hydS, labs, goal: a.targetAvg, color: "#0A84FF", h: 110, id: "hyd", keys: chartKeys, sel: selHyd }), tipAt(selHyd, (i) => [`${esc(keyLong(chartKeys[i]))} · ${hydS[i] > 0 ? `${r2Num(hydS[i])} мл` : "нет записей"}`, [`норма ${r2Num(a.targetAvg)} мл`, avgNote]]))}` :`<p class="r2-sub" style="margin:0">Воду за период не записывали.</p>`}
     ${a.cafDays ? `<div class="r2-rw r2-sep"><div class="tx"><b>Кофеин</b><span>${a.cafOver ? `выше нормы (${a.cafLim} мг) дней: ${a.cafOver}` : `норма ${a.cafLim} мг не превышена`}</span></div><div class="v">${r2Num(a.cafAvg)}<small>мг в день</small></div></div>` : ""}</section>` : "";
 
   // --- нагрузка ---
   let planTxt = "";
   if (state.trainCfg) { const ts = trainStats(days[0], days[n - 1]); if (ts.planned) planTxt = ` · по плану: тренировок ${ts.daysDone} из ${ts.days}, упражнений ${ts.plannedDone} из ${ts.planned}`; }
   const actColors = ["#FF2D55", "#FF9500", "#34C759", "#5E5CE6"];
+  const actS = serie(actMinutes);
   const loadCard = a.actTotalMin > 0 || a.workoutCount ? `<section class="r2-card">${r2Ch("#FF2D55", "dumb", "Нагрузка")}
     <div class="r2-big">${r2Num(a.actTotalMin / a.weeks)}<small>мин в неделю</small></div>
     <div class="r2-sub">всего ${r2Num(a.actTotalMin)} мин · сожжено ${r2Num(a.actTotalKcal)} ккал${plan ? ` · ориентир ${plan.weekly.minutes} мин` : ""}${planTxt}</div>
-    <div class="r2-chart">${r2Bars({ vals: serie(actMinutes), labs, color: "#FF2D55", h: 100, fv: (v) => `${r2Num(v)}м` })}</div>
+    ${box(r2Bars({ vals: actS, labs, color: "#FF2D55", h: 100, fv: (v) => `${r2Num(v)}м`, id: "act", keys: chartKeys, sel: selAct }), tipAt(selAct, (i) => [`${esc(keyLong(chartKeys[i]))} · ${actS[i] > 0 ? `${r2Num(actS[i])} мин` : "нагрузки не было"}`, [avgNote]]))}
     ${a.actTypes.length ? `<div class="r2-chips">${a.actTypes.slice(0, 4).map((t, i) => `<span><i style="background:${actColors[i % 4]}"></i>${esc(t.name)} ${r2Num(t.min)} мин</span>`).join("")}</div>` : ""}</section>` : "";
   const trainCard = state.trainCfg ? trainDynCardHtml(todayStr()) : "";
 
   // --- сон подробно ---
-  const deepS = serie((d) => Number((sleepOn(d) || {}).sleepDeepH) || 0), remS = serie((d) => Number((sleepOn(d) || {}).sleepRemH) || 0), totS = serie(sleepHours);
-  const coreS = totS.map((t, i) => Math.max(0, t - deepS[i] - remS[i]));
+  // фазы сна: глубокий, быстрый, лёгкий и бодрствование (как на вкладке «Здоровье → Сон»); лёгкий берём из данных, а если его нет, то остаток от сна
+  const stg = (d) => { const s = sleepOn(d) || {}, deep = Number(s.sleepDeepH) || 0, rem = Number(s.sleepRemH) || 0, awake = Number(s.sleepAwakeH) || 0; let core = Number(s.sleepCoreH) || 0; if (!core) core = Math.max(0, sleepHours(d) - deep - rem); return { deep, rem, core, awake }; };
+  const deepS = serie((d) => stg(d).deep), remS = serie((d) => stg(d).rem), coreS = serie((d) => stg(d).core), awakeS = serie((d) => stg(d).awake);
+  const SL_COL = ["#5E5CE6", "#BF5AF2", "#64D2FF", "#FF9F0A"];
   const sleepCard = a.sleepDays ? `<section class="r2-card">${r2Ch("#5E5CE6", "moon", "Сон")}
     <div class="r2-big">${r2HM(a.sleepAvg)}</div>
     <div class="r2-sub">${a.bedN ? `засыпаете около ${minToClock(a.bedAvg)}` : ""}${a.sleepDeepAvg > 0 ? `${a.bedN ? " · " : ""}глубокий ${fmtDur(a.sleepDeepAvg)}` : ""}${!a.bedN && !(a.sleepDeepAvg > 0) ? `ночей с данными: ${a.sleepDays}` : ""}</div>
-    <div class="r2-chart">${r2Stack({ parts: [deepS, remS, coreS], labs, goal: SLEEP_MIN, colors: ["#5E5CE6", "#0A84FF", "#64D2FF"], h: 116 })}</div>
-    <div class="r2-leg"><span><i style="background:#5E5CE6"></i>глубокий</span><span><i style="background:#0A84FF"></i>REM</span><span><i style="background:#64D2FF"></i>базовый</span></div></section>` : "";
+    ${box(r2Stack({ parts: [deepS, remS, coreS, awakeS], labs, goal: SLEEP_MIN, colors: SL_COL, h: 116, id: "slp", keys: chartKeys, sel: selSlp }), tipAt(selSlp, (i) => { const tt = deepS[i] + remS[i] + coreS[i]; return [`${esc(keyLong(chartKeys[i]))} · ${tt > 0 ? `сон ${fmtDur(tt)}` : "данных нет"}`, tt > 0 || awakeS[i] > 0 ? [`глубокий ${fmtDur(deepS[i])}`, `быстрый ${fmtDur(remS[i])}`, `лёгкий ${fmtDur(coreS[i])}`, `бодрствование ${fmtDur(awakeS[i])}`, avgNote] : []]; }, true))}
+    <div class="r2-leg"><span><i style="background:${SL_COL[0]}"></i>глубокий</span><span><i style="background:${SL_COL[1]}"></i>быстрый</span><span><i style="background:${SL_COL[2]}"></i>лёгкий</span><span><i style="background:${SL_COL[3]}"></i>бодрствование</span></div></section>` : "";
 
   // --- вес и замеры ---
   const wIn = state.weights.filter((w) => w.date >= days[0] && w.date <= days[n - 1]).map((w) => ({ d: w.date, v: Number(w.kg) }));
@@ -5764,6 +5787,7 @@ const actions = {
   repReset() { state.repDays = 7; state.repCustom = null; state.repMenu = false; render(); },
   pulseRange(ds) { state.pulseRange = Number(ds.v); state.pulseSel = null; lsSet("pulseRange", ds.v); render(); },
   pulseSel(ds) { const i = Number(ds.i); state.pulseSel = state.pulseSel === i ? null : i; render(); },
+  r2Sel(ds) { state.r2Sel = state.r2Sel || {}; state.r2Sel[ds.c] = state.r2Sel[ds.c] === ds.k ? null : ds.k; render(); },
   aiRun() { runAi(); },
   aiDelete() {
     state.aiLast = null;
