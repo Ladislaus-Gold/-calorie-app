@@ -709,6 +709,7 @@ button.lg-row:active { background: var(--accent-soft); }
 
 /* v65: сон */
 .chart .b.sleep { background: linear-gradient(180deg, #9AA7F0, #6B78D6); }
+.sl-track { padding: 0; }
 .sl-track > i { background: linear-gradient(90deg, #8F9CF0, #6B78D6); }
 .sl-track.warn > i { background: linear-gradient(90deg, #E0A94B, #C98A1A); }
 .sl-track.bad > i { background: linear-gradient(90deg, var(--red), #F08A8A); }

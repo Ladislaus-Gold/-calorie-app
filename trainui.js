@@ -1644,15 +1644,30 @@ function trainDynCardHtml(day) {
     return `<div class="tr-band-r"><i style="--c:${c.hex}"></i><span>${c.t}</span><b>${fmt(pts[pts.length - 1])} кг</b><small>${seq.length > 1 ? seq.map((v) => fmt(v)).join(" → ") + " кг" : "вес не менялся"}${seq.length > 1 ? (up > 0 ? ", растёт" : up < 0 ? ", снижен" : "") : ""}</small></div>`;
   }).join("");
   const wDone = wk.filter(({ x }) => x.plan);
-  const cmp = wDone.length >= 2 ? Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan - wDone[0].x.done / wDone[0].x.plan) * 100) : null;
+  const pctOf = (x) => (x.plan ? Math.round((x.done / x.plan) * 100) : 0);
+  const wlab = (s) => `${Number(s.slice(8))}.${s.slice(5, 7)}`;
+  const nowW = wk[wk.length - 1].x, firstW = wDone[0], lastW = wDone[wDone.length - 1];
+  const word = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many);
+  // Подписи: столбики выполнения подписаны датой понедельника (дд.мм), столбики самочувствия числом оценки над ними и датой тренировки под ними
+  const barsFixed = wk.map(({ w, x }) => { const p = pctOf(x); return `<div class="col">${x.plan && p > 0 ? `<i class="bv">${p}%</i>` : ""}<div class="${x.plan ? "b" : "b zero"}" style="height:${x.plan ? Math.max(3, p) : 2}%" title="неделя с ${esc(wlab(w))}: ${p}%"></div></div>`; }).join("");
+  const labelsFixed = `<div class="chart-labels">${wk.map(({ w }) => `<span>${esc(wlab(w))}</span>`).join("")}</div>`;
+  const feelBars2 = last.map((l) => `<div class="col"><i class="bv">${Number(l.feel) || "–"}</i><div class="b${Number(l.feel) >= 4 ? " over" : ""}" style="height:${Math.max(8, (Number(l.feel) || 0) * 20)}%" title="${esc(dateShort(l.date))}: ${esc(feelLabel(Number(l.feel)))}"></div></div>`).join("");
+  const flab = (s) => (last.length > 8 ? String(Number(s.slice(8))) : wlab(s)); // при 9+ столбиках дд.мм не помещается: подписываем числом месяца
+  const feelLabels = `<div class="chart-labels">${last.map((l) => `<span>${esc(flab(l.date))}</span>`).join("")}</div>`;
+  const tiles = wDone.length ? `<div class="dn-tiles">
+      <div class="dn-t t-g"><b>${nowW.plan ? `${nowW.done} из ${nowW.plan}` : "—"}</b><span>${nowW.plan ? "упражнений сделано на этой неделе" : "на этой неделе тренировок по плану нет"}</span></div>
+      <div class="dn-t t-y"><b>${st.daysDone} из ${st.days}</b><span>тренировок завершено за 8 недель</span></div>
+      <div class="dn-t t-p"><b>${st.streak}</b><span>${word(st.streak, "тренировка", "тренировки", "тренировок")} подряд без пропусков</span></div></div>` : "";
+  const trend = wDone.length >= 2 ? `Сейчас вы выполняете ${pctOf(lastW.x)}% плана, а на первой неделе с планом было ${pctOf(firstW.x)}%.` : "Пока есть одна неделя с планом. Сравнение появится, когда их будет хотя бы две.";
   return `<section class="card">
-    <div class="card-top fl-top"><span class="fl-ic sl-sq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><h2 class="h2">Тренировки по плану</h2><span class="pill pc-ind">не из Apple Health</span></div>
-    ${wDone.length ? `<div class="dn-tiles"><div class="dn-t t-g"><b>${Math.round((wDone[wDone.length - 1].x.done / wDone[wDone.length - 1].x.plan) * 100)}%</b><span>последняя неделя</span></div>${cmp !== null ? `<div class="dn-t t-y"><b>${cmp > 0 ? "+" : ""}${cmp}</b><span>п. п. с первой недели</span></div>` : ""}<div class="dn-t t-p"><b>${wDone.length}</b><span>${wDone.length === 1 ? "неделя" : wDone.length < 5 ? "недели" : "недель"} с планом</span></div></div>` : ""}
-    <p class="tr-lab" style="margin-top:0">Выполнение плана по неделям, %</p>
-    <div class="chart tr-feel-chart">${bars}</div>${labels}
-    <p class="chart-note">${cmp === null ? "Динамика появится, когда будет хотя бы две недели с тренировками." : `С первой недели выполнение ${cmp > 0 ? "выросло" : cmp < 0 ? "снизилось" : "не изменилось"}${cmp ? ` на ${Math.abs(cmp)} п.п.` : ""}.`}</p>
-    ${last.length ? `<p class="tr-lab" style="margin-top:14px">Тяжесть последних тренировок</p><div class="chart tr-feel-chart">${feelBars}</div><p class="chart-note">Высота столбика: самочувствие после тренировки (1 — очень легко, 5 — очень тяжело). Красным отмечены тяжёлые.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Тяжесть появится после первой завершённой тренировки.</p>`}
-    ${bandRows ? `<p class="tr-lab" style="margin-top:14px">Вес резинок по цветам</p>${bandRows}` : ""}
+    <div class="card-top fl-top"><span class="fl-ic sl-sq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><h2 class="h2">Тренировки по плану</h2></div>
+    <p class="chart-note" style="margin:0 0 12px">Здесь собрано то, что вы делали в разделе «Тренировки»: упражнения вашего плана с отметками «сделано». Тренировки с Apple Watch сюда не входят, они показаны выше.</p>
+    ${tiles}
+    <p class="tr-lab" style="margin-top:0"><b>Сколько упражнений плана вы сделали</b></p>
+    <div class="chart tr-feel-chart">${barsFixed}</div>${labelsFixed}
+    <p class="chart-note">Один столбик — одна неделя, под ним дата понедельника. Число над столбиком — сколько процентов запланированных упражнений вы сделали (100% — всё). ${trend}</p>
+    ${last.length ? `<p class="tr-lab" style="margin-top:16px"><b>Как вы себя чувствовали после тренировок</b></p><div class="chart tr-feel-chart">${feelBars2}</div>${feelLabels}<p class="chart-note">Один столбик — одна тренировка (последние ${last.length}), под ним ${last.length > 8 ? "число месяца" : "дата"}. Число над столбиком — ваша оценка от 1 до 5: 1 — очень легко, 5 — очень тяжело. Красным выделены тяжёлые (4 и 5): если их много подряд, нагрузку стоит снизить.</p>` : `<p class="foot-note" style="margin:12px 4px 0">Оценка самочувствия появится после первой завершённой тренировки.</p>`}
+    ${bandRows ? `<p class="tr-lab" style="margin-top:16px"><b>Резинки: какой вес вы берёте сейчас</b></p>${bandRows}<p class="chart-note">Слева цвет резинки, справа текущий вес. Стрелками показано, как вес менялся.</p>` : ""}
   </section>`;
 }
 

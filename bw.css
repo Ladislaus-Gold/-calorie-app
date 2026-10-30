@@ -1679,7 +1679,7 @@ html body .dv.hvw.hsl .sl-hero .h2, html body .dv.hvw.hsl .sl-hero .big-line { c
 html body .dv.hvw.hsl .sl-hero .big-line { font-size: 44px; font-weight: 700; letter-spacing: -.045em; line-height: 1; margin-top: 4px; }
 html body .dv.hvw.hsl .sl-hero .big-line small { font-size: 17px; font-weight: 600; letter-spacing: -.01em; color: rgba(255,255,255,.82) !important; margin-left: 6px; }
 html body .dv.hvw.hsl .sl-hero .pill, html body .dv.hvw.hsl .sl-hero .pill.warn, html body .dv.hvw.hsl .sl-hero .pill.over { background: rgba(255,255,255,.2) !important; color: #fff !important; border: 0 !important; margin-right: 56px; position: relative; z-index: 2; }
-html body .dv.hvw.hsl .sl-hero .track { height: 8px; border-radius: 4px; background: rgba(255,255,255,.25) !important; margin: 16px 0 10px; overflow: hidden; }
+html body .dv.hvw.hsl .sl-hero .track { height: 8px; border-radius: 4px; background: rgba(255,255,255,.25) !important; margin: 16px 0 10px; padding: 0 !important; overflow: hidden; } /* padding:0: класс .warn (ночь меньше 7 ч) добавлял шкале отступы 10px 12px, высота заливки схлопывалась в 0 */
 html body .dv.hvw.hsl .sl-hero .track > i, html body .dv.hvw.hsl .sl-hero .sl-track.warn > i, html body .dv.hvw.hsl .sl-hero .sl-track.bad > i { background: #fff !important; border-radius: 4px; }
 html body .dv.hvw.hsl .sl-hero .foot-note { color: rgba(255,255,255,.85) !important; }
 html body .dv.hvw.hsl .sl-strip { background: rgba(255,255,255,.14); border-radius: 16px; padding: 12px 0; }
