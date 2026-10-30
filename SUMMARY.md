@@ -715,3 +715,7 @@ Worker → **Settings** → **Variables and Secrets** → **Add**. Создай�
 - vid/walk_tm-bw.mp4 и .jpg: закрашено тёмное пятно справа от дорожки.
 - «Тяга к лицу»: видео из Gemini не подошло (локти низко, ручка перед лицом), не добавлено.
 - Версии: app.js ?v=331 (APP_VERSION 331, «3.30»), trainui.js ?v=73.
+
+## v3.31 — видео «Тяга к лицу с резинкой»
+- vid/facepull-band.mp4 + vid/facepull-band.jpg: квадрат 720×720, 4,2 с, без звука, один повтор по кругу (из нового ролика Gemini: локти назад на уровне плеч, руки у лица). Подключено в `VIDEOS` (trainui.js): `"facepull:band"`.
+- Версии: app.js ?v=332 (APP_VERSION 332, «3.31»), index.html app-label 3.31, trainui.js ?v=74.
