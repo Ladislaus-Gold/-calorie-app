@@ -367,7 +367,7 @@ function trainDetail(it) {
   if (isMinIt(it)) return `${it.minutes} мин, ${it.sub}.`;
   if (it.group === "cool" || it.group === "warm") return `${it.text}. ${it.sub}.`;
   if (it.reps) return `${it.sets} ${pluralSets(it.sets)} по ${it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`} повторений${it.side ? " на каждую сторону" : ""}, отдых ${it.rest} сек.`;
-  return `${it.sets} ${pluralSets(it.sets)} по ${it.secs[0]}–${it.secs[1]} секунд${it.side ? " на каждую сторону" : ""}, отдых ${it.rest} сек.`;
+  return `${it.sets} ${pluralSets(it.sets)} по ${it.secs[0]}–${it.secs[1]} секунд${it.side ? " на каждую сторону" : ""}${it.rest ? `, отдых ${it.rest} сек.` : ""}.`;
 }
 
 const PEN_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>`;
@@ -1049,7 +1049,7 @@ function openTrainExercise(date, key) {
   const statsHtml = () => {
     const t = (b, l) => `<div class="st"><b>${b}</b><small>${l}</small></div>`;
     if (it.reps) return `<div class="ex-stats">${t(it.sets, plur(it.sets, "подход", "подхода", "подходов"))}${t(it.reps[0] === it.reps[1] ? it.reps[0] : `${it.reps[0]}–${it.reps[1]}`, "повторений" + (it.side ? " на сторону" : ""))}${t(`${it.rest} с`, "отдых")}</div>`;
-    if (it.secs) return `<div class="ex-stats">${t(it.sets, plur(it.sets, "подход", "подхода", "подходов"))}${t(`${it.secs[0]}–${it.secs[1]}`, "секунд" + (it.side ? " на сторону" : ""))}${t(`${it.rest} с`, "отдых")}</div>`;
+    if (it.secs) return `<div class="ex-stats">${t(it.sets, plur(it.sets, "подход", "подхода", "подходов"))}${t(`${it.secs[0]}–${it.secs[1]}`, "секунд" + (it.side ? " на сторону" : ""))}${it.rest ? t(`${it.rest} с`, "отдых") : ""}</div>`;
     return `<p class="ex-do"><b>${esc(trainDetail(it))}</b>${it.cue ? ` ${esc(it.cue)}` : ""}</p>`;
   };
   const howNow = [
