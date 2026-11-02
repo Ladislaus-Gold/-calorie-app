@@ -799,6 +799,7 @@ function checkCelebrate() {
 }
 document.addEventListener("pointerdown", () => { try { sndUnlock(); } catch { /* ignore */ } }, { passive: true });
 
+let enterTab = null, enterT = 0;
 function render() {
   if (!state.user) return;
   checkCelebrate();
@@ -806,6 +807,13 @@ function render() {
   const views = { diary: viewDiary, products: viewProducts, health: viewHealth, reports: viewReports, me: viewMe };
   const banner = state.error ? `<div class="banner" role="alert">${esc(state.error)}</div>` : "";
   $("#view").innerHTML = banner + views[state.tab]();
+  // Вход на вкладку: плавное появление страницы и «подъезд» карточек (только при смене вкладки / первом показе)
+  if (enterTab !== state.tab) {
+    enterTab = state.tab;
+    const v = $("#view");
+    v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter");
+    clearTimeout(enterT); enterT = setTimeout(() => v.classList.remove("enter"), 900);
+  }
   applyEmo($("#view"));
   if (state.tab === "health") bindFluidCap($("#view"));
   if (state.tab === "diary") {
@@ -5960,6 +5968,13 @@ $("#view").addEventListener("input", (e) => {
     $("#plist").innerHTML = productListHtml();
   }
 });
+
+// Лёгкая вибрация при нажатии на главные кнопки (где поддерживается; не при «уменьшить движение»)
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".nav-btn, .btn.primary, .btn-primary, .fab")) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  try { navigator.vibrate && navigator.vibrate(8); } catch {}
+}, true);
 
 $("#nav").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
