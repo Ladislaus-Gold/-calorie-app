@@ -2612,3 +2612,11 @@ html body .dv.hvw.hme .me-bd b { display: block; font-size: 17px; font-weight: 6
 html body .dv.hvw.hme .me-bp { font-size: 15px; font-weight: 500; color: #0A84FF; flex: none; }
 html body .dv.hvw.hme .me-lr > span.me-bp { flex: none; }
 html body .dv.hvw.hme .me-lr > span.me-bd { flex: 1; }
+
+/* Окна выбора (напитки и др.): не двигаются в стороны */
+.bw-ov .sheet, .pick-ov .sheet { overflow-x: hidden; overscroll-behavior-x: none; touch-action: pan-y; max-width: 480px; }
+.bw-ov .sheet > *, #dk-body { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.bw-ov .plist { grid-template-columns: minmax(0, 1fr); }
+.bw-ov .drow, .bw-ov .d-tx, .bw-ov .d-main { min-width: 0; max-width: 100%; }
+.bw-ov .drow .p-sub { overflow-wrap: anywhere; }
+.bw-ov .chips.cats, .bw-ov .dk-favs { max-width: 100%; overscroll-behavior-x: contain; }
