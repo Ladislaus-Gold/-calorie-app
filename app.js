@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 343;
-const APP_VERSION_LABEL = "3.41"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 344;
+const APP_VERSION_LABEL = "3.42"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -813,6 +813,9 @@ function render() {
     const v = $("#view");
     v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter");
     clearTimeout(enterT); enterT = setTimeout(() => v.classList.remove("enter"), 900);
+  } else {
+    // Повторная перерисовка той же вкладки (статус, данные): анимацию входа не проигрываем второй раз
+    clearTimeout(enterT); $("#view").classList.remove("enter");
   }
   applyEmo($("#view"));
   if (state.tab === "health") bindFluidCap($("#view"));
