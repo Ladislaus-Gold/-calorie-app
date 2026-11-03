@@ -36,6 +36,34 @@ if (typeof document !== "undefined" && !window.__exPh) {
     const v = s.querySelector("video");
     if (v) { if (i === 0) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else v.pause(); }
   }, true);
+  // Видео без звука должно стартовать само и крутиться по кругу: iOS не запускает автоплей у видео, вставленного через innerHTML
+  // (атрибут muted не всегда применяется), и останавливает его при перерисовке. Поэтому выставляем свойства и подталкиваем play().
+  const onFirst = (v) => !v.closest(".ex-ph") || (v.closest(".ex-ph").dataset.i || "0") === "0";
+  const kick = (v) => {
+    if (!v || v.tagName !== "VIDEO") return;
+    v.muted = true; v.defaultMuted = true; v.loop = true; v.playsInline = true;
+    if (!onFirst(v) || !v.paused) return;
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  };
+  const kickAll = (root) => { (root || document).querySelectorAll("video").forEach(kick); };
+  if (typeof MutationObserver !== "undefined") {
+    new MutationObserver((ms) => {
+      for (const m of ms) for (const n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (n.tagName === "VIDEO") kick(n); else if (n.querySelector) kickAll(n);
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+  for (const ev of ["loadeddata", "canplay", "pause", "stalled", "waiting"]) document.addEventListener(ev, (e) => { if (e.target && e.target.tagName === "VIDEO") setTimeout(() => kick(e.target), ev === "pause" ? 150 : 0); }, true);
+  document.addEventListener("ended", (e) => { const v = e.target; if (v && v.tagName === "VIDEO") { v.currentTime = 0; kick(v); } }, true);
+  // Если iOS (например, режим энергосбережения) запретил автоплей, первое касание экрана запускает все видимые видео
+  const gest = () => kickAll();
+  document.addEventListener("touchend", gest, { passive: true, capture: true });
+  document.addEventListener("click", gest, true);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) kickAll(); });
+  window.addEventListener("pageshow", () => kickAll());
+  kickAll();
   // нет файла (например, папка img/ или vid/ не загружена): сломанное видео убираем вместе с его точкой, сломанную картинку — всю рамку
   document.addEventListener("error", (e) => {
     const im = e.target;
@@ -595,9 +623,9 @@ function openTrainWorkout(date) {
     let nxHtml = "";
     if (nx && phase === "restx") {
       const nex = TR.EXERCISES[nx.id] || {};
-      nxHtml = `<div class="wk-nxc">${hasPhoto(nx.id, nx.vk) ? `<div class="th"><img src="img/${nx.id}-${nx.vk}-1.webp" alt=""></div>` : ""}<div><small>Следом</small><div class="n">${esc(nx.name)}</div><div class="v">${esc([varOf(nx), planOf(nx)].filter(Boolean).join(" · "))}</div>${bandRec(nx, date) ? `<div class="v"><b>${esc(bandRec(nx, date))}</b></div>` : ""}</div></div>`;
+      nxHtml = `<div class="wk-nxc">${hasPhoto(nx.id, nx.vk) ? `<div class="th"><img src="img/${nx.id}-${nx.vk}-1.webp" alt=""></div>` : ""}<div><small>Следом</small><div class="n">${esc(nx.name)}</div><div class="v">${esc([varOf(nx), planOf(nx)].filter(Boolean).join(" · "))}</div>${bandRec(nx, date) ? `<div class="v"><b>${recHtml(nx, date)}</b></div>` : ""}</div></div>`;
     } else if (nx) {
-      nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}${bandRec(nx, date) ? `<span>· <b>${esc(bandRec(nx, date))}</b></span>` : ""}</div>`;
+      nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}${bandRec(nx, date) ? `<span>· <b>${recHtml(nx, date)}</b></span>` : ""}</div>`;
     }
     const rt = recText(it, date);
     return `${phase === "restx" ? "" : infoCard([rt ? ["Рекомендуемый вес", `${recDots(it, date)}${esc(rt)}`] : null, ["Цель", `${lo === hi ? hi : `${lo}–${hi}`} ${plur(hi, "повторение", "повторения", "повторений")}${rs ? ` ${sideAcc(it)}` : ""}`], prev ? ["В прошлый раз", prev.sets.join(" / ")] : null])}<div class="wk-pls">${plates}</div>${phase === "restx" ? rateHtml(it) : ""}${rc}${ctl}${nxHtml}${HINT}`;
@@ -634,7 +662,7 @@ function openTrainWorkout(date) {
     const mid = review ? REDO : phase === "swap" || phase === "fin" ? "подготовьтесь<br>начнётся само" : run ? "идёт таймер<br>закончится сам" : hasPhoto(it.id, it.vk) ? (kind === "plain" ? "нажмите на картинку — выполнено" : "нажмите на картинку — записать") : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${mid}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     const nx = items[idx + 1];
-    const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}${bandRec(nx, date) ? `<span>· <b>${esc(bandRec(nx, date))}</b></span>` : ""}</div>` : "";
+    const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}${bandRec(nx, date) ? `<span>· <b>${recHtml(nx, date)}</b></span>` : ""}</div>` : "";
     return `${info}${hasPhoto(it.id, it.vk) ? "" : `<div class="wk-pls">${pl}</div>`}${rc}${sides}${ctl}${nxHtml}${HINT}`;
   };
   const endHtml = () => {
@@ -1552,6 +1580,7 @@ function recText(it, date) {
 // Подпись: «Тяга сидя к поясу: красная; …»
 const ebandsText = (l) => Object.entries((l && l.ebands) || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `${TR.EXERCISES[id].name}: ${bandName(c)}`).join("; ");
 // Рекомендуемая резинка/вес для упражнения: как в прошлый раз, а на потолке повторов — следующая тяжелее
+const recHtml = (it, date) => esc(bandRec(it, date)).replace("пора потяжелее", '<span class="up">пора потяжелее</span>');
 const bandRec = (it, date) => {
   if (!it) return "";
   const ceil = !!((trainAdvice(date).ex || {})[it.id] || {}).ceil;
