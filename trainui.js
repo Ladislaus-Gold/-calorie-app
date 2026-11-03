@@ -1586,7 +1586,7 @@ const bandRec = (it, date) => {
   const ceil = !!((trainAdvice(date).ex || {})[it.id] || {}).ceil;
   if (it.vk === "band" || it.vk === "bandf") {
     const last = lastBand(it.id, date);
-    if (!last) return "";
+    if (!last) { const r = recText(it, date); return r ? `Резинка: ${r}` : ""; } // ещё не делали: та же рекомендация, что на экране упражнения
     const kg = comboKg(comboIds(last));
     if (!ceil) return `Резинка: ${bandName(last)} (${fmt(kg)} кг)`;
     const nxt = [...TR.BAND_COLORS].sort((a, b) => bandKgOf(a.id) - bandKgOf(b.id)).find((c) => bandKgOf(c.id) > kg + 0.2);
