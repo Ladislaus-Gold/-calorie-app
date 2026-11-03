@@ -595,9 +595,9 @@ function openTrainWorkout(date) {
     let nxHtml = "";
     if (nx && phase === "restx") {
       const nex = TR.EXERCISES[nx.id] || {};
-      nxHtml = `<div class="wk-nxc">${hasPhoto(nx.id, nx.vk) ? `<div class="th"><img src="img/${nx.id}-${nx.vk}-1.webp" alt=""></div>` : ""}<div><small>Следом</small><div class="n">${esc(nx.name)}</div><div class="v">${esc([varOf(nx), planOf(nx)].filter(Boolean).join(" · "))}</div></div></div>`;
+      nxHtml = `<div class="wk-nxc">${hasPhoto(nx.id, nx.vk) ? `<div class="th"><img src="img/${nx.id}-${nx.vk}-1.webp" alt=""></div>` : ""}<div><small>Следом</small><div class="n">${esc(nx.name)}</div><div class="v">${esc([varOf(nx), planOf(nx)].filter(Boolean).join(" · "))}</div>${bandRec(nx, date) ? `<div class="v"><b>${esc(bandRec(nx, date))}</b></div>` : ""}</div></div>`;
     } else if (nx) {
-      nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>`;
+      nxHtml = `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}${bandRec(nx, date) ? `<span>· <b>${esc(bandRec(nx, date))}</b></span>` : ""}</div>`;
     }
     const rt = recText(it, date);
     return `${phase === "restx" ? "" : infoCard([rt ? ["Рекомендуемый вес", `${recDots(it, date)}${esc(rt)}`] : null, ["Цель", `${lo === hi ? hi : `${lo}–${hi}`} ${plur(hi, "повторение", "повторения", "повторений")}${rs ? ` ${sideAcc(it)}` : ""}`], prev ? ["В прошлый раз", prev.sets.join(" / ")] : null])}<div class="wk-pls">${plates}</div>${phase === "restx" ? rateHtml(it) : ""}${rc}${ctl}${nxHtml}${HINT}`;
@@ -634,7 +634,7 @@ function openTrainWorkout(date) {
     const mid = review ? REDO : phase === "swap" || phase === "fin" ? "подготовьтесь<br>начнётся само" : run ? "идёт таймер<br>закончится сам" : hasPhoto(it.id, it.vk) ? (kind === "plain" ? "нажмите на картинку — выполнено" : "нажмите на картинку — записать") : kind === "plain" ? "нажмите — выполнено" : "нажмите — записать<br>зажмите — значение";
     const ctl = `<div class="wk-ctl"><button type="button" class="wk-cb" data-w="prev" aria-label="Назад"${idx === 0 ? " disabled" : ""}>${ARROW_L}</button><div class="wk-mid">${mid}</div><button type="button" class="wk-cb sk" data-w="skip" aria-label="Пропустить">${ARROW_R}</button></div>`;
     const nx = items[idx + 1];
-    const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}</div>` : "";
+    const nxHtml = nx ? `<div class="wk-nx"><small>Следом</small><b>${esc(nx.name)}</b>${varOf(nx) ? `<span>· ${esc(varOf(nx))}</span>` : ""}${bandRec(nx, date) ? `<span>· <b>${esc(bandRec(nx, date))}</b></span>` : ""}</div>` : "";
     return `${info}${hasPhoto(it.id, it.vk) ? "" : `<div class="wk-pls">${pl}</div>`}${rc}${sides}${ctl}${nxHtml}${HINT}`;
   };
   const endHtml = () => {
@@ -1551,6 +1551,24 @@ function recText(it, date) {
 }
 // Подпись: «Тяга сидя к поясу: красная; …»
 const ebandsText = (l) => Object.entries((l && l.ebands) || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `${TR.EXERCISES[id].name}: ${bandName(c)}`).join("; ");
+// Рекомендуемая резинка/вес для упражнения: как в прошлый раз, а на потолке повторов — следующая тяжелее
+const bandRec = (it, date) => {
+  if (!it) return "";
+  const ceil = !!((trainAdvice(date).ex || {})[it.id] || {}).ceil;
+  if (it.vk === "band" || it.vk === "bandf") {
+    const last = lastBand(it.id, date);
+    if (!last) return "";
+    const kg = comboKg(comboIds(last));
+    if (!ceil) return `Резинка: ${bandName(last)} (${fmt(kg)} кг)`;
+    const nxt = [...TR.BAND_COLORS].sort((a, b) => bandKgOf(a.id) - bandKgOf(b.id)).find((c) => bandKgOf(c.id) > kg + 0.2);
+    return nxt ? `Резинка: ${nxt.t.toLowerCase()} (${fmt(bandKgOf(nxt.id))} кг), пора потяжелее` : `Резинка: ${bandName(last)} (${fmt(kg)} кг), это максимум`;
+  }
+  if (it.vk === "db" && ceil) {
+    const dk = lastDb(it.id, date), nd = (trainCfg().dumbbells || []).find((v) => v > dk + 0.01);
+    return dk ? (nd ? `Гантели: ${fmt(nd)} кг (сейчас ${fmt(dk)} кг), пора потяжелее` : `Гантели: пора прибавить 0,5–1 кг (сейчас ${fmt(dk)} кг)`) : "";
+  }
+  return "";
+};
 const lastBand = (id, date) => { const l = state.trainLog.filter((x) => x.date < date && x.ebands && x.ebands[id]).sort((p, q) => (p.date < q.date ? 1 : -1))[0]; return l ? l.ebands[id] : ""; };
 // Гантели: вес на упражнение выбирается из набора (cfg.dumbbells), запоминается в журнале дня (edb) и подставляется в следующий раз
 const cap1 = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
