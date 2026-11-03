@@ -2620,3 +2620,28 @@ html body .dv.hvw.hme .me-lr > span.me-bd { flex: 1; }
 .bw-ov .drow, .bw-ov .d-tx, .bw-ov .d-main { min-width: 0; max-width: 100%; }
 .bw-ov .drow .p-sub { overflow-wrap: anywhere; }
 .bw-ov .chips.cats, .bw-ov .dk-favs { max-width: 100%; overscroll-behavior-x: contain; }
+
+/* v3.46: полноэкранное окно тренировки не заезжает под строку состояния.
+   Раньше окно было высотой в весь экран (100dvh) внутри подложки с отступом сверху на строку состояния и прижималось
+   к низу, поэтому верх окна (шапка с названием) уезжал под часы и iOS его размывала. Теперь высота = экран минус
+   строка состояния, а подложка над ней — сплошная. */
+.sheet.wk { min-height: calc(100dvh - env(safe-area-inset-top, 0px)); max-height: calc(100dvh - env(safe-area-inset-top, 0px)); }
+html body .overlay:has(.sheet.wk), html body .overlay.open:has(.sheet.wk) { background: #fff !important; }
+html:root[data-theme="dark"] body .overlay:has(.sheet.wk), html:root[data-theme="dark"] body .overlay.open:has(.sheet.wk) { background: #000 !important; }
+html body .overlay:has(.sheet.wk)::before { display: none !important; }
+
+/* v3.46: плашки в окне тренировки («План», «По 15 с», «Цель» и т.п.) компактнее: мельче шрифт, меньше высота, чтобы экран не переполнялся */
+.wk-eds { gap: 4px; }
+.wk-edrow { padding: 6px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.25; gap: 8px; }
+.wk-edrow b { font-size: 13px; }
+.wk-edrow b em { font-size: 11px; margin-left: 5px; }
+.wk-card { padding: 7px 12px; gap: 3px; border-radius: 12px; }
+.wk-card .r { font-size: 12.5px; line-height: 1.25; gap: 8px; }
+.wk-card .r b { font-size: 13px; }
+
+/* v3.46: чёткие границы приложения (как в «Мой гараж»): строка состояния сплошная, приложение начинается под ней с тонкой линии;
+   у шапки окна тренировки вместо размытой тени — тонкая линия снизу */
+#app { box-shadow: 0 -.5px 0 rgba(60, 60, 67, .22); }
+:root[data-theme="dark"] #app { box-shadow: 0 -.5px 0 rgba(255, 255, 255, .16); }
+html body .hvw .wk-band, html body .overlay .wk-band { box-shadow: none !important; border-bottom: .5px solid rgba(60, 60, 67, .22); }
+html:root[data-theme="dark"] body .hvw .wk-band, html:root[data-theme="dark"] body .overlay .wk-band { box-shadow: none !important; border-bottom: .5px solid rgba(255, 255, 255, .16); }
