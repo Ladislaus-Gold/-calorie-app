@@ -1267,16 +1267,23 @@ export function exAdvFrom(r0, r1) {
   if (r0 >= 4) { rest = r0 === 5 ? 15 : 10; if (r1 >= 4) rest = Math.min(30, rest + 10); }
   return { rest, reps: 0 };
 }
-// Прогресс по журналу тренировок. workouts — по возрастанию даты: { date, feels: {id: 1–5}, load: {id: число} }.
-// Правила: «легко» 2 раза подряд → +1 шаг (повтор или 5 сек); «очень тяжело» → −1; «тяжело» 2 раза подряд → −1;
-// «нормально» сбрасывает серии; не больше двух растущих упражнений за тренировку (остальные ждут следующей);
-// потолок +3; перерыв 7 дней и больше — всё с нуля; более тяжёлая резинка или вес — повторы с начала диапазона.
-// today — дата, на которую строится план. Возвращает { id: { steps, rest, ceil } }.
-export function progressFrom(workouts, today, dayDiff) {
+// Прогресс по журналу тренировок. workouts — по возрастанию даты: { date, feels: {id: 1–5} }.
+// Правила: «легко» 2 раза подряд → +1 шаг (повтор или 5 сек); «очень тяжело» → −1 шаг; «нормально» сбрасывает серии;
+// не больше двух растущих упражнений за тренировку (остальные ждут следующей). Дошли до потолка +3 шага:
+// если у упражнения есть резинка или вес — рекомендуемая нагрузка становится на ступень тяжелее (lvl+1), повторы с начала диапазона.
+// «Тяжело» 2 раза подряд → рекомендуемая нагрузка на ступень легче (lvl−1), повторы с начала; если легче некуда — −1 шаг.
+// Перерыв 7 дней и больше — всё с нуля. room(id) → { up, down }: сколько ступеней тяжелее/легче есть у упражнения.
+// today — дата, на которую строится план. Возвращает { id: { steps, rest, reps, lvl } }.
+export function progressFrom(workouts, today, dayDiff, room) {
   const st = {}, out = {};
   let prev = null;
-  const get = (id) => st[id] || (st[id] = { steps: 0, easy: 0, hard: 0, pend: false, r: [], load: 0 });
+  const get = (id) => st[id] || (st[id] = { steps: 0, easy: 0, hard: 0, pend: false, r: [], lvl: 0 });
   const wipe = () => { for (const k of Object.keys(st)) delete st[k]; };
+  const rm = (id) => (room ? room(id) : null) || { up: 0, down: 0 };
+  const grow = (e, id) => {
+    e.steps++;
+    if (e.steps >= STEP_MAX) { if (rm(id).up > e.lvl) { e.lvl++; e.steps = 0; } else e.steps = STEP_MAX; }
+  };
   for (const w of workouts) {
     if (prev && dayDiff(prev, w.date) >= BREAK_DAYS) wipe();
     prev = w.date;
@@ -1284,31 +1291,33 @@ export function progressFrom(workouts, today, dayDiff) {
     const ids = Object.keys(w.feels || {});
     for (const id of ids) { // отложенный рост получает тот, кто не оказался «тяжело»
       const e = get(id), r = Number(w.feels[id]) || 0;
-      if (e.pend && r && r <= 3 && grown < GROW_PER_SESSION && e.steps < STEP_MAX) { e.steps++; e.pend = false; grown++; }
+      if (e.pend && r && r <= 3 && grown < GROW_PER_SESSION) { grow(e, id); e.pend = false; grown++; }
     }
     for (const id of ids) {
       const e = get(id), r = Number(w.feels[id]) || 0;
       if (!r) continue;
-      const ld = Number((w.load || {})[id]) || 0;
-      if (ld && e.load && ld > e.load + 0.01) { e.steps = 0; e.easy = 0; e.hard = 0; e.pend = false; }
-      if (ld) e.load = ld;
       e.r.unshift(r); e.r = e.r.slice(0, 2);
       if (r <= 2) {
         e.hard = 0;
         if (++e.easy >= 2) {
           if (e.steps >= STEP_MAX) e.easy = 2;
-          else if (grown < GROW_PER_SESSION) { e.steps++; e.easy = 0; grown++; }
+          else if (grown < GROW_PER_SESSION) { grow(e, id); e.easy = 0; grown++; }
           else { e.easy = 2; e.pend = true; }
         }
       } else if (r === 3) { e.easy = 0; e.hard = 0; e.pend = false; }
-      else if (r === 4) { e.easy = 0; e.pend = false; if (++e.hard >= 2) { e.steps = Math.max(STEP_MIN, e.steps - 1); e.hard = 0; } }
-      else { e.easy = 0; e.hard = 0; e.pend = false; e.steps = Math.max(STEP_MIN, e.steps - 1); }
+      else if (r === 4) {
+        e.easy = 0; e.pend = false;
+        if (++e.hard >= 2) {
+          e.hard = 0;
+          if (e.lvl > -rm(id).down) { e.lvl--; e.steps = 0; } else e.steps = Math.max(STEP_MIN, e.steps - 1);
+        }
+      } else { e.easy = 0; e.hard = 0; e.pend = false; e.steps = Math.max(STEP_MIN, e.steps - 1); }
     }
   }
   if (prev && dayDiff(prev, today) >= BREAK_DAYS) wipe();
   for (const [id, e] of Object.entries(st)) {
     const a = exAdvFrom(e.r[0], e.r[1]);
-    out[id] = { steps: e.steps, rest: a ? a.rest : 0, reps: e.steps, ceil: e.steps >= STEP_MAX };
+    out[id] = { steps: e.steps, rest: a ? a.rest : 0, reps: e.steps, lvl: e.lvl };
   }
   return out;
 }
