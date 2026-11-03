@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=27";
+import * as TR from "./train.js?v=28";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -1479,10 +1479,9 @@ function trainAdvice(d) {
   const avoid = Object.keys(ex).filter((id) => ex[id].p >= 3 && ex[id].d / ex[id].p <= 0.25);
   // Оценки по каждому упражнению (по последним двум тренировкам с оценкой): свой отдых и повторы
   // Единая система прогресса по упражнениям (TR.progressFrom): по оценкам, с потолком, лимитом на тренировку и сбросом после перерыва
-  const kgOf = (l, id) => { const bs = comboKg(comboIds(((l.ebands) || {})[id])); return bs || Number(((l.edb) || {})[id]) || 0; };
   const wk = state.trainLog.filter((x) => x.date < d && x.feels).sort((a, b) => (a.date < b.date ? -1 : 1))
-    .map((l) => ({ date: l.date, feels: l.feels ? Object.fromEntries(Object.entries(l.feels).map(([k, v]) => [k.split(":")[1], v])) : {}, load: Object.fromEntries(Object.keys(l.feels).map((k) => { const id = k.split(":")[1]; return [id, kgOf(l, id)]; })) }));
-  const exAdv = TR.progressFrom(wk, d, (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000));
+    .map((l) => ({ date: l.date, feels: Object.fromEntries(Object.entries(l.feels).map(([k, v]) => [k.split(":")[1], v])) }));
+  const exAdv = TR.progressFrom(wk, d, (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000), loadRoom);
   // Резинка: самая тяжёлая, что брали в последний раз
   const cfg = trainCfg();
   const eff = (id) => Number(cfg.bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
@@ -1511,9 +1510,7 @@ function trainAdvice(d) {
   else if (bump > 0) tip = "Последние тренировки были лёгкими. Повторы в упражнении растут после двух «легко» подряд, отдых остаётся прежним.";
   else if (bump < 0) tip = "Последние тренировки были тяжёлыми. Держите вес, не торопитесь: после «тяжело» отдых между подходами длиннее.";
   else tip = "Нагрузка в самый раз: держите ритм.";
-  const ceil = Object.keys(exAdv).filter((id) => exAdv[id].ceil).map((id) => (TR.EXERCISES[id] || {}).name).filter(Boolean);
-  if (ceil.length) tip = `Повторы дошли до потолка: ${ceil.join(", ")}. Пора взять резинку или вес потяжелее. Выберете тяжелее в оценке, и повторы начнутся с начала диапазона.`;
-  return { bump, avoid, tip, band, bell, n: last.length, ex: exAdv, ceil };
+  return { bump, avoid, tip, band, bell, n: last.length, ex: exAdv };
 }
 const bandOk = (id) => TR.BAND_COLORS.some((c) => c.id === id);
 const comboIds = (s) => String(s || "").split("+").filter(bandOk);
@@ -1579,30 +1576,39 @@ function recText(it, date) {
 }
 // Подпись: «Тяга сидя к поясу: красная; …»
 const ebandsText = (l) => Object.entries((l && l.ebands) || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `${TR.EXERCISES[id].name}: ${bandName(c)}`).join("; ");
-// Рекомендуемая резинка/вес для упражнения: как в прошлый раз, а на потолке повторов — следующая тяжелее
-const recHtml = (it, date) => esc(bandRec(it, date)).replace("пора потяжелее", '<span class="up">пора потяжелее</span>');
-const bandRec = (it, date) => {
-  if (!it) return "";
-  const ceil = !!((trainAdvice(date).ex || {})[it.id] || {}).ceil;
-  if (it.vk === "band" || it.vk === "bandf") {
-    const last = lastBand(it.id, date);
-    if (!last) return "";
-    const kg = comboKg(comboIds(last));
-    if (!ceil) return `Резинка: ${bandName(last)} (${fmt(kg)} кг)`;
-    const nxt = [...TR.BAND_COLORS].sort((a, b) => bandKgOf(a.id) - bandKgOf(b.id)).find((c) => bandKgOf(c.id) > kg + 0.2);
-    return nxt ? `Резинка: ${nxt.t.toLowerCase()} (${fmt(bandKgOf(nxt.id))} кг), пора потяжелее` : `Резинка: ${bandName(last)} (${fmt(kg)} кг), это максимум`;
-  }
-  if (it.vk === "db" && ceil) {
-    const dk = lastDb(it.id, date), nd = (trainCfg().dumbbells || []).find((v) => v > dk + 0.01);
-    return dk ? (nd ? `Гантели: ${fmt(nd)} кг (сейчас ${fmt(dk)} кг), пора потяжелее` : `Гантели: пора прибавить 0,5–1 кг (сейчас ${fmt(dk)} кг)`) : "";
-  }
-  return "";
+
+// Рекомендуемая нагрузка — единая для всего приложения: стартовая по группе мышц плюс ступени прогресса упражнения (TR.progressFrom, lvl)
+const bandList = () => [...TR.BAND_COLORS].sort((a, b) => bandKgOf(a.id) - bandKgOf(b.id));
+const nearIdx = (kgs, t) => kgs.reduce((b, v, i) => (Math.abs(v - t) < Math.abs(kgs[b] - t) ? i : b), 0);
+const hasVk = (id, ks) => ((TR.EXERCISES[id] || {}).variants || []).some((v) => ks.includes(v.k));
+function loadRoom(id) {
+  if (hasVk(id, ["band", "bandf"])) { const n = bandList().length, b = nearIdx(bandList().map((c) => bandKgOf(c.id)), bigMuscle(id) ? 9 : 4.5); return { up: n - 1 - b, down: b }; }
+  if (hasVk(id, ["db"])) { const k = trainCfg().dumbbells || [], b = k.length ? nearIdx(k, bigMuscle(id) ? 8 : 3) : 0; return { up: Math.max(0, k.length - 1 - b), down: b }; }
+  return { up: 0, down: 0 };
+}
+const recLvl = (id, date) => ((trainAdvice(date).ex || {})[id] || {}).lvl || 0;
+const lastBand = (id, date) => {
+  const L = bandList();
+  if (!L.length) return "";
+  const b = nearIdx(L.map((c) => bandKgOf(c.id)), bigMuscle(id) ? 9 : 4.5);
+  return L[Math.max(0, Math.min(L.length - 1, b + recLvl(id, date)))].id;
 };
-const lastBand = (id, date) => { const l = state.trainLog.filter((x) => x.date < date && x.ebands && x.ebands[id]).sort((p, q) => (p.date < q.date ? 1 : -1))[0]; return l ? l.ebands[id] : ""; };
+const lastDb = (id, date) => {
+  const k = [...(trainCfg().dumbbells || [])].sort((a, b) => a - b);
+  if (!k.length) return 0;
+  const b = nearIdx(k, bigMuscle(id) ? 8 : 3);
+  return k[Math.max(0, Math.min(k.length - 1, b + recLvl(id, date)))];
+};
+// Строка в карточке «Следом»: рекомендуемая резинка, такая же, как на экране упражнения
+const bandRec = (it, date) => {
+  if (!it || !(it.vk === "band" || it.vk === "bandf")) return "";
+  const r = recText(it, date);
+  return r ? `Резинка: ${r}` : "";
+};
+const recHtml = (it, date) => esc(bandRec(it, date));
 // Гантели: вес на упражнение выбирается из набора (cfg.dumbbells), запоминается в журнале дня (edb) и подставляется в следующий раз
 const cap1 = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 const bandStops = () => [...TR.BAND_COLORS].sort((a, b) => bandKgOf(a.id) - bandKgOf(b.id));
-const lastDb = (id, date) => { const l = state.trainLog.filter((x) => x.date < date && x.edb && Number(x.edb[id]) > 0).sort((p, q) => (p.date < q.date ? 1 : -1))[0]; return l ? Number(l.edb[id]) : 0; };
 const dbKgOf = (id, date) => { const c = trainCfg(); return Number(((trainLogOn(date) || {}).edb || {})[id]) || lastDb(id, date) || (c.dumbbells.length === 1 ? c.dumbbells[0] : 0); };
 const bandsText = (l) => {
   const parts = [...TR.BAND_COLORS, ...TR.BAND_BASE.filter((b) => !TR.BAND_COLORS.some((c) => c.id === b.id))].filter((c) => l.bands && c.id in l.bands).map((c) => `${c.t.toLowerCase()}${l.bands[c.id] ? ` ${fmt(l.bands[c.id])} кг` : ""}`);
