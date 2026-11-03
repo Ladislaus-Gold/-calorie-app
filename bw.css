@@ -2645,3 +2645,8 @@ html body .overlay:has(.sheet.wk)::before { display: none !important; }
 :root[data-theme="dark"] #app { box-shadow: 0 -.5px 0 rgba(255, 255, 255, .16); }
 html body .hvw .wk-band, html body .overlay .wk-band { box-shadow: none !important; border-bottom: .5px solid rgba(60, 60, 67, .22); }
 html:root[data-theme="dark"] body .hvw .wk-band, html:root[data-theme="dark"] body .overlay .wk-band { box-shadow: none !important; border-bottom: .5px solid rgba(255, 255, 255, .16); }
+
+/* v3.49: пометка «пора потяжелее» в карточке «Следом» */
+.wk-nxc .up, .wk-nx .up { color: #c2570c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wk-nxc .up, :root:not([data-theme="light"]) .wk-nx .up { color: #fb923c; } }
+:root[data-theme="dark"] .wk-nxc .up, :root[data-theme="dark"] .wk-nx .up { color: #fb923c; }
