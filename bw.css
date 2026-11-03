@@ -2620,3 +2620,12 @@ html body .dv.hvw.hme .me-lr > span.me-bd { flex: 1; }
 .bw-ov .drow, .bw-ov .d-tx, .bw-ov .d-main { min-width: 0; max-width: 100%; }
 .bw-ov .drow .p-sub { overflow-wrap: anywhere; }
 .bw-ov .chips.cats, .bw-ov .dk-favs { max-width: 100%; overscroll-behavior-x: contain; }
+
+/* v3.46: полноэкранное окно тренировки не заезжает под строку состояния.
+   Раньше окно было высотой в весь экран (100dvh) внутри подложки с отступом сверху на строку состояния и прижималось
+   к низу, поэтому верх окна (шапка с названием) уезжал под часы и iOS его размывала. Теперь высота = экран минус
+   строка состояния, а подложка над ней — сплошного цвета шапки, без затемнения и плавных переходов. */
+.sheet.wk { min-height: calc(100dvh - env(safe-area-inset-top, 0px)); max-height: calc(100dvh - env(safe-area-inset-top, 0px)); }
+html body .overlay:has(.sheet.wk), html body .overlay.open:has(.sheet.wk) { background: #F2F2F7 !important; }
+html:root[data-theme="dark"] body .overlay:has(.sheet.wk), html:root[data-theme="dark"] body .overlay.open:has(.sheet.wk) { background: #2C2C2E !important; }
+html body .overlay:has(.sheet.wk)::before { display: none !important; }
