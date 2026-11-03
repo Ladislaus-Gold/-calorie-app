@@ -1252,6 +1252,12 @@ export const MG_OF = {
 const GROUP_LIST = {};
 for (const id of Object.keys(EXERCISES)) { const g = MG_OF[id]; if (g) (GROUP_LIST[g] = GROUP_LIST[g] || []).push(id); }
 
+// ===== Прогресс упражнений (единая система v3.47) =====
+export const REST_BASE = 30;       // обычный отдых между подходами, сек
+export const STEP_MAX = 3;         // потолок роста: +3 шага от исходного диапазона
+export const STEP_MIN = -3;
+export const GROW_PER_SESSION = 2; // за одну тренировку растут не больше двух упражнений
+export const BREAK_DAYS = 7;       // столько дней без тренировок — прогресс обнуляется
 // Отдых по оценке упражнения (r0 — последняя оценка 1–5, r1 — предыдущая): растёт только после «тяжело»
 // (+10, «очень тяжело» +15, при повторе ещё +10, максимум +30). «Нормально» и «легко» — обычный отдых, короче он не бывает.
 export function exAdvFrom(r0, r1) {
@@ -1261,29 +1267,59 @@ export function exAdvFrom(r0, r1) {
   if (r0 >= 4) { rest = r0 === 5 ? 15 : 10; if (r1 >= 4) rest = Math.min(30, rest + 10); }
   return { rest, reps: 0 };
 }
-// Повторы по истории оценок упражнения (от старой к новой):
-// «легко» 2 раза подряд → +1 повтор; «очень тяжело» → −1; «тяжело» 2 раза подряд → −1; «нормально» — без изменений и сбрасывает серию.
-export function exStepsFrom(ratings) {
-  let steps = 0, easy = 0, hard = 0;
-  for (const raw of ratings) {
-    const r = Number(raw) || 0;
-    if (!r) continue;
-    if (r <= 2) { hard = 0; if (++easy >= 2) { steps++; easy = 0; } }
-    else if (r === 3) { easy = 0; hard = 0; }
-    else if (r === 4) { easy = 0; if (++hard >= 2) { steps--; hard = 0; } }
-    else { easy = 0; hard = 0; steps--; }
+// Прогресс по журналу тренировок. workouts — по возрастанию даты: { date, feels: {id: 1–5}, load: {id: число} }.
+// Правила: «легко» 2 раза подряд → +1 шаг (повтор или 5 сек); «очень тяжело» → −1; «тяжело» 2 раза подряд → −1;
+// «нормально» сбрасывает серии; не больше двух растущих упражнений за тренировку (остальные ждут следующей);
+// потолок +3; перерыв 7 дней и больше — всё с нуля; более тяжёлая резинка или вес — повторы с начала диапазона.
+// today — дата, на которую строится план. Возвращает { id: { steps, rest, ceil } }.
+export function progressFrom(workouts, today, dayDiff) {
+  const st = {}, out = {};
+  let prev = null;
+  const get = (id) => st[id] || (st[id] = { steps: 0, easy: 0, hard: 0, pend: false, r: [], load: 0 });
+  const wipe = () => { for (const k of Object.keys(st)) delete st[k]; };
+  for (const w of workouts) {
+    if (prev && dayDiff(prev, w.date) >= BREAK_DAYS) wipe();
+    prev = w.date;
+    let grown = 0;
+    const ids = Object.keys(w.feels || {});
+    for (const id of ids) { // отложенный рост получает тот, кто не оказался «тяжело»
+      const e = get(id), r = Number(w.feels[id]) || 0;
+      if (e.pend && r && r <= 3 && grown < GROW_PER_SESSION && e.steps < STEP_MAX) { e.steps++; e.pend = false; grown++; }
+    }
+    for (const id of ids) {
+      const e = get(id), r = Number(w.feels[id]) || 0;
+      if (!r) continue;
+      const ld = Number((w.load || {})[id]) || 0;
+      if (ld && e.load && ld > e.load + 0.01) { e.steps = 0; e.easy = 0; e.hard = 0; e.pend = false; }
+      if (ld) e.load = ld;
+      e.r.unshift(r); e.r = e.r.slice(0, 2);
+      if (r <= 2) {
+        e.hard = 0;
+        if (++e.easy >= 2) {
+          if (e.steps >= STEP_MAX) e.easy = 2;
+          else if (grown < GROW_PER_SESSION) { e.steps++; e.easy = 0; grown++; }
+          else { e.easy = 2; e.pend = true; }
+        }
+      } else if (r === 3) { e.easy = 0; e.hard = 0; e.pend = false; }
+      else if (r === 4) { e.easy = 0; e.pend = false; if (++e.hard >= 2) { e.steps = Math.max(STEP_MIN, e.steps - 1); e.hard = 0; } }
+      else { e.easy = 0; e.hard = 0; e.pend = false; e.steps = Math.max(STEP_MIN, e.steps - 1); }
+    }
   }
-  return Math.max(-3, Math.min(4, steps));
+  if (prev && dayDiff(prev, today) >= BREAK_DAYS) wipe();
+  for (const [id, e] of Object.entries(st)) {
+    const a = exAdvFrom(e.r[0], e.r[1]);
+    out[id] = { steps: e.steps, rest: a ? a.rest : 0, reps: e.steps, ceil: e.steps >= STEP_MAX };
+  }
+  return out;
 }
 
 function itemFor(ex, ctx, group, sets, cardioMin) {
   const v = pickVariant(ex, ctx);
-  const prog = Math.min(3, ctx.weeks);
   const xa = ctx.exAdv && ctx.exAdv[ex.id];
   const adj = ({ n: -2, m: 0, a: 2 }[ctx.level] || 0) + (xa ? xa.reps : ctx.bump || 0);
   const it = { key: `${group}:${ex.id}`, id: ex.id, name: ex.name, group, vk: v.k, vlabel: v.label, cue: v.cue, side: !!ex.side, rot: ex.rot || null, muscles: ex.muscles, mg: MG_OF[ex.id] || "" };
-  const restBase = Math.max(20, (ex.rest || 40) + (ctx.goal === "gain" ? 20 : ctx.goal === "lose" ? -5 : 0));
-  const rest = xa ? Math.max(20, restBase + xa.rest) : restBase;
+  const restBase = REST_BASE;
+  const rest = xa ? restBase + xa.rest : restBase;
   if (ex.kind === "cardio") {
     it.minutes = cardioMin;
     it.est = cardioMin * 60;
@@ -1318,7 +1354,8 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
     it.text = `${sets} × ${lo === hi ? lo : `${lo}–${hi}`}${ex.side ? " на сторону" : ""}`;
   } else {
     const k = { n: -5, m: 0, a: 10 }[ctx.level] || 0;
-    const lo = Math.max(10, ex.secs[0] + k + prog * 5), hi = Math.max(lo, ex.secs[1] + k + prog * 5);
+    const gs = (xa ? xa.reps : 0) * 5;
+    const lo = Math.max(10, ex.secs[0] + k + gs), hi = Math.max(lo, ex.secs[1] + k + gs);
     it.secs = [lo, hi];
     const avg = (lo + hi) / 2;
     it.est = Math.round(sets * (avg * (ex.side ? 2 : 1) + 8) + (sets - 1) * rest + 20);
