@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=26";
+import * as TR from "./train.js?v=27";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -188,7 +188,7 @@ const trainSession = (d, extraAvoid, noSkip) => {
   const adv = d >= todayStr() ? trainAdvice(d) : null;
   const avoid = [...(adv ? adv.avoid : []), ...(d >= todayStr() ? painIds(d) : []), ...(((trainLogOn(d) || {}).swapped) || []), ...(extraAvoid || [])];
   const sk = noSkip ? [] : skipOf(d);
-  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), adv ? adv.bump : 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null, adv ? adv.ex : null, (trainLogOn(d) || {}).cardioId || (state.trainCfg && state.trainCfg.cardioId) || "");
+  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null, adv ? adv.ex : null, (trainLogOn(d) || {}).cardioId || (state.trainCfg && state.trainCfg.cardioId) || "");
   const cs = customItems(d);
   if (!cs.length) return base;
   const rank = { warm: 0, main: 1, cardio: 2, cool: 3 };
@@ -1455,11 +1455,10 @@ function trainAdvice(d) {
     for (const [key, v] of Object.entries(l.feels)) {
       const id = key.split(":")[1], n = Number(v);
       if (!id || !n) continue;
-      const r = rated[id] = rated[id] || [];
-      if (r.length < 2) r.push(n);
+      (rated[id] = rated[id] || []).push(n); // от новой к старой
     }
   }
-  for (const id of Object.keys(rated)) { const a = TR.exAdvFrom(rated[id][0], rated[id][1]); if (a) exAdv[id] = a; }
+  for (const id of Object.keys(rated)) { const a = TR.exAdvFrom(rated[id][0], rated[id][1]); if (a) exAdv[id] = { rest: a.rest, reps: TR.exStepsFrom(rated[id].slice().reverse()) }; }
   // Резинка: самая тяжёлая, что брали в последний раз
   const cfg = trainCfg();
   const eff = (id) => Number(cfg.bandKg[id]) || TR.BAND_DEFAULT_KG[id] || 0;
@@ -1485,8 +1484,8 @@ function trainAdvice(d) {
   let tip;
   if (last.length < 2) tip = "Завершайте тренировки кнопкой «Завершить тренировку»: после двух оценок приложение начнёт подбирать нагрузку.";
   else if (lowDone) tip = "Оценки лёгкие, но выполнено меньше 60% плана: нагрузку не повышаем. Сначала доделывайте упражнения до конца.";
-  else if (bump > 0) tip = `Последние тренировки были лёгкими. Повторов в следующих планах больше на ${bump}.`;
-  else if (bump < 0) tip = `Последние тренировки были тяжёлыми. Повторов в следующих планах меньше на ${-bump}: держите вес и не торопитесь.`;
+  else if (bump > 0) tip = "Последние тренировки были лёгкими. Повторы в упражнении растут после двух «легко» подряд, отдых остаётся прежним.";
+  else if (bump < 0) tip = "Последние тренировки были тяжёлыми. Держите вес, не торопитесь: после «тяжело» отдых между подходами длиннее.";
   else tip = "Нагрузка в самый раз: держите ритм.";
   return { bump, avoid, tip, band, bell, n: last.length, ex: exAdv };
 }

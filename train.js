@@ -1252,20 +1252,28 @@ export const MG_OF = {
 const GROUP_LIST = {};
 for (const id of Object.keys(EXERCISES)) { const g = MG_OF[id]; if (g) (GROUP_LIST[g] = GROUP_LIST[g] || []).push(id); }
 
-// Подстройка по оценке упражнения (r0 — последняя оценка 1–5, r1 — предыдущая):
-// тяжело → отдых больше (+10, «очень тяжело» +15, при повторе ещё +10, максимум +30), легко → меньше (−5, «очень легко» −10); нормально → обычный отдых.
-// Повторы: легко → +1 (две лёгких подряд +2), очень тяжело → −1 (после тяжёлой −2), тяжело два раза подряд → −1.
+// Отдых по оценке упражнения (r0 — последняя оценка 1–5, r1 — предыдущая): растёт только после «тяжело»
+// (+10, «очень тяжело» +15, при повторе ещё +10, максимум +30). «Нормально» и «легко» — обычный отдых, короче он не бывает.
 export function exAdvFrom(r0, r1) {
   r0 = Number(r0) || 0; r1 = Number(r1) || 0;
   if (!r0) return null;
-  let rest = 0, reps = 0;
+  let rest = 0;
   if (r0 >= 4) { rest = r0 === 5 ? 15 : 10; if (r1 >= 4) rest = Math.min(30, rest + 10); }
-  else if (r0 === 2) rest = -5;
-  else if (r0 === 1) rest = -10;
-  if (r0 <= 2) reps = r1 && r1 <= 2 ? 2 : 1;
-  else if (r0 === 5) reps = r1 >= 4 ? -2 : -1;
-  else if (r0 === 4) reps = r1 >= 4 ? -1 : 0;
-  return { rest, reps };
+  return { rest, reps: 0 };
+}
+// Повторы по истории оценок упражнения (от старой к новой):
+// «легко» 2 раза подряд → +1 повтор; «очень тяжело» → −1; «тяжело» 2 раза подряд → −1; «нормально» — без изменений и сбрасывает серию.
+export function exStepsFrom(ratings) {
+  let steps = 0, easy = 0, hard = 0;
+  for (const raw of ratings) {
+    const r = Number(raw) || 0;
+    if (!r) continue;
+    if (r <= 2) { hard = 0; if (++easy >= 2) { steps++; easy = 0; } }
+    else if (r === 3) { easy = 0; hard = 0; }
+    else if (r === 4) { easy = 0; if (++hard >= 2) { steps--; hard = 0; } }
+    else { easy = 0; hard = 0; steps--; }
+  }
+  return Math.max(-3, Math.min(4, steps));
 }
 
 function itemFor(ex, ctx, group, sets, cardioMin) {
@@ -1303,7 +1311,7 @@ function itemFor(ex, ctx, group, sets, cardioMin) {
   it.rest = rest;
   it.restBase = restBase;
   if (ex.reps) {
-    const lo = Math.max(ex.reps[0] <= 5 ? 2 : 5, ex.reps[0] + adj + prog), hi = Math.max(lo, ex.reps[1] + adj + prog);
+    const lo = Math.max(ex.reps[0] <= 5 ? 2 : 5, ex.reps[0] + adj), hi = Math.max(lo, ex.reps[1] + adj);
     it.reps = [lo, hi];
     const avg = (lo + hi) / 2, work = avg * 3.2 * (ex.side ? 2 : 1);
     it.est = Math.round(sets * (work + 12 + (ex.side ? 6 : 0)) + (sets - 1) * rest + 20);
