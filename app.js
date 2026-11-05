@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 364;
-const APP_VERSION_LABEL = "3.62"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 365;
+const APP_VERSION_LABEL = "3.63"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2275,7 +2275,6 @@ function viewReportsInner() {
     ${shown.map((g) => `<div class="r2-grp">${INS_LBL[g.k]}</div>${g.list.map((i) => r2Row(INS_COL[g.k], i.text)).join("")}`).join("")}
     ${hiddenCnt > 0 || open ? `<button type="button" class="r2-more" data-act="toggleIns" aria-expanded="${open}">${open ? "Свернуть" : `Показать все выводы (${ins.length})`}</button>` : ""}</section>` : "";
   const crossCard = cross.verdict || cross.links.length ? `<section class="r2-card">${r2Ch("#30B0C7", "link", "Связи между показателями")}
-    ${cross.verdict ? `<p class="r2-lead" style="margin:0 0 6px">${esc(cross.verdict.text)}</p>` : ""}
     ${cross.links.length ? cross.links.map((l) => r2Row("#30B0C7", l.text)).join("") : `<p class="r2-sub" style="margin:8px 0 0">Чтобы увидеть связи (нагрузка и вода, сон и еда, кофеин и сон), нужно хотя бы по 2 дня каждого типа. Записывайте дальше.</p>`}</section>` : "";
 
   // --- что ем и пью ---
