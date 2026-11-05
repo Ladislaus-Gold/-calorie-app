@@ -216,7 +216,7 @@ const trainMinutes = (d) => {
 const SL_LO = 15, SL_HI = 90;
 const sliderHtml = (day, m) => {
   const p = Math.max(0, Math.min(1, (m - SL_LO) / (SL_HI - SL_LO))), last = lastMinutes(day);
-  return `<div class="tr-segl"><span>Сколько времени есть</span><span>${last ? `В прошлый раз: ${last} мин` : "мин"}</span></div><div class="tr-sl" data-date="${day}" style="--p:${p}"><div class="tr-slv"><b>${m}</b><small>мин</small></div><div class="tr-slt"><i class="f"></i><i class="k"></i><input type="range" min="${SL_LO}" max="${SL_HI}" step="15" value="${m}" aria-label="Время тренировки, мин"></div><div class="tr-slk">${[15, 30, 45, 60, 75, 90].map((x) => `<span>${x}</span>`).join("")}</div></div>`;
+  return `<div class="tr-sl" data-date="${day}" style="--p:${p}"><div class="tr-slh"><span>Время</span><b>${m} мин</b></div><div class="tr-slt"><i class="f"></i><span class="dt"><i></i><i></i><i></i><i></i><i></i><i></i></span><i class="k"></i><input type="range" min="${SL_LO}" max="${SL_HI}" step="15" value="${m}" aria-label="Время тренировки, мин"></div><div class="tr-slk">${[15, 30, 45, 60, 75, 90].map((x) => `<span>${x}</span>`).join("")}</div></div>${last ? `<p class="tr-slp">В прошлый раз: ${last} мин</p>` : ""}`;
 };
 // Минуты ходьбы/кардио из прошлых завершённых тренировок: отдельно разминка (warm) и кардио в конце (cardio), берём факт по последней записи
 function prevCardioOf(d) {
@@ -240,8 +240,8 @@ if (typeof document !== "undefined" && !window.__trSl) {
     if (!box) return null;
     const v = Number(el.value);
     box.style.setProperty("--p", String((v - Number(el.min)) / (Number(el.max) - Number(el.min))));
-    const b = box.querySelector(".tr-slv b");
-    if (b) b.textContent = String(v);
+    const b = box.querySelector(".tr-slh b");
+    if (b) b.textContent = `${v} мин`;
     return box;
   };
   document.addEventListener("input", (e) => { if (e.target.matches && e.target.matches(".tr-sl input")) slUpd(e.target); }, true);
@@ -386,10 +386,10 @@ function trainCardHtml(day) {
   const wk = TR.weekPlan(state.trainCfg, day);
   const today = todayStr();
   const strip = wk.map((d) => {
-    let mark = "";
+    let mark = "", st = "";
     const hasC = !d.type && (((trainLogOn(d.date) || {}).custom) || []).length > 0;
-    if (d.type || hasC) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? `<b class="tr-ok">${TICK}</b>` : p && d.date < today ? `<b class="tr-miss">${CROSS}</b>` : "<i></i>"; }
-    return `<button type="button" class="tr-d${d.type || hasC ? " plan" : ""}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="trainDayTap" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
+    if (d.type || hasC) { const s = trainSession(d.date), p = s && trainProgress(d.date, s); mark = p && p.k >= p.n ? `<b class="tr-ok">${TICK}</b>` : p && d.date < today ? `<b class="tr-miss">${CROSS}</b>` : "<i></i>"; st = p && p.k >= p.n ? " ok" : p && d.date < today ? " ms" : ""; }
+    return `<button type="button" class="tr-d${d.type || hasC ? " plan" : ""}${st}${d.date === day ? " sel" : ""}${d.date === today ? " today" : ""}" data-act="trainDayTap" data-date="${d.date}"><span>${TR.DAY_SHORT[d.dow]}</span><em>${mark}</em></button>`;
   }).join("");
   const ses = trainSession(day);
   let body = "", sum = "";
@@ -435,7 +435,6 @@ function trainCardHtml(day) {
   const open = !!state.trainDayOpen;
   return `<section class="card trc">
     <div class="card-top fl-top"><span class="fl-ic ic-plan">💪</span><h2 class="h2${ses ? " tr-tog" : ""}"${ses ? ` data-act="trainDayTog" role="button" aria-expanded="${open}"` : ""}>План тренировок${ses ? `${chev(open)}` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
-    <p class="foot-note" style="margin:-4px 4px 10px">${esc(placeName.charAt(0).toUpperCase() + placeName.slice(1))} · ${cfg.days.map((d) => TR.DAY_SHORT[d]).join(", ")} · ${TR.TIMES[0]}–${TR.TIMES[TR.TIMES.length - 1]} мин</p>
     <div class="tr-week">${strip}</div>
     ${ses && !open ? sum : ""}
     ${ses && !open ? `<p class="foot-note tr-more">Нажмите на «План тренировок» или на стрелку, чтобы раскрыть план</p>` : ""}

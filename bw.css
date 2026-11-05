@@ -2651,7 +2651,21 @@ html:root[data-theme="dark"] body .hvw .wk-band, html:root[data-theme="dark"] bo
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wk-nxc .up, :root:not([data-theme="light"]) .wk-nx .up { color: #fb923c; } }
 :root[data-theme="dark"] .wk-nxc .up, :root[data-theme="dark"] .wk-nx .up { color: #fb923c; }
 
-.hvw .tr-slt::before,.overlay .tr-slt::before { background:#E5E5EA !important; }
+.hvw .tr-sl,.overlay .tr-sl { background:#F2F2F7 !important; }
+.hvw .tr-slt::before,.overlay .tr-slt::before { background:#D9D9DE !important; }
 .hvw .tr-slt .f,.overlay .tr-slt .f { background:#000 !important; }
-:root[data-theme="dark"] .hvw .tr-slt::before,:root[data-theme="dark"] .overlay .tr-slt::before { background:#3A3A3C !important; }
+:root[data-theme="dark"] .hvw .tr-sl,:root[data-theme="dark"] .overlay .tr-sl { background:#2C2C2E !important; }
+:root[data-theme="dark"] .hvw .tr-slt::before,:root[data-theme="dark"] .overlay .tr-slt::before { background:#48484A !important; }
 :root[data-theme="dark"] .hvw .tr-slt .f,:root[data-theme="dark"] .overlay .tr-slt .f { background:#fff !important; }
+.hvw .tr-d.ok,.overlay .tr-d.ok { background:#DDF1E3 !important; border-color:transparent !important; color:#1F6B3A !important; }
+.hvw .tr-d.ms:has(.tr-miss),.overlay .tr-d.ms:has(.tr-miss) { background:#FBE0E0 !important; border-color:transparent !important; color:#A32D2D !important; }
+.hvw .tr-d.ok em .tr-ok,.overlay .tr-d.ok em .tr-ok { background:#2FA55B !important; box-shadow:0 2px 6px rgba(47,165,91,0.35) !important; color:#fff !important; }
+.hvw .tr-d.ok em .tr-ok svg,.overlay .tr-d.ok em .tr-ok svg { color:#fff !important; }
+.hvw .tr-d.ms em .tr-miss,.overlay .tr-d.ms em .tr-miss { background:#E5484D !important; border:0 !important; box-shadow:0 2px 6px rgba(229,72,77,0.35) !important; }
+.hvw .tr-d.ms em .tr-miss svg,.overlay .tr-d.ms em .tr-miss svg { color:#fff !important; }
+.hvw .tr-d.sel.ok,.hvw .tr-d.sel.ms:has(.tr-miss),.overlay .tr-d.sel.ok,.overlay .tr-d.sel.ms:has(.tr-miss) { border-color:#000 !important; }
+:root[data-theme="dark"] .hvw .tr-d.ok,:root[data-theme="dark"] .overlay .tr-d.ok { background:#1F3A2A !important; color:#8FD6A8 !important; }
+:root[data-theme="dark"] .hvw .tr-d.ms:has(.tr-miss),:root[data-theme="dark"] .overlay .tr-d.ms:has(.tr-miss) { background:#3F2224 !important; color:#F0A0A0 !important; }
+:root[data-theme="dark"] .hvw .tr-d.ok em .tr-ok,:root[data-theme="dark"] .overlay .tr-d.ok em .tr-ok { background:#34B866 !important; color:#fff !important; }
+:root[data-theme="dark"] .hvw .tr-d.ms em .tr-miss,:root[data-theme="dark"] .overlay .tr-d.ms em .tr-miss { background:#E5484D !important; border:0 !important; }
+:root[data-theme="dark"] .hvw .tr-d.sel.ok,:root[data-theme="dark"] .hvw .tr-d.sel.ms:has(.tr-miss) { border-color:#fff !important; }
