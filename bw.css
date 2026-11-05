@@ -2650,3 +2650,8 @@ html:root[data-theme="dark"] body .hvw .wk-band, html:root[data-theme="dark"] bo
 .wk-nxc .up, .wk-nx .up { color: #c2570c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wk-nxc .up, :root:not([data-theme="light"]) .wk-nx .up { color: #fb923c; } }
 :root[data-theme="dark"] .wk-nxc .up, :root[data-theme="dark"] .wk-nx .up { color: #fb923c; }
+
+.hvw .tr-slt::before,.overlay .tr-slt::before { background:#E5E5EA !important; }
+.hvw .tr-slt .f,.overlay .tr-slt .f { background:#000 !important; }
+:root[data-theme="dark"] .hvw .tr-slt::before,:root[data-theme="dark"] .overlay .tr-slt::before { background:#3A3A3C !important; }
+:root[data-theme="dark"] .hvw .tr-slt .f,:root[data-theme="dark"] .overlay .tr-slt .f { background:#fff !important; }

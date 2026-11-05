@@ -199,12 +199,24 @@ const exVs = (ex) => { const c = trainCfg(), h = c.equip[c.place] || []; return 
 const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
 // Кардио-пункт со временем в минутах (разминка-дорожка или кардио); суставные упражнения разминки идут по секундам
 const isMinIt = (it) => it.group === "cardio" || (it.group === "warm" && Number(it.minutes) > 0);
+// Сколько минут в плане занимают ходьба и кардио (разминочная ходьба и кардио в конце): показываем рядом с общим временем
+const estText = (ses) => {
+  const c = ses.items.reduce((t, i) => t + (i.group === "cardio" || (i.group === "warm" && Number(i.minutes) > 0) ? Number(i.minutes) || 0 : 0), 0);
+  return `около ${ses.est} мин${c > 0 ? ` (ходьба и кардио ${c})` : ""}`;
+};
+// Время последней завершённой тренировки до дня d (0, если истории нет)
+const lastMinutes = (d) => { const p = finishedLogs().find((x) => x.date < d && Number(x.minutes) > 0); return p ? Number(p.minutes) : 0; };
 // Время тренировки: выбранное на этот день, иначе как в последней завершённой тренировке до этого дня, иначе из анкеты
 const trainMinutes = (d) => {
   const l = trainLogOn(d);
   if (l && Number(l.minutes) > 0) return Number(l.minutes);
-  const p = finishedLogs().find((x) => x.date < d && Number(x.minutes) > 0);
-  return p ? Number(p.minutes) : trainCfg().minutes;
+  return lastMinutes(d) || trainCfg().minutes;
+};
+// Ползунок времени тренировки: 15–90 мин шагом 15
+const SL_LO = 15, SL_HI = 90;
+const sliderHtml = (day, m) => {
+  const p = Math.max(0, Math.min(1, (m - SL_LO) / (SL_HI - SL_LO))), last = lastMinutes(day);
+  return `<div class="tr-segl"><span>Сколько времени есть</span><span>${last ? `В прошлый раз: ${last} мин` : "мин"}</span></div><div class="tr-sl" data-date="${day}" style="--p:${p}"><div class="tr-slv"><b>${m}</b><small>мин</small></div><div class="tr-slt"><i class="f"></i><i class="k"></i><input type="range" min="${SL_LO}" max="${SL_HI}" step="15" value="${m}" aria-label="Время тренировки, мин"></div><div class="tr-slk">${[15, 30, 45, 60, 75, 90].map((x) => `<span>${x}</span>`).join("")}</div></div>`;
 };
 // Минуты ходьбы/кардио из прошлых завершённых тренировок: отдельно разминка (warm) и кардио в конце (cardio), берём факт по последней записи
 function prevCardioOf(d) {
@@ -219,6 +231,27 @@ function prevCardioOf(d) {
     if (out.warm && out.cardio) break;
   }
   return out;
+}
+// Ползунок: пока тянем, число и заливка меняются на месте; на отпускании пишем время в журнал дня и перерисовываем план
+if (typeof document !== "undefined" && !window.__trSl) {
+  window.__trSl = true;
+  const slUpd = (el) => {
+    const box = el.closest(".tr-sl");
+    if (!box) return null;
+    const v = Number(el.value);
+    box.style.setProperty("--p", String((v - Number(el.min)) / (Number(el.max) - Number(el.min))));
+    const b = box.querySelector(".tr-slv b");
+    if (b) b.textContent = String(v);
+    return box;
+  };
+  document.addEventListener("input", (e) => { if (e.target.matches && e.target.matches(".tr-sl input")) slUpd(e.target); }, true);
+  document.addEventListener("change", (e) => {
+    if (!e.target.matches || !e.target.matches(".tr-sl input")) return;
+    const box = slUpd(e.target);
+    if (!box) return;
+    saveTrainLog(box.dataset.date, { minutes: Number(e.target.value) });
+    render();
+  }, true);
 }
 // Упражнения с отметкой «болит» минимум в двух разных днях за последние 3 недели заменяются в будущих планах
 function painIds(d) {
@@ -381,10 +414,10 @@ function trainCardHtml(day) {
       }).join("") + `</div></div>`;
     }).join("");
     body = `
-      <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · около ${ses.est} мин${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
+      <div class="tr-top"><div><b class="tr-title">${esc(ses.title)}</b><span class="tr-meta">${esc(trainDayName(day))} · ${estText(ses)}${from ? ` · перенесено с ${esc(dateShort(from))}` : ""}</span></div>
         ${ses.customOnly ? "" : `<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">Перенести</button>`}</div>
       ${ses.customOnly ? "" : `<button type="button" class="tr-skip${skipOf(day).length ? " on" : ""}" data-act="trainSkip" data-date="${day}"><span>${skipOf(day).length ? `Не тренируем: ${esc(skipOf(day).map((g) => TR.MG[g].toLowerCase()).join(", "))}` : "Болят мышцы?"}</span><b>${skipOf(day).length ? "Изменить" : "Пропустить группу"}</b></button>`}
-      ${ses.customOnly ? "" : `<div class="tr-segl"><span>Сколько времени есть</span><span>мин</span></div><div class="tr-seg">${TR.TIMES.map((t) => `<button type="button" class="${t === m ? "on" : ""}" data-act="trainMinutes" data-date="${day}" data-v="${t}">${t}</button>`).join("")}</div>`}
+      ${ses.customOnly ? "" : `${sliderHtml(day, m)}`}
       ${k >= n && n > 0 ? "" : `<div class="tr-prog"><div class="track"><i style="width:${n ? Math.round((k / n) * 100) : 0}%"></i></div><b>${k}/${n}</b></div>`}
       ${ses.bump || (ses.swapped && ses.swapped.length) ? `<p class="foot-note tr-adapt" style="margin:8px 2px 0">Подстроено по вашим итогам:${ses.bump ? ` повторы ${ses.bump > 0 ? "+" : "−"}${Math.abs(ses.bump)}` : ""}${ses.swapped && ses.swapped.length ? `${ses.bump ? "," : ""} ${ses.swapped.map((s) => `вместо «${esc(TR.EXERCISES[s.from].name.toLowerCase())}» — «${esc(TR.EXERCISES[s.to].name.toLowerCase())}»`).join(", ")}` : ""}.</p>` : ""}
       ${k >= n ? `<div class="tr-win"><span class="cf">🎉🔥</span><div class="em">🏆</div><h3>Тренировка выполнена!</h3><p>Класс, вы молодец, так держать 🙌</p><div class="bar"><i></i></div><div class="nn"><span>${k} из ${n}</span><span>100%</span></div></div>` : `<button type="button" class="btn primary full" style="margin-top:10px" data-act="trainStart" data-date="${day}">${k > 0 ? "Продолжить тренировку" : "Начать тренировку"}</button>`}
@@ -393,7 +426,7 @@ function trainCardHtml(day) {
       <div class="tr-actions"><button type="button" class="tr-addrow" data-act="trainAdd" data-date="${day}"><span class="plus">+</span><b>Добавить упражнение</b></button>
       ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><div class="tr-btns"><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button><button type="button" class="btn ghost sm tr-wipe" data-act="trainWipe" data-date="${day}">Удалить итоги</button></div></div>` : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
       ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить день</button>` : ""}</div>`;
-    sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · около ${ses.est} мин · выполнено ${k} из ${n}</span></p>`;
+    sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · ${estText(ses)} · выполнено ${k} из ${n}</span></p>`;
   } else {
     const nx = nextTrainDay(day);
     body = `<p class="foot-note" style="margin:4px 4px 12px">${day === today ? "Сегодня" : "В этот день"} по плану отдых.${nx ? ` Ближайшая тренировка: ${esc(trainDayName(nx))}, ${esc(TR.typeShort(TR.sessionType(cfg, nx)).toLowerCase())}.` : ""}</p>
