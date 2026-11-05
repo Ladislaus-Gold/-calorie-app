@@ -690,7 +690,12 @@ function openTrainWorkout(date) {
     const sub = [varOf(it), eb && (it.vk === "band" || it.vk === "bandf") ? bandName(eb) : ""].filter(Boolean).join(" · ");
     const head = bandHtml(it.name, sub);
     root.classList.add("wk-str");
+    // Перерисовка (старт таймера, запись подхода) не должна перезапускать видео того же упражнения:
+    // старый элемент <video> переносим на место нового, пока он не успел остановиться. Другое упражнение — новое видео с начала.
+    const oldVid = root.querySelector(".ex-ph-imgs video");
     root.innerHTML = `${head}${fig}${it.reps ? strengthHtml(it) : simpleHtml(it)}`;
+    const newVid = oldVid && root.querySelector(".ex-ph-imgs video");
+    if (newVid && !oldVid.error && oldVid.getAttribute("src") === newVid.getAttribute("src")) newVid.replaceWith(oldVid);
   };
   const recMin = (it, m) => { saveTrainLog(date, { mins: { [it.key]: m }, done: { [it.key]: true } }); next(); };
   // Таймер кардио/растяжки: запуск, конец (сам или свайпом) — значение записывается и открывается следующее
