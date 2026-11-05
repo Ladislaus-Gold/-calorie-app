@@ -235,14 +235,18 @@ function prevCardioOf(d) {
 // Ручка дня отдыха: жест вниз открывает, вверх закрывает (касание обрабатывает data-act)
 if (typeof document !== "undefined" && !window.__trPull) {
   window.__trPull = true;
-  let y0 = null;
-  document.addEventListener("touchstart", (e) => { y0 = e.target.closest && e.target.closest(".tr-pull") ? e.touches[0].clientY : null; }, { passive: true, capture: true });
+  let y0 = null, key = "trainRestOpen";
+  document.addEventListener("touchstart", (e) => {
+    const h = e.target.closest && e.target.closest(".tr-pull");
+    y0 = h ? e.touches[0].clientY : null;
+    key = h && h.dataset.pull ? h.dataset.pull : "trainRestOpen";
+  }, { passive: true, capture: true });
   document.addEventListener("touchend", (e) => {
     if (y0 === null) return;
     const dy = e.changedTouches[0].clientY - y0; y0 = null;
     if (Math.abs(dy) < 30) return;
     const want = dy > 0;
-    if (want !== !!state.trainRestOpen) { state.trainRestOpen = want; render(); }
+    if (want !== !!state[key]) { state[key] = want; render(); }
   }, { passive: true, capture: true });
 }
 // Ползунок: узел идёт за пальцем плавно (без скачков по шагам), число показывает ближайший шаг 15;

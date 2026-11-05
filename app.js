@@ -13,7 +13,7 @@ import {
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=29";
-import { createTrainUI } from "./trainui.js?v=94";
+import { createTrainUI } from "./trainui.js?v=95";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 363;
-const APP_VERSION_LABEL = "3.61"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 364;
+const APP_VERSION_LABEL = "3.62"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -204,7 +204,7 @@ const state = {
   repMenu: false,
   ai: { busy: false, error: "", detail: "", step: "" },
   aiLast: null,
-  insOpen: false, trainOpen: false, trainDayOpen: false, trainRestOpen: false,
+  insOpen: false, trainOpen: false, trainDayOpen: false, trainRestOpen: false, wkOpen: false,
   status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
   mealOpen: {},
@@ -4643,7 +4643,7 @@ function viewHealth() {
     <section class="card trc">
       <div class="card-top fl-top"><span class="fl-ic ic-run" data-ek="trn">⚡</span><h2 class="h2">Тренировки</h2></div>
       <div class="sm2"><span class="d"><b>${fmtInt(mins)}</b>мин</span><span><b>${fmtInt(trainKcal)}</b>ккал</span></div>
-      ${actRows || wktRows ? `<div class="wl2">${wktRows}${actRows}</div>${wkts.length ? `<p class="ft2">⌚ Данные Apple Watch ${day === todayStr() ? "с полуночи" : "за этот день"}</p>` : ""}` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
+      ${actRows || wktRows ? `${state.wkOpen ? `<div class="wl2">${wktRows}${actRows}</div>${wkts.length ? `<p class="ft2">⌚ Данные Apple Watch ${day === todayStr() ? "с полуночи" : "за этот день"}</p>` : ""}` : ""}<button type="button" class="tr-pull" data-act="wkTog" data-pull="wkOpen" aria-expanded="${!!state.wkOpen}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${state.wkOpen ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"}"/></svg><span>${state.wkOpen ? "Потяните вверх, чтобы скрыть" : `Потяните вниз: ${wkts.length + acts.length} ${(wkts.length + acts.length) % 10 === 1 && (wkts.length + acts.length) % 100 !== 11 ? "запись" : [2, 3, 4].includes((wkts.length + acts.length) % 10) && ![12, 13, 14].includes((wkts.length + acts.length) % 100) ? "записи" : "записей"}`}</span></button>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
     ${trainCardHtml(day)}
     ${trainProgressCardHtml(day)}`;
@@ -5824,6 +5824,7 @@ const actions = {
     const g = Math.min(10000, Math.max(500, Math.round(state.goal) + Number(ds.d)));
     setDoc(docRef("settings", "profile"), { goalKcal: g }, { merge: true }).catch(writeFail);
   },
+  wkTog() { state.wkOpen = !state.wkOpen; render(); },
   trainRestTog() { state.trainRestOpen = !state.trainRestOpen; render(); },
   trainDayTog() { state.trainDayOpen = !state.trainDayOpen; render(); },
   trainDayTap(ds) { state.trainDayOpen = true; if (ds.date !== state.date) actions.pickDay(ds); else render(); },
