@@ -1450,7 +1450,7 @@ function jointWarm(mainItems, ctx, count) {
 
 // Чем заменять упражнения пропущенной группы мышц (по типу тренировки): берём ближайшую подходящую группу, где ещё есть что делать
 const SKIP_REPL = { A: ["legs", "glutes", "core", "back"], B: ["back", "legs", "core", "glutes"], C: ["core", "chest", "back", "legs"] };
-export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds, skip, exAdv, cardioId) {
+export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoidIds, skip, exAdv, cardioId, prevCardio) {
   const cfg = normCfg(cfgRaw, date);
   const type = sessionType(cfg, date);
   if (!type) return null;
@@ -1516,6 +1516,14 @@ export function buildSession(cfgRaw, date, profile, minutesOverride, bump, avoid
   const chosen = cardioId && EXERCISES[cardioId] && EXERCISES[cardioId].kind === "cardio" && pickVariant(EXERCISES[cardioId], ctx) ? EXERCISES[cardioId] : null;
   const finEx = chosen || cardioEx;
   const fin = finEx && cardioMin > 0 ? [itemFor(finEx, ctx, "cardio", 1, cardioMin)] : [];
+  // Минуты ходьбы/кардио как в прошлый раз (prevCardio: { warm, cardio }): подменяем только длительность, силовая часть считалась по обычной формуле
+  const usePrev = (it, n) => {
+    if (!it || !(n > 0)) return;
+    it.minutes = n; it.est = n * 60; it.text = `${n} мин`; it.prev = n;
+    it.sub = it.sub ? `как в прошлый раз · ${it.sub}` : "как в прошлый раз";
+  };
+  usePrev(warmCardio[0], prevCardio && prevCardio.warm);
+  usePrev(fin[0], prevCardio && prevCardio.cardio);
   const warm = [...warmCardio, ...jointWarm(main, ctx, nMob)];
   const items = [...warm, ...main, ...fin, ...cool];
   return {
