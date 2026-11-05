@@ -216,7 +216,7 @@ const trainMinutes = (d) => {
 const SL_LO = 15, SL_HI = 90;
 const sliderHtml = (day, m) => {
   const p = Math.max(0, Math.min(1, (m - SL_LO) / (SL_HI - SL_LO))), last = lastMinutes(day);
-  return `<div class="tr-sl" data-date="${day}" style="--p:${p}"><div class="tr-slh"><span>Время</span><b>${m} мин</b></div><div class="tr-slt"><i class="f"></i><span class="dt"><i></i><i></i><i></i><i></i><i></i><i></i></span><i class="k"></i><input type="range" min="${SL_LO}" max="${SL_HI}" step="15" value="${m}" aria-label="Время тренировки, мин"></div><div class="tr-slk">${[15, 30, 45, 60, 75, 90].map((x) => `<span>${x}</span>`).join("")}</div></div>${last ? `<p class="tr-slp">В прошлый раз: ${last} мин</p>` : ""}`;
+  return `<div class="tr-sl" data-date="${day}" style="--p:${p}"><div class="tr-slh"><span>Время</span><b>${m} мин</b></div><div class="tr-slt" role="slider" tabindex="0" aria-label="Время тренировки, мин" aria-valuemin="${SL_LO}" aria-valuemax="${SL_HI}" aria-valuenow="${m}"><i class="f"></i><span class="dt"><i></i><i></i><i></i><i></i><i></i><i></i></span><i class="k"></i></div><div class="tr-slk">${[15, 30, 45, 60, 75, 90].map((x) => `<span>${x}</span>`).join("")}</div></div>${last ? `<p class="tr-slp">В прошлый раз: ${last} мин</p>` : ""}`;
 };
 // Минуты ходьбы/кардио из прошлых завершённых тренировок: отдельно разминка (warm) и кардио в конце (cardio), берём факт по последней записи
 function prevCardioOf(d) {
@@ -245,25 +245,48 @@ if (typeof document !== "undefined" && !window.__trPull) {
     if (want !== !!state.trainRestOpen) { state.trainRestOpen = want; render(); }
   }, { passive: true, capture: true });
 }
-// Ползунок: пока тянем, число и заливка меняются на месте; на отпускании пишем время в журнал дня и перерисовываем план
+// Ползунок: узел идёт за пальцем плавно (без скачков по шагам), число показывает ближайший шаг 15;
+// на отпускании узел мягко «примагничивается» к шагу, затем время пишется в журнал дня и план перерисовывается
 if (typeof document !== "undefined" && !window.__trSl) {
   window.__trSl = true;
-  const slUpd = (el) => {
-    const box = el.closest(".tr-sl");
-    if (!box) return null;
-    const v = Number(el.value);
-    box.style.setProperty("--p", String((v - Number(el.min)) / (Number(el.max) - Number(el.min))));
+  let drag = null;
+  const stepOf = (p) => Math.min(SL_HI, Math.max(SL_LO, Math.round((SL_LO + p * (SL_HI - SL_LO)) / 15) * 15));
+  const show = (box, p) => {
+    box.style.setProperty("--p", String(p));
     const b = box.querySelector(".tr-slh b");
-    if (b) b.textContent = `${v} мин`;
-    return box;
+    if (b) b.textContent = `${stepOf(p)} мин`;
   };
-  document.addEventListener("input", (e) => { if (e.target.matches && e.target.matches(".tr-sl input")) slUpd(e.target); }, true);
-  document.addEventListener("change", (e) => {
-    if (!e.target.matches || !e.target.matches(".tr-sl input")) return;
-    const box = slUpd(e.target);
-    if (!box) return;
-    saveTrainLog(box.dataset.date, { minutes: Number(e.target.value) });
-    render();
+  const posOf = (t, x) => { const r = t.getBoundingClientRect(); return r.width > 0 ? Math.max(0, Math.min(1, (x - r.left) / r.width)) : 0; };
+  const commit = (box, v) => { saveTrainLog(box.dataset.date, { minutes: v }); render(); };
+  document.addEventListener("pointerdown", (e) => {
+    const t = e.target.closest && e.target.closest(".tr-slt");
+    if (!t) return;
+    const box = t.closest(".tr-sl");
+    drag = { t, box };
+    box.classList.add("drag");
+    try { t.setPointerCapture(e.pointerId); } catch (_) {}
+    show(box, posOf(t, e.clientX));
+    e.preventDefault();
+  }, true);
+  document.addEventListener("pointermove", (e) => { if (drag) show(drag.box, posOf(drag.t, e.clientX)); }, true);
+  const end = (e) => {
+    if (!drag) return;
+    const { t, box } = drag; drag = null;
+    const v = stepOf(posOf(t, e.clientX));
+    box.classList.remove("drag");
+    show(box, (v - SL_LO) / (SL_HI - SL_LO));
+    setTimeout(() => commit(box, v), 190);
+  };
+  document.addEventListener("pointerup", end, true);
+  document.addEventListener("pointercancel", end, true);
+  document.addEventListener("keydown", (e) => {
+    const t = e.target.closest && e.target.closest(".tr-slt");
+    if (!t || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    const box = t.closest(".tr-sl");
+    const cur = Number(t.getAttribute("aria-valuenow")) || SL_LO;
+    const v = Math.min(SL_HI, Math.max(SL_LO, cur + (e.key === "ArrowRight" ? 15 : -15)));
+    e.preventDefault();
+    if (v !== cur) { show(box, (v - SL_LO) / (SL_HI - SL_LO)); commit(box, v); }
   }, true);
 }
 // Упражнения с отметкой «болит» минимум в двух разных днях за последние 3 недели заменяются в будущих планах
