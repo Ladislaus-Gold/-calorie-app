@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 360;
-const APP_VERSION_LABEL = "3.58"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 361;
+const APP_VERSION_LABEL = "3.59"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4510,15 +4510,15 @@ function viewHealth() {
     return ["🔥", "walk"];
   };
   const actRows = acts.map((a) => { const [ek, ec] = actKind(a.name, a.type === "strength"); return `
-    <button type="button" class="entry ae ae-${ec}" data-act="editActivity" data-id="${esc(a.id)}">
-      <span class="ae-i">${ek}</span><span class="e-main"><span class="e-name">${esc(a.name)}</span><span class="e-sub">${fmt(a.minutes)} мин</span></span>
-      <span class="e-kcal">${fmtInt(a.kcal)}<small>ккал</small></span>
+    <button type="button" class="wk2 ae-${ec}" data-act="editActivity" data-id="${esc(a.id)}">
+      <span class="ae-i">${ek}</span><span class="w2m"><b>${esc(a.name)}</b><small>${fmt(a.minutes)} мин</small></span>
+      <span class="w2r"><em>${fmtInt(a.kcal)}<i>ккал</i></em></span>
     </button>`; }).join("");
   const wktRows = wkts.map((w) => {
-    const bits = [timeOf(w.start), w.minutes ? `${fmtInt(w.minutes)} мин` : "", w.distanceKm ? `${fmt(w.distanceKm)} км` : "", w.hrAvg ? `пульс ${fmtInt(w.hrAvg)}${w.hrMax ? ` (макс ${fmtInt(w.hrMax)})` : ""}` : ""].filter(Boolean);
+    const bits = [timeOf(w.start), w.minutes ? `${fmtInt(w.minutes)} мин` : "", w.distanceKm ? `${fmt(w.distanceKm)} км` : "", w.hrAvg ? `♥ ${fmtInt(w.hrAvg)}${w.hrMax ? ` /${fmtInt(w.hrMax)}` : ""}` : ""].filter(Boolean);
     const st = isStrengthW(w);
     const [ek, ec] = actKind(w.name, st);
-    return `<div class="entry ae ae-${ec}"><span class="ae-i">${ek}</span><span class="e-main"><span class="e-name">${esc(w.name)}</span><span class="e-sub">${bits.join(" · ")} · Apple Watch</span><button type="button" class="chip ${st ? "sel" : "muted"}" style="margin-top:8px;padding:5px 12px;font-size:12px" data-act="toggleStrength" data-id="${esc(w.id)}">${st ? "Силовая ✓" : "Отметить силовой"}</button></span><span class="e-kcal">${w.kcal ? fmtInt(w.kcal) : "—"}<small>ккал</small></span></div>`;
+    return `<div class="wk2 ae-${ec}"><span class="ae-i">${ek}</span><span class="w2m"><b>${esc(w.name)}</b><small>${bits.join(" · ")}</small></span><span class="w2r"><em>${w.kcal ? fmtInt(w.kcal) : "—"}<i>ккал</i></em><button type="button" class="w2s${st ? " on" : ""}" data-act="toggleStrength" data-id="${esc(w.id)}">${st ? "Силовая ✓" : "Силовая"}</button></span></div>`;
   }).join("");
   // Сначала самые свежие; по умолчанию видны два последних, остальные раскрываются кнопкой
   const FLUID_SHOW = 2;
@@ -4633,11 +4633,8 @@ function viewHealth() {
     </section>`}
     <section class="card trc">
       <div class="card-top fl-top"><span class="fl-ic ic-run" data-ek="trn">⚡</span><h2 class="h2">Тренировки</h2></div>
-      <div class="stat-grid">
-        <div class="stat"><b>${fmtInt(mins)}</b><span>минут за день</span></div>
-        <div class="stat"><b>${fmtInt(trainKcal)}</b><span>ккал на тренировках</span></div>
-      </div>
-      ${actRows || wktRows ? `<div class="entries flat">${wktRows}${actRows}</div>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
+      <div class="sm2"><span class="d"><b>${fmtInt(mins)}</b>мин</span><span><b>${fmtInt(trainKcal)}</b>ккал</span></div>
+      ${actRows || wktRows ? `<div class="wl2">${wktRows}${actRows}</div>${wkts.length ? `<p class="ft2">⌚ Данные Apple Watch ${day === todayStr() ? "с полуночи" : "за этот день"}</p>` : ""}` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
     ${trainCardHtml(day)}
     ${trainProgressCardHtml(day)}`;
