@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 361;
-const APP_VERSION_LABEL = "3.59"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 362;
+const APP_VERSION_LABEL = "3.60"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2100,7 +2100,7 @@ function reportTodayHtml(a) {
   const core = sl ? (Number(sl.sleepCoreH) || Math.max(0, p.sleep - deep - rem)) : 0, stTot = deep + rem + core + awake;
   const sPart = (v, c) => (v > 0 && stTot > 0 ? `<i style="width:${(v / stTot * 100).toFixed(1)}%;background:${c}"></i>` : "");
   const tileSleep = sl ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#5E5CE6"></i>Сон прошлой ночи</div><div class="r2-big">${r2HM(p.sleep)}</div><div class="r2-sub">${deep > 0 ? `глубокий ${fmtDur(deep)}` : p.sleep < SLEEP_MIN ? `короче ${SLEEP_MIN} ч` : "в норме"}</div>${deep + rem > 0 ? `<div class="r2-sbar">${sPart(deep, "#5E5CE6")}${sPart(rem, "#BF5AF2")}${sPart(core, "#64D2FF")}${sPart(awake, "#FF9F0A")}</div>` : ""}</section>` : "";
-  const tileSteps = p.steps > 0 ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#34C759"></i>Шаги</div><div class="r2-big">${r2Num(p.steps)}</div><div class="r2-sub">из ${r2Num(STEPS_GOAL)} · ${Math.round((p.steps / STEPS_GOAL) * 100)}%</div><div class="r2-pb" style="margin-top:20px"><i style="width:${Math.min(100, (p.steps / STEPS_GOAL) * 100).toFixed(1)}%;background:#34C759"></i></div></section>` : "";
+  const tileSteps = p.steps > 0 ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#14B8A6"></i>Шаги</div><div class="r2-big">${r2Num(p.steps)}</div><div class="r2-sub">из ${r2Num(STEPS_GOAL)} · ${Math.round((p.steps / STEPS_GOAL) * 100)}%</div><div class="r2-pb" style="margin-top:20px"><i style="width:${Math.min(100, (p.steps / STEPS_GOAL) * 100).toFixed(1)}%;background:#14B8A6"></i></div></section>` : "";
   const tiles = tileSleep || tileSteps ? `<div class="r2-g2${tileSleep && tileSteps ? "" : " one"}">${tileSleep}${tileSteps}</div>` : "";
 
   // нагрузка
@@ -2187,15 +2187,15 @@ function viewReportsInner() {
   // --- сон и шаги (плитки) ---
   const slpSerie = serie((d) => Math.round(sleepHours(d) * 10) / 10), stpSerie = serie(stepsOn);
   const tileSleep = a.sleepDays ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#5E5CE6"></i>Сон</div><div class="r2-big">${r2HM(a.sleepAvg)}</div><div class="r2-sub">${a.sleepShort ? `<span class="r2-dn">ночей короче 7 ч: ${a.sleepShort}</span>` : "все ночи от 7 ч"}</div>${r2Mini(slpSerie.slice(-14), "#5E5CE6")}</section>` : "";
-  const tileSteps = a.stepDays ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#34C759"></i>Шаги</div><div class="r2-big">${r2Num(a.stepsAvg)}</div><div class="r2-sub">${pctVs(a.stepsAvg, prev && prev.stepsAvg) || `в день · дней ${a.stepDays}`}</div>${r2Mini(stpSerie.slice(-14), "#34C759")}</section>` : "";
+  const tileSteps = a.stepDays ? `<section class="r2-card r2-tile"><div class="t"><i style="background:#14B8A6"></i>Шаги</div><div class="r2-big">${r2Num(a.stepsAvg)}</div><div class="r2-sub">${pctVs(a.stepsAvg, prev && prev.stepsAvg) || `в день · дней ${a.stepDays}`}</div>${r2Mini(stpSerie.slice(-14), "#14B8A6")}</section>` : "";
   const tiles = tileSleep || tileSteps ? `<div class="r2-g2${tileSleep && tileSteps ? "" : " one"}">${tileSleep}${tileSteps}</div>` : "";
 
   // --- калории ---
-  const calCard = a.L ? `<section class="r2-card">${r2Ch("#FF9F0A", "flame", "Калории")}
+  const calCard = a.L ? `<section class="r2-card">${r2Ch("#34C759", "flame", "Калории")}
     <div class="r2-big">${r2Num(a.kcalAvg)}<small>ккал в день</small></div>
     <div class="r2-sub">цель ${r2Num(goal)} · ${a.overDays ? `<span class="r2-dn">дней с перебором: ${a.overDays}</span>` : "перебора нет"}${prev && prev.kcalAvg ? ` · ${Math.round(a.kcalAvg - prev.kcalAvg) === 0 ? "как в прошлом периоде" : `${r2Sgn(a.kcalAvg - prev.kcalAvg)}${r2Num(Math.abs(a.kcalAvg - prev.kcalAvg))} к прошлому`}` : ""}</div>
-    ${box(r2Bars({ vals: kper, labs, goal, color: "#FF9F0A", over: (v) => v > goal * 1.1, h: 120, id: "cal", keys: chartKeys, sel: selCal }), tipAt(selCal, (i) => [`${esc(keyLong(chartKeys[i]))} · ${kper[i] > 0 ? `${r2Num(kper[i])} ккал` : "нет записей"}`, [kper[i] > 0 ? `цель ${r2Num(goal)}${kper[i] > goal * 1.1 ? " · перебор" : ""}` : "", avgNote]]))}
-    <div class="r2-leg"><span><i style="background:#FF9F0A"></i>в пределах цели</span><span><i style="background:#FF3B30"></i>перебор больше 10%</span>${grouped ? `<span>${step === 30 ? "среднее по месяцам" : "среднее по неделям"}</span>` : ""}</div></section>` : "";
+    ${box(r2Bars({ vals: kper, labs, goal, color: "#34C759", over: (v) => v > goal * 1.1, h: 120, id: "cal", keys: chartKeys, sel: selCal }), tipAt(selCal, (i) => [`${esc(keyLong(chartKeys[i]))} · ${kper[i] > 0 ? `${r2Num(kper[i])} ккал` : "нет записей"}`, [kper[i] > 0 ? `цель ${r2Num(goal)}${kper[i] > goal * 1.1 ? " · перебор" : ""}` : "", avgNote]]))}
+    <div class="r2-leg"><span><i style="background:#34C759"></i>в пределах цели</span><span><i style="background:#FF3B30"></i>перебор больше 10%</span>${grouped ? `<span>${step === 30 ? "среднее по месяцам" : "среднее по неделям"}</span>` : ""}</div></section>` : "";
 
   // --- питание ---
   const sp = a.share;
