@@ -1,7 +1,7 @@
 /* Интерфейс тренировок: план, режим тренировки, упражнения, итоги, прогресс.
    Чистая логика плана и список упражнений лежат в train.js; здесь экраны и работа с журналом тренировок.
    createTrainUI(env) вызывается из app.js один раз, env даёт общие функции приложения (state, render, openSheet и др.). */
-import * as TR from "./train.js?v=28";
+import * as TR from "./train.js?v=29";
 
 /* Картинки упражнений (папка img/): `${id}-${vk}-${n}.webp`. В PHOTOS число картинок для пары (упражнение:вариант).
    Одна картинка показывается как есть, две листаются свайпом. Нет картинки — ничего не показываем (рисунки-схемы убраны в v2.69). */
@@ -199,7 +199,27 @@ const exVs = (ex) => { const c = trainCfg(), h = c.equip[c.place] || []; return 
 const trainLogOn = (d) => state.trainLog.find((x) => x.date === d) || null;
 // Кардио-пункт со временем в минутах (разминка-дорожка или кардио); суставные упражнения разминки идут по секундам
 const isMinIt = (it) => it.group === "cardio" || (it.group === "warm" && Number(it.minutes) > 0);
-const trainMinutes = (d) => { const l = trainLogOn(d); return l && Number(l.minutes) > 0 ? Number(l.minutes) : trainCfg().minutes; };
+// Время тренировки: выбранное на этот день, иначе как в последней завершённой тренировке до этого дня, иначе из анкеты
+const trainMinutes = (d) => {
+  const l = trainLogOn(d);
+  if (l && Number(l.minutes) > 0) return Number(l.minutes);
+  const p = finishedLogs().find((x) => x.date < d && Number(x.minutes) > 0);
+  return p ? Number(p.minutes) : trainCfg().minutes;
+};
+// Минуты ходьбы/кардио из прошлых завершённых тренировок: отдельно разминка (warm) и кардио в конце (cardio), берём факт по последней записи
+function prevCardioOf(d) {
+  const out = {};
+  for (const l of finishedLogs()) {
+    if (l.date >= d) continue;
+    for (const [k, v] of Object.entries(l.mins || {})) {
+      const g = k.startsWith("warm:") ? "warm" : k.startsWith("cardio:") ? "cardio" : "";
+      const n = Math.round(Number(v));
+      if (g && !out[g] && n > 0 && n <= 180) out[g] = n;
+    }
+    if (out.warm && out.cardio) break;
+  }
+  return out;
+}
 // Упражнения с отметкой «болит» минимум в двух разных днях за последние 3 недели заменяются в будущих планах
 function painIds(d) {
   const from = addDays(d, -21), days = {};
@@ -216,7 +236,7 @@ const trainSession = (d, extraAvoid, noSkip) => {
   const adv = d >= todayStr() ? trainAdvice(d) : null;
   const avoid = [...(adv ? adv.avoid : []), ...(d >= todayStr() ? painIds(d) : []), ...(((trainLogOn(d) || {}).swapped) || []), ...(extraAvoid || [])];
   const sk = noSkip ? [] : skipOf(d);
-  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null, adv ? adv.ex : null, (trainLogOn(d) || {}).cardioId || (state.trainCfg && state.trainCfg.cardioId) || "");
+  const base = TR.buildSession(state.trainCfg, d, state.profile, trainMinutes(d), 0, avoid, sk.length ? { groups: sk, ids: skipIds(sk) } : null, adv ? adv.ex : null, (trainLogOn(d) || {}).cardioId || (state.trainCfg && state.trainCfg.cardioId) || "", prevCardioOf(d));
   const cs = customItems(d);
   if (!cs.length) return base;
   const rank = { warm: 0, main: 1, cardio: 2, cool: 3 };
@@ -879,8 +899,8 @@ function openTrainWorkout(date) {
     const it = items[idx];
     if (!it || phase === "run") return;
     if (me.dataset.minedit === "min") {
-      if (review) openNumSheet({ title: "Сколько прошли?", sub: `План был ${it.minutes} мин. Запишем по факту.`, val: factMin(it) || it.minutes, min: 1, max: 600, unit: "мин", onSave: (v) => { mins = v; saveTrainLog(date, { mins: { [it.key]: v }, done: { [it.key]: true } }); draw(); } });
-      else openNumSheet({ title: "Сколько минут?", sub: `По плану ${it.minutes} мин. Таймер будет на выбранное время.`, val: mins, min: 1, max: 180, unit: "мин", onSave: (v) => { mins = v; draw(); } });
+      if (review) openNumSheet({ title: "Сколько прошли?", sub: `План был ${it.minutes} мин${it.prev ? " (как в прошлый раз)" : ""}. Запишем по факту.`, val: factMin(it) || it.minutes, min: 1, max: 600, unit: "мин", onSave: (v) => { mins = v; saveTrainLog(date, { mins: { [it.key]: v }, done: { [it.key]: true } }); draw(); } });
+      else openNumSheet({ title: "Сколько минут?", sub: `По плану ${it.minutes} мин${it.prev ? " (как в прошлый раз)" : ""}. Таймер будет на выбранное время.`, val: mins, min: 1, max: 180, unit: "мин", onSave: (v) => { mins = v; draw(); } });
     } else if (!review) openNumSheet({ title: "Сколько секунд?", sub: `По плану ${it.secs[1]} сек.`, val: secv, min: 5, max: 600, unit: "сек", steps: [-30, -15, -5, 5, 15, 30], onSave: (v) => { secv = v; draw(); } });
   });
   ov.addEventListener("click", (e) => {
@@ -1144,7 +1164,7 @@ function openTrainExercise(date, key) {
   ov.addEventListener("click", (e) => {
     if (e.target.closest("[data-minedit]")) {
       const fm = Number((((trainLogOn(date) || {}).mins) || {})[it.key]) || 0;
-      openNumSheet({ title: "Сколько прошли?", sub: `План был ${it.minutes} мин. Запишем по факту.`, val: fm || it.minutes, min: 1, max: 600, unit: "мин", onSave: (v) => { saveTrainLog(date, { mins: { [it.key]: v } }); const x = ov.querySelector("#ex-extra"); if (x) x.innerHTML = exExtraHtml(); render(); } });
+      openNumSheet({ title: "Сколько прошли?", sub: `План был ${it.minutes} мин${it.prev ? " (как в прошлый раз)" : ""}. Запишем по факту.`, val: fm || it.minutes, min: 1, max: 600, unit: "мин", onSave: (v) => { saveTrainLog(date, { mins: { [it.key]: v } }); const x = ov.querySelector("#ex-extra"); if (x) x.innerHTML = exExtraHtml(); render(); } });
       return;
     }
     const ed = e.target.closest("[data-edb]"), eds = e.target.closest("[data-edbset]");
