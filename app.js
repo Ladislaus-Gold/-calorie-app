@@ -13,7 +13,7 @@ import {
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=29";
-import { createTrainUI } from "./trainui.js?v=92";
+import { createTrainUI } from "./trainui.js?v=93";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 358;
-const APP_VERSION_LABEL = "3.56"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 359;
+const APP_VERSION_LABEL = "3.57"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -204,7 +204,7 @@ const state = {
   repMenu: false,
   ai: { busy: false, error: "", detail: "", step: "" },
   aiLast: null,
-  insOpen: false, trainOpen: false, trainDayOpen: false,
+  insOpen: false, trainOpen: false, trainDayOpen: false, trainRestOpen: false,
   status: { busy: false, ts: 0, server: "", rules: "", latest: 0 },
   fluidOpenDay: null,
   mealOpen: {},
@@ -5818,6 +5818,7 @@ const actions = {
     const g = Math.min(10000, Math.max(500, Math.round(state.goal) + Number(ds.d)));
     setDoc(docRef("settings", "profile"), { goalKcal: g }, { merge: true }).catch(writeFail);
   },
+  trainRestTog() { state.trainRestOpen = !state.trainRestOpen; render(); },
   trainDayTog() { state.trainDayOpen = !state.trainDayOpen; render(); },
   trainDayTap(ds) { state.trainDayOpen = true; if (ds.date !== state.date) actions.pickDay(ds); else render(); },
   toggleTrainGrp(ds) { state.trainGrpOpen = { ...(state.trainGrpOpen || {}), [ds.g]: !(state.trainGrpOpen || {})[ds.g] }; render(); },

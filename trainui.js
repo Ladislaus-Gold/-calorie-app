@@ -232,6 +232,19 @@ function prevCardioOf(d) {
   }
   return out;
 }
+// Ручка дня отдыха: жест вниз открывает, вверх закрывает (касание обрабатывает data-act)
+if (typeof document !== "undefined" && !window.__trPull) {
+  window.__trPull = true;
+  let y0 = null;
+  document.addEventListener("touchstart", (e) => { y0 = e.target.closest && e.target.closest(".tr-pull") ? e.touches[0].clientY : null; }, { passive: true, capture: true });
+  document.addEventListener("touchend", (e) => {
+    if (y0 === null) return;
+    const dy = e.changedTouches[0].clientY - y0; y0 = null;
+    if (Math.abs(dy) < 30) return;
+    const want = dy > 0;
+    if (want !== !!state.trainRestOpen) { state.trainRestOpen = want; render(); }
+  }, { passive: true, capture: true });
+}
 // Ползунок: пока тянем, число и заливка меняются на месте; на отпускании пишем время в журнал дня и перерисовываем план
 if (typeof document !== "undefined" && !window.__trSl) {
   window.__trSl = true;
@@ -432,13 +445,14 @@ function trainCardHtml(day) {
     body = `<p class="foot-note" style="margin:4px 4px 12px">${day === today ? "Сегодня" : "В этот день"} по плану отдых.${nx ? ` Ближайшая тренировка: ${esc(trainDayName(nx))}, ${esc(TR.typeShort(TR.sessionType(cfg, nx)).toLowerCase())}.` : ""}</p>
       <div class="row tr-rest">${nx ? `<button type="button" class="btn ghost sm" data-act="trainDayTap" data-date="${nx}">Показать</button>` : ""}<button type="button" class="btn ghost sm" data-act="trainMove" data-date="${day}">${day === today ? "Выполнить сегодня" : "Выполнить"}</button><button type="button" class="btn ghost sm" data-act="trainAdd" data-date="${day}">+ Добавить</button></div>`;
   }
-  const open = !!state.trainDayOpen;
+  // День с тренировкой: план всегда раскрыт. День отдыха: свёрнут, открывается ручкой внизу (касание или жест вниз/вверх)
+  const open = ses ? true : !!state.trainRestOpen;
+  const pull = ses ? "" : `<button type="button" class="tr-pull" data-act="trainRestTog" aria-expanded="${open}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"}"/></svg><span>${open ? "Потяните вверх, чтобы скрыть" : "Потяните вниз, чтобы открыть"}</span></button>`;
   return `<section class="card trc">
-    <div class="card-top fl-top"><span class="fl-ic ic-plan">💪</span><h2 class="h2${ses ? " tr-tog" : ""}"${ses ? ` data-act="trainDayTog" role="button" aria-expanded="${open}"` : ""}>План тренировок${ses ? `${chev(open)}` : ""}</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
+    <div class="card-top fl-top"><span class="fl-ic ic-plan">💪</span><h2 class="h2">План тренировок</h2><button type="button" class="btn ghost sm" data-act="trainForm">Анкета</button></div>
     <div class="tr-week">${strip}</div>
-    ${ses && !open ? sum : ""}
-    ${ses && !open ? `<p class="foot-note tr-more">Нажмите на «План тренировок» или на стрелку, чтобы раскрыть план</p>` : ""}
-    ${ses && !open ? "" : body}
+    ${open ? body : ""}
+    ${pull}
   </section>`;
 }
 
