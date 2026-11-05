@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 362;
-const APP_VERSION_LABEL = "3.60"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 363;
+const APP_VERSION_LABEL = "3.61"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -1676,7 +1676,8 @@ function crossInsights(a) {
     else { lv = "warn"; head = "В целом неплохо, но кое-что стоит подтянуть."; }
     const names = (arr) => arr.map((x) => x[0].toLowerCase()).join(", ");
     const tail = [good.length ? `в норме: ${names(good)}` : "", warn.length ? `можно лучше: ${names(warn)}` : "", bad.length ? `главное внимание: ${names(bad)}` : ""].filter(Boolean).join("; ");
-    out.verdict = { lv, text: `${head} В норме ${good.length} из ${m.length} показателей (${tail}).${a.sleepDays ? "" : " Сон пока не учтён: нет данных."}` };
+    const ttl = lv === "good" ? ["Вы на хорошем уровне", "Так держать"] : lv === "bad" ? ["Пока ниже нормы", "Есть над чем поработать"] : ["В целом неплохо", "Кое-что стоит подтянуть"];
+    out.verdict = { lv, text: `${head} В норме ${good.length} из ${m.length} показателей (${tail}).${a.sleepDays ? "" : " Сон пока не учтён: нет данных."}`, title: ttl[0], sub: ttl[1], total: m.length, nGood: good.length, items: m, noSleep: !a.sleepDays };
   }
   // --- взаимосвязи ---
   const add = (kind, text) => out.links.push({ kind, text });
@@ -2170,6 +2171,14 @@ function viewReportsInner() {
   const hasAny = a.L || a.hydDays || a.actTotalMin || a.stepDays || a.sleepDays || state.weights.length;
   if (!hasAny) return head + `<div class="empty"><b>Пока нет данных</b>Запишите еду, воду или нагрузку, и здесь появится статистика.</div>`;
 
+  // Итоговая оценка блоками: заголовок со счётом, полоска показателей и группы «в норме / можно лучше / главное внимание»
+  const verdictHtml = (v) => {
+    const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+    const grp = (k, cls, lbl) => { const L = v.items.filter((x) => x[1] === k); return L.length ? `<div class="vd-row"><span class="vd-k ${cls}"><i></i>${lbl}</span><div class="vd-ch">${L.map((x) => `<em class="${cls}">${esc(cap(x[0]))}</em>`).join("")}</div></div>` : ""; };
+    const order = ["good", "warn", "bad"], cls = { good: "g", warn: "w", bad: "b" };
+    const seg = v.items.slice().sort((x, y) => order.indexOf(x[1]) - order.indexOf(y[1])).map((x) => `<i class="${cls[x[1]]}"></i>`).join("");
+    return `<div class="vd vd-${v.lv}"><div class="vd-top"><div><b>${esc(v.title)}</b><span>${esc(v.sub)}</span></div><div class="vd-sc"><b>${v.nGood}</b><small>из ${v.total} в норме</small></div></div><div class="vd-seg">${seg}</div>${grp("good", "g", "В норме")}${grp("warn", "w", "Можно лучше")}${grp("bad", "b", "Главное внимание")}${v.noSleep ? `<p class="r2-sub" style="margin:6px 0 0">Сон пока не учтён: нет данных.</p>` : ""}</div>`;
+  };
   // --- итоги: кольца ---
   const ins = localInsights(a), cross = crossInsights(a);
   const kp = a.L ? a.kcalAvg / goal : 0, pp = a.L && plan && plan.protein ? a.pAvg / plan.protein : 0, wp = n ? a.normDays / n : 0;
@@ -2182,7 +2191,7 @@ function viewReportsInner() {
         <div><b style="color:#0A84FF">${a.normDays} из ${n}</b> <span>дней с водой · ${Math.round(wp * 100)}%</span></div>
       </div></div>
     <p class="r2-sub" style="margin:6px 0 0">Кольца показывают среднее в день за период${a.L < n ? `: считаются ${a.L} дн. с записанной едой` : ""}</p>
-    <p class="r2-lead">${esc(lead)}</p></section>`;
+    ${cross.verdict ? verdictHtml(cross.verdict) : `<p class="r2-lead">${esc(lead)}</p>`}</section>`;
 
   // --- сон и шаги (плитки) ---
   const slpSerie = serie((d) => Math.round(sleepHours(d) * 10) / 10), stpSerie = serie(stepsOn);
