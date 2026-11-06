@@ -13,7 +13,7 @@ import {
 import { STARTER, STARTER_CATS } from "./starter.js?v=51";
 import { DRINKS, DRINK_CATS, DRINK_BY_ID } from "./drinks.js?v=30";
 import * as TR from "./train.js?v=29";
-import { createTrainUI } from "./trainui.js?v=95";
+import { createTrainUI } from "./trainui.js?v=96";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAItOJn5dO44kAy9xjrigslIdsE0au_y0A",
@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 366;
-const APP_VERSION_LABEL = "3.64"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 367;
+const APP_VERSION_LABEL = "3.65"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4650,7 +4650,8 @@ function viewHealth() {
       ${actRows || wktRows ? `${state.wkOpen ? `<div class="wl2">${wktRows}${actRows}</div>${wkts.length ? `<p class="ft2">⌚ Данные Apple Watch ${day === todayStr() ? "с полуночи" : "за этот день"}</p>` : ""}` : ""}<button type="button" class="tr-pull" data-act="wkTog" data-pull="wkOpen" aria-expanded="${!!state.wkOpen}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${state.wkOpen ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"}"/></svg><span>${state.wkOpen ? "Потяните вверх, чтобы скрыть" : `Потяните вниз: ${wkts.length + acts.length} ${(wkts.length + acts.length) % 10 === 1 && (wkts.length + acts.length) % 100 !== 11 ? "запись" : [2, 3, 4].includes((wkts.length + acts.length) % 10) && ![12, 13, 14].includes((wkts.length + acts.length) % 100) ? "записи" : "записей"}`}</span></button>` : `<p class="foot-note" style="margin:12px 4px 0">Пока нет записей. Тренировки с часов появятся сами, а прогулку или любую другую нагрузку можно добавить вручную.</p>`}
     </section>
     ${trainCardHtml(day)}
-    ${trainProgressCardHtml(day)}`;
+    ${trainProgressCardHtml(day)}
+    <button type="button" class="more-btn" data-act="exLib" style="margin:0 0 12px">Показать упражнения</button>`;
   // ----- Сон -----
   const sl = sleepOn(day);
   const nights = wk.filter((d) => sleepHours(d) > 0);
@@ -5740,7 +5741,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
 }
 
 /* Интерфейс тренировок вынесен в trainui.js (см. createTrainUI внизу файла) */
-let sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat;
+let sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openExerciseLibrary, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat;
 
 /* ================= Обработчики ================= */
 const actions = {
@@ -5750,6 +5751,7 @@ const actions = {
   trainForm() { openTrainForm(); },
   trainFinish(ds) { openTrainFinish(ds.date); },
   trainResetAll() { resetTrainProgress(); },
+  exLib() { openExerciseLibrary(); },
   trainOpen(ds) { openTrainExercise(ds.date, ds.key); },
   trainMove(ds) { openTrainMove(ds.date); },
   trainSkip(ds) { openTrainSkip(ds.date); },
@@ -6105,4 +6107,4 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) naviga
 })();
 
 // Подключаем интерфейс тренировок: после того как объявлено всё остальное
-({ sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat } = createTrainUI({ $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail }));
+({ sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openExerciseLibrary, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat } = createTrainUI({ $, CHECK, CHEV_R, actions, addDays, chev, collection, dateShort, dayLabel, db, docRef, esc, fmt, fmtInt, getDocs, isStrengthW, num, openSheet, render, serverTimestamp, setDoc, state, streak, todayStr, updateDoc, workoutsOn, writeBatch, writeFail }));
