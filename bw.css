@@ -2732,3 +2732,32 @@ html:root[data-theme="dark"] body .hvw .th-hero.th-a .tha-bar { background: #3A3
 html body .dv .mini.act .mini-ic.sq, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq { background: linear-gradient(180deg, #D4F85A, #B4E01A) !important; color: #1A2200 !important; box-shadow: 0 2px 6px rgba(168,214,20,.4) !important; }
 html body .dv .mini.act .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg { color: #1A2200 !important; fill: currentColor; filter: none !important; }
 html body .dv .mini.act .mini-bar > i, html:root[data-theme="dark"] body .dv .mini.act .mini-bar > i, html body .dv .mini.act.done .mini-bar i { background: linear-gradient(90deg, #B4E01A, #D4F85A) !important; }
+
+/* v3.69: карточка итогов тренировки (чёрная, лайм) */
+html body .hvw .trf, html body .overlay .trf { position: relative; overflow: hidden; margin-top: 4px; padding: 18px; border-radius: 24px; background: #000; color: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.22); }
+html body .hvw .trf::after, html body .overlay .trf::after { content: ""; position: absolute; width: 190px; height: 190px; border-radius: 50%; background: #121214; right: -90px; top: -100px; pointer-events: none; }
+html body .trf > * { position: relative; z-index: 1; }
+html body .trf-hd { display: flex; align-items: center; gap: 12px; }
+html body .trf-ck { flex: none; width: 40px; height: 40px; border-radius: 50%; background: #C6F135; color: #000; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
+html body .trf-hd b { display: block; font-size: 20px; font-weight: 700; line-height: 1.15; color: #fff; }
+html body .trf-hd small { font-size: 12px; color: #9A9A9F; }
+html body .trf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+html body .trf-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid #3A3A3C; font-size: 12px; color: #fff; }
+html body .trf-chip.lm { border-color: #C6F135; color: #C6F135; }
+html body .trf-chip u { width: 8px; height: 8px; border-radius: 50%; display: block; }
+html body .trf-rows { margin-top: 14px; padding: 4px 12px; border-radius: 16px; background: #1C1C1E; }
+html body .trf-r { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: .5px solid #2C2C2E; font-size: 13px; }
+html body .trf-r:last-child { border-bottom: 0; }
+html body .trf-r span { min-width: 0; color: #E5E5EA; }
+html body .trf-r em { flex: none; font-style: normal; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: #2C2C2E; color: #C6F135; }
+html body .trf-bt { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+html body .trf-p { flex: 1; padding: 13px 0; border: 0; border-radius: 16px; background: #C6F135; color: #000; font: inherit; font-size: 15px; font-weight: 700; }
+html body .trf-p:active { transform: scale(.98); }
+html body .trf-q { border: 0; background: none; padding: 8px 4px; font: inherit; font-size: 13px; color: #9A9A9F; }
+html body .hvw .tr-actions > .tr-rs, html body .overlay .tr-actions > .tr-rs { align-self: center; width: auto; background: none !important; border: 0 !important; box-shadow: none !important; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #6E6E73 !important; }
+html:root[data-theme="dark"] body .hvw .trf, html:root[data-theme="dark"] body .overlay .trf { background: #1C1C1E; box-shadow: none; }
+html:root[data-theme="dark"] body .hvw .trf::after, html:root[data-theme="dark"] body .overlay .trf::after { background: #242426; }
+html:root[data-theme="dark"] body .trf-rows { background: #2C2C2E; }
+html:root[data-theme="dark"] body .trf-r { border-bottom-color: #3A3A3C; }
+html:root[data-theme="dark"] body .trf-r em { background: #3A3A3C; }
+html:root[data-theme="dark"] body .hvw .tr-actions > .tr-rs, html:root[data-theme="dark"] body .overlay .tr-actions > .tr-rs { background: none !important; border: 0 !important; box-shadow: none !important; color: #8E8E93 !important; }

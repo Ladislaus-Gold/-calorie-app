@@ -464,8 +464,8 @@ function trainCardHtml(day) {
       ${watchCmpHtml(day, ses, k, n)}
       <div class="tr-list">${rows}</div>
       <div class="tr-actions"><button type="button" class="tr-addrow" data-act="trainAdd" data-date="${day}"><span class="plus">+</span><b>Добавить упражнение</b></button>
-      ${trainFinished(day) ? `<div class="tr-fin"><b>Тренировка завершена</b><span>${esc(feelLabel(Number((trainLogOn(day) || {}).feel)))}${bandsText(trainLogOn(day)) ? ` · ${esc(bandsText(trainLogOn(day)))}` : ""}${ebandsText(trainLogOn(day)) ? `<small class="tr-he">${esc(ebandsText(trainLogOn(day)))}</small>` : ""}</span><div class="tr-btns"><button type="button" class="btn ghost sm" data-act="trainFinish" data-date="${day}">Изменить итоги</button><button type="button" class="btn ghost sm tr-wipe" data-act="trainWipe" data-date="${day}">Удалить итоги</button></div></div>` : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
-      ${k > 0 ? `<button type="button" class="more-btn" data-act="trainReset" data-date="${day}">Сбросить день</button>` : ""}</div>`;
+      ${trainFinished(day) ? finCardHtml(day) : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
+      ${k > 0 ? `<button type="button" class="more-btn tr-rs" data-act="trainReset" data-date="${day}"><span aria-hidden="true">↻</span> Сбросить день</button>` : ""}</div>`;
     sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · ${estText(ses)} · выполнено ${k} из ${n}</span></p>`;
   } else {
     const nx = nextTrainDay(day);
@@ -1748,6 +1748,21 @@ function recText(it, date) {
 }
 // Подпись: «Тяга сидя к поясу: красная; …»
 const ebandsText = (l) => Object.entries((l && l.ebands) || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `${TR.EXERCISES[id].name}: ${bandName(c)}`).join("; ");
+
+// Карточка итогов дня: самочувствие и резинки чипами, резинка по каждому упражнению списком
+function finCardHtml(day) {
+  const l = trainLogOn(day) || {};
+  const feel = feelLabel(Number(l.feel));
+  const chips = [];
+  if (feel) chips.push(`<span class="trf-chip lm">${esc(feel)}</span>`);
+  for (const c of [...TR.BAND_COLORS, ...TR.BAND_BASE.filter((b) => !TR.BAND_COLORS.some((x) => x.id === b.id))]) {
+    if (!(l.bands && c.id in l.bands)) continue;
+    chips.push(`<span class="trf-chip"><u style="background:${esc(c.hex || "#8E8E93")}"></u>${esc(String(c.t).toLowerCase())}${l.bands[c.id] ? ` ${esc(fmt(l.bands[c.id]))} кг` : ""}</span>`);
+  }
+  if (l.dumbbellKg) chips.push(`<span class="trf-chip">гантели ${esc(fmt(l.dumbbellKg))} кг</span>`);
+  const rows = Object.entries(l.ebands || {}).filter(([id, c]) => TR.EXERCISES[id] && bandName(c)).map(([id, c]) => `<div class="trf-r"><span>${esc(TR.EXERCISES[id].name)}</span><em>${esc(bandName(c))}</em></div>`).join("");
+  return `<div class="trf"><div class="trf-hd"><span class="trf-ck" aria-hidden="true">✓</span><div><b>Тренировка завершена</b><small>Итоги дня сохранены</small></div></div>${chips.length ? `<div class="trf-chips">${chips.join("")}</div>` : ""}${rows ? `<div class="trf-rows">${rows}</div>` : ""}<div class="trf-bt"><button type="button" class="trf-p" data-act="trainFinish" data-date="${day}">Изменить итоги</button><button type="button" class="trf-q" data-act="trainWipe" data-date="${day}">Удалить итоги</button></div></div>`;
+}
 
 // Рекомендуемая нагрузка — единая для всего приложения: стартовая по группе мышц плюс ступени прогресса упражнения (TR.progressFrom, lvl)
 const bandList = () => [...TR.BAND_COLORS].sort((a, b) => bandKgOf(a.id) - bandKgOf(b.id));
