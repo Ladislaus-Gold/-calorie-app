@@ -2761,3 +2761,27 @@ html:root[data-theme="dark"] body .trf-rows { background: #2C2C2E; }
 html:root[data-theme="dark"] body .trf-r { border-bottom-color: #3A3A3C; }
 html:root[data-theme="dark"] body .trf-r em { background: #3A3A3C; }
 html:root[data-theme="dark"] body .hvw .tr-actions > .tr-rs, html:root[data-theme="dark"] body .overlay .tr-actions > .tr-rs { background: none !important; border: 0 !important; box-shadow: none !important; color: #8E8E93 !important; }
+
+/* v3.70: лист «Тренировки» — спокойнее: «выполнена!» светлая с лаймовой полосой, плитки 100% лаймовые, заголовок итогов в одну строку */
+html body .hvw .tr-win, html body .overlay .tr-win { background: #fff !important; color: #000 !important; border: .5px solid rgba(60,60,67,.14) !important; box-shadow: 0 8px 24px rgba(0,0,0,.07) !important; }
+html body .hvw .tr-win .em, html body .overlay .tr-win .em { background: #F2F2F7 !important; box-shadow: none !important; }
+html body .hvw .tr-win h3, html body .overlay .tr-win h3 { color: #000 !important; text-shadow: none !important; }
+html body .hvw .tr-win p, html body .overlay .tr-win p, html body .hvw .tr-win .nn, html body .overlay .tr-win .nn { color: #6E6E73 !important; }
+html body .hvw .tr-win .bar, html body .overlay .tr-win .bar { background: #E5E5EA !important; }
+html body .hvw .tr-win .bar i, html body .overlay .tr-win .bar i { background: #C6F135 !important; }
+html body .hvw .pg-card .stat-grid .stat.full:nth-child(n), html body .overlay .pg-card .stat-grid .stat.full:nth-child(n) { background: #C6F135 !important; box-shadow: 0 4px 12px rgba(150,190,0,.28) !important; }
+html body .hvw .pg-card .stat-grid .stat.full:nth-child(n) b, html body .hvw .pg-card .stat-grid .stat.full:nth-child(n) span, html body .overlay .pg-card .stat-grid .stat.full:nth-child(n) b, html body .overlay .pg-card .stat-grid .stat.full:nth-child(n) span { color: #000 !important; }
+html body .hvw .pg-card .stat.full .sb, html body .overlay .pg-card .stat.full .sb { background: rgba(0,0,0,.16) !important; }
+html body .hvw .pg-card .stat.full .sb u, html body .overlay .pg-card .stat.full .sb u { background: #000 !important; }
+html body .hvw .pg-card .stat.full .ok, html body .overlay .pg-card .stat.full .ok { background: #000 !important; color: #C6F135 !important; }
+html body .trf-hd b { font-size: 18px; white-space: nowrap; }
+html:root[data-theme="dark"] body .hvw .tr-win, html:root[data-theme="dark"] body .overlay .tr-win { background: #1C1C1E !important; color: #fff !important; border-color: rgba(255,255,255,.1) !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .hvw .tr-win .em, html:root[data-theme="dark"] body .overlay .tr-win .em { background: #2C2C2E !important; }
+html:root[data-theme="dark"] body .hvw .tr-win h3, html:root[data-theme="dark"] body .overlay .tr-win h3 { color: #fff !important; }
+html:root[data-theme="dark"] body .hvw .tr-win p, html:root[data-theme="dark"] body .overlay .tr-win p, html:root[data-theme="dark"] body .hvw .tr-win .nn, html:root[data-theme="dark"] body .overlay .tr-win .nn { color: #9A9A9F !important; }
+html:root[data-theme="dark"] body .hvw .tr-win .bar, html:root[data-theme="dark"] body .overlay .tr-win .bar { background: #3A3A3C !important; }
+html:root[data-theme="dark"] body .hvw .tr-win .bar i, html:root[data-theme="dark"] body .overlay .tr-win .bar i { background: #C6F135 !important; }
+html:root[data-theme="dark"] body .hvw .pg-card .stat-grid .stat.full:nth-child(n), html:root[data-theme="dark"] body .overlay .pg-card .stat-grid .stat.full:nth-child(n) { background: #C6F135 !important; box-shadow: none !important; }
+html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) b { color: #C6F135 !important; }
+html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { background: #C6F135 !important; }
+html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .ok { color: #C6F135 !important; }
