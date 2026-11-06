@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 373;
-const APP_VERSION_LABEL = "3.71"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 374;
+const APP_VERSION_LABEL = "3.72"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2184,11 +2184,11 @@ function viewReportsInner() {
   const ins = localInsights(a), cross = crossInsights(a);
   const kp = a.L ? a.kcalAvg / goal : 0, pp = a.L && plan && plan.protein ? a.pAvg / plan.protein : 0, wp = n ? a.normDays / n : 0;
   const lead = cross.verdict ? cross.verdict.text : (ins.find((i) => i.kind === "bad") || ins.find((i) => i.kind === "warn") || ins[0] || { text: "Пока мало данных для вывода." }).text;
-  const hero = `<section class="r2-card r2-hero">
-    <div class="r2-hr"><svg viewBox="0 0 120 120" width="104" height="104" aria-hidden="true">${r2Ring(52, kp, "#FF3B30")}${r2Ring(38, pp, "#34C759")}${r2Ring(24, wp, "#0A84FF")}</svg>
+  const hero = `<section class="r2-card r2-hero r2-sum">
+    <div class="r2-hr"><svg viewBox="0 0 120 120" width="104" height="104" aria-hidden="true">${r2Ring(52, kp, "#FF3B30")}${r2Ring(38, pp, "#C6F135")}${r2Ring(24, wp, "#0A84FF")}</svg>
       <div class="r2-hl">
         <div><b style="color:#FF3B30">${a.L ? r2Num(a.kcalAvg) : "—"}</b> <span>из ${r2Num(goal)} ккал${a.L ? ` · ${Math.round(kp * 100)}%` : ""}</span></div>
-        <div><b style="color:#2faa4f">${a.L ? r2Num(a.pAvg) : "—"}</b> <span>${plan && plan.protein ? `из ${plan.protein} г белка${a.L ? ` · ${Math.round(pp * 100)}%` : ""}` : "г белка в день"}</span></div>
+        <div><b style="color:#C6F135">${a.L ? r2Num(a.pAvg) : "—"}</b> <span>${plan && plan.protein ? `из ${plan.protein} г белка${a.L ? ` · ${Math.round(pp * 100)}%` : ""}` : "г белка в день"}</span></div>
         <div><b style="color:#0A84FF">${a.normDays} из ${n}</b> <span>дней с водой · ${Math.round(wp * 100)}%</span></div>
       </div></div>
     <p class="r2-sub" style="margin:6px 0 0">Кольца показывают среднее в день за период${a.L < n ? `: считаются ${a.L} дн. с записанной едой` : ""}</p>

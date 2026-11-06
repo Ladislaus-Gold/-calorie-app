@@ -2785,3 +2785,25 @@ html:root[data-theme="dark"] body .hvw .pg-card .stat-grid .stat.full:nth-child(
 html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) b { color: #C6F135 !important; }
 html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { background: #C6F135 !important; }
 html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .ok { color: #C6F135 !important; }
+
+/* v3.72: Отчёты → «Общее»: чёрное окно сводки в стиле приложения; чипы по смыслу (норма зелёные, внимание красные) */
+html body .dv.r2 .r2-hero.r2-sum { position: relative; overflow: hidden; background: #000 !important; color: #fff; border: 0 !important; box-shadow: 0 10px 24px rgba(0,0,0,.22) !important; }
+html body .dv.r2 .r2-hero.r2-sum::after { content: ""; position: absolute; width: 220px; height: 220px; border-radius: 50%; background: #121214; right: -110px; top: -120px; pointer-events: none; }
+html body .dv.r2 .r2-hero.r2-sum > * { position: relative; z-index: 1; }
+html body .dv.r2 .r2-hero.r2-sum .r2-hl span, html body .dv.r2 .r2-hero.r2-sum .r2-sub { color: #9A9A9F !important; }
+html body .dv.r2 .r2-hero.r2-sum .vd { border-top-color: #2C2C2E; }
+html body .dv.r2 .r2-hero.r2-sum .vd-top b { color: #fff !important; }
+html body .dv.r2 .r2-hero.r2-sum .vd-top span { color: #9A9A9F; }
+html body .dv.r2 .r2-hero.r2-sum .vd-sc { background: #1C1C1E !important; }
+html body .dv.r2 .r2-hero.r2-sum .vd-sc b { color: #C6F135 !important; }
+html body .dv.r2 .r2-hero.r2-sum .vd-sc small { color: #9A9A9F; font-weight: 500; }
+html body .dv.r2 .r2-hero.r2-sum .vd-row { border-color: #2C2C2E; }
+html body .dv.r2 .r2-hero.r2-sum .vd-k.g { color: #34C759; } 
+html body .dv.r2 .r2-hero.r2-sum .vd-k.w { color: #FFB020; }
+html body .dv.r2 .r2-hero.r2-sum .vd-k.b { color: #FF6A5F; }
+html body .dv.r2 .r2-hero.r2-sum .vd-ch .g { background: rgba(52,199,89,.2); color: #8FD6A8; }
+html body .dv.r2 .r2-hero.r2-sum .vd-ch .w { background: rgba(255,176,32,.2); color: #F5CB7A; }
+html body .dv.r2 .r2-hero.r2-sum .vd-ch .b { background: rgba(255,59,48,.22); color: #FF9A92; }
+html:root[data-theme="dark"] body .dv.r2 .r2-hero.r2-sum { background: #1C1C1E !important; box-shadow: none !important; }
+html:root[data-theme="dark"] body .dv.r2 .r2-hero.r2-sum::after { background: #242426; }
+html:root[data-theme="dark"] body .dv.r2 .r2-hero.r2-sum .vd-sc { background: #2C2C2E !important; }
