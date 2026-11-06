@@ -8,24 +8,6 @@ import * as TR from "./train.js?v=29";
 const PHOTOS = new Map([["bentrow:band", 2], ["bentrow:db", 2], ["bike_out:bw", 1], ["birddog:bw", 1], ["bridge:bw", 1], ["bridge:db", 1], ["calf:bw", 1], ["calf:db", 1], ["chestpress:band", 1], ["chestpress:cable", 1], ["crunch:bw", 1], ["curl:band", 1], ["curl:db", 1], ["deadbug:bw", 1], ["dips:bw", 1], ["donkey:band", 1], ["donkey:bw", 1], ["facepull:band", 2], ["facepull:cable", 1], ["floorpress:db", 1], ["frontraise:band", 1], ["frontraise:db", 1], ["hammer:band", 1], ["hammer:db", 1], ["legraise:bw", 1], ["lunge:bw", 1], ["lunge:db", 1], ["march:bw", 1], ["mob_ankle:bw", 1], ["mob_arm:bw", 1], ["mob_catcow:bw", 1], ["mob_elbow:bw", 1], ["mob_hip:bw", 1], ["mob_knee:bw", 1], ["mob_legswing:bw", 1], ["mob_neck:bw", 1], ["mob_shoulder:bw", 1], ["mob_twist:bw", 1], ["mob_wrist:bw", 1], ["mtnclimber:bw", 1], ["plank:bw", 1], ["pulldown:band", 2], ["pulldown:cable", 1], ["pullup:bw", 1], ["pushdown:band", 1], ["pushdown:cable", 1], ["pushup:bw", 1], ["pushup:knees", 1], ["rdl:band", 2], ["rdl:db", 2], ["row:band", 2], ["row:bandf", 1], ["row:cable", 1], ["run_tm:bw", 1], ["shoulderpress:band", 1], ["shoulderpress:db", 1], ["squat:band", 2], ["squat:bw", 2], ["squat:db", 1], ["st_calf:bw", 1], ["st_child:bw", 1], ["st_ham:band", 1], ["st_quad:bw", 1], ["stepup:bw", 1], ["stepup:db", 1], ["superman:bw", 1], ["triext:band", 1], ["triext:db", 1], ["walk_out:bw", 1], ["walk_street:bw", 1], ["walk_tm:bw", 1], ["wristcurl:band", 1], ["wristcurl:db", 1], ]);
 /* Видео упражнений (папка vid/): `${id}-${vk}.mp4` (квадрат, без звука) и постер `${id}-${vk}.jpg`. Показываются первым слайдом только в карточке упражнения и режиме тренировки. */
 const VIDEOS = new Set(["bentrow:band", "birddog:bw", "chestpress:band", "crunch:bw", "curl:band", "dips:bw", "facepull:band", "frontraise:band", "hammer:band", "legraise:bw", "lunge:bw", "march:bw", "mob_twist:bw", "mtnclimber:bw", "pulldown:band", "pushup:bw", "run_tm:bw", "shoulderpress:band", "squat:band", "squat:bw", "walk_tm:bw"]);
-// Карточка «Справочник упражнений» внизу вкладки «Тренировки»: бегущая лента иллюстраций и кнопка (окно открывает openExerciseLibrary)
-function exLibCardHtml() {
-  const ids = Object.keys(TR.EXERCISES).filter((id) => thumbOf(id));
-  if (!ids.length) return "";
-  const tile = (id) => {
-    const k = thumbOf(id).slice(4, -7), cls = FX_FULL.has(k) ? "full" : FX_UL.has(k) ? "ul" : "sd";
-    return `<span class="exl-t ${cls}"><img src="${thumbOf(id)}" alt="" decoding="async"></span>`;
-  };
-  const tiles = ids.filter((_, i) => i % 3 === 0).slice(0, 14).map(tile).join("");
-  return `<section class="exl-card">
-    <div class="exl-k">СПРАВОЧНИК</div>
-    <div class="exl-h">${ids.length} ${plur(ids.length, "упражнение", "упражнения", "упражнений")}</div>
-    <div class="exl-s">Видео, иллюстрации и разбор техники</div>
-    <div class="exl-strip" aria-hidden="true"><div class="exl-track">${tiles}${tiles}</div></div>
-    <button type="button" class="exl-btn" data-act="exLib">Показать упражнения</button>
-  </section>`;
-}
-
 // Первая иллюстрация упражнения для списков (любой вариант, лучше без инвентаря)
 const thumbOf = (id) => { for (const vk of ["bw", "band", "bandf", "db", "cable"]) if (PHOTOS.has(`${id}:${vk}`)) return `img/${id}-${vk}-1.webp`; return ""; };
 const hasPhoto = (id, vk) => PHOTOS.has(`${id}:${vk}`);
@@ -1099,6 +1081,24 @@ function openTrainAdd(date) {
 }
 
 // Окно упражнения: рисунок «старт и финиш», как выполнять, типичные ошибки
+// Карточка «Справочник упражнений» внизу вкладки «Тренировки»: бегущая лента иллюстраций и кнопка (окно открывает openExerciseLibrary)
+function exLibCardHtml() {
+  const ids = Object.keys(TR.EXERCISES).filter((id) => thumbOf(id));
+  if (!ids.length) return "";
+  const tile = (id) => {
+    const k = thumbOf(id).slice(4, -7), cls = FX_FULL.has(k) ? "full" : FX_UL.has(k) ? "ul" : "sd";
+    return `<span class="exl-t ${cls}"><img src="${thumbOf(id)}" alt="" decoding="async"></span>`;
+  };
+  const tiles = ids.filter((_, i) => i % 3 === 0).slice(0, 14).map(tile).join("");
+  return `<section class="exl-card">
+    <div class="exl-k">СПРАВОЧНИК</div>
+    <div class="exl-h">${ids.length} ${plur(ids.length, "упражнение", "упражнения", "упражнений")}</div>
+    <div class="exl-s">Видео, иллюстрации и разбор техники</div>
+    <div class="exl-strip" aria-hidden="true"><div class="exl-track">${tiles}${tiles}</div></div>
+    <button type="button" class="exl-btn" data-act="exLib">Показать упражнения</button>
+  </section>`;
+}
+
 // Справочник упражнений: все упражнения с иллюстрациями; по нажатию видео, иллюстрации, описание и частые ошибки (без записи в журнал)
 function openExerciseLibrary() {
   const ids = Object.keys(TR.EXERCISES).filter((id) => thumbOf(id));
