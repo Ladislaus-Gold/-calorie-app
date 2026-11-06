@@ -465,7 +465,7 @@ function trainCardHtml(day) {
       <div class="tr-list">${rows}</div>
       <div class="tr-actions"><button type="button" class="tr-addrow" data-act="trainAdd" data-date="${day}"><span class="plus">+</span><b>Добавить упражнение</b></button>
       ${trainFinished(day) ? finCardHtml(day) : `<button type="button" class="btn primary full" data-act="trainFinish" data-date="${day}">Завершить тренировку</button>`}
-      ${k > 0 ? `<button type="button" class="more-btn tr-rs" data-act="trainReset" data-date="${day}"><span aria-hidden="true">↻</span> Сбросить день</button>` : ""}</div>`;
+      ${k > 0 ? `<button type="button" class="more-btn tr-rs" data-act="trainReset" data-date="${day}">Сбросить день</button>` : ""}</div>`;
     sum = `<p class="tr-sum"><b>${esc(ses.title)}</b><span>${esc(trainDayName(day))} · ${estText(ses)} · выполнено ${k} из ${n}</span></p>`;
   } else {
     const nx = nextTrainDay(day);
