@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 369;
-const APP_VERSION_LABEL = "3.67"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 370;
+const APP_VERSION_LABEL = "3.68"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -4600,6 +4600,9 @@ function viewHealth() {
     </section>`;
   const stepPct = Math.max(0, Math.min(100, (steps / STEPS_GOAL) * 100));
   const hrLine = hd ? `<div class="th-line"><span>Пульс ${hd.hrAvg ? fmtInt(hd.hrAvg) : "—"}${hd.hrMin && hd.hrMax ? ` (${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)})` : ""}</span></div>` : "";
+  const kcalAct = Number(hd && hd.activeKcal) || 0, kcalRest = Number(hd && hd.restKcal) || 0, kcalTot = kcalAct + kcalRest;
+  const stepMax = Math.max(STEPS_GOAL, ...wk.map((d) => stepsOn(d)));
+  const wkBars = wk.map((d) => `<i class="${d === day ? "on" : ""}" style="height:${Math.max(6, Math.round((stepsOn(d) / stepMax) * 100))}%"></i>`).join("");
   const wkDots = Array.from({ length: Math.max(0, Number(wt.strength) || 0) }, (_, i) => `<span class="wkc-dot${i < wkStr ? "" : " e"}"></span>`).join("");
   const wkLeft = Math.max(0, wt.minutes - wkMin);
   // Неделя закрыта: выполнены обе цели (минуты и силовые)
@@ -4611,18 +4614,17 @@ function viewHealth() {
     : wkMin >= wt.minutes * 1.5 ? `Минут почти в полтора раза больше нормы, силовые по плану. Хороший темп, не забывай про отдых.`
     : `Обе цели недели выполнены: ${wt.strength} силовых и ${wt.minutes} минут нагрузки. Так держать.`;
   const pTrain = `
-    ${hd ? `<section class="th-hero">
-      <div class="th-top">
-        <div class="th-ring"><svg viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" class="bg"/><circle cx="52" cy="52" r="44" class="fg" stroke-dasharray="276.5" stroke-dashoffset="${(276.5 * (1 - stepPct / 100)).toFixed(1)}" transform="rotate(-90 52 52)"/></svg><b>${Math.round(stepPct)}%</b></div>
-        <div class="th-main"><div class="th-t1">ШАГИ СЕГОДНЯ</div><div class="th-t2" data-cnt="${steps}">${fmtInt(steps)}</div><div class="th-t3">из ${fmtInt(STEPS_GOAL)}${hd.updatedAt ? ` · обновлено ${timeOf(hd.updatedAt)}` : ""}</div></div>
+    ${hd ? `<section class="th-hero th-a">
+      <div class="tha-top">
+        <div class="tha-l"><div class="th-t1">ШАГИ СЕГОДНЯ</div><div class="th-t2" data-cnt="${steps}">${fmtInt(steps)}</div><div class="th-t3">из ${fmtInt(STEPS_GOAL)}${hd.updatedAt ? ` · обновлено ${timeOf(hd.updatedAt)}` : ""}</div></div>
+        ${hd.hrAvg ? `<div class="tha-hr"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.5 8 3.5 4.8 6.9 4.8c2 0 3.5 1.1 5.1 3 1.6-1.9 3.1-3 5.1-3 3.4 0 5.4 3.2 4.2 6.5-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><b>${fmtInt(hd.hrAvg)}</b>${hd.hrMin && hd.hrMax ? `<small>${fmtInt(hd.hrMin)}–${fmtInt(hd.hrMax)}</small>` : ""}</div>` : ""}
       </div>
-      <div class="th-strip">
-        <div><b>${hd.activeKcal ? fmtInt(hd.activeKcal) : "—"}</b><span>активные<br>ккал</span></div>
-        <div><b>${hd.restKcal ? fmtInt(hd.restKcal) : "—"}</b><span>покой<br>ккал</span></div>
-        <div><b>${hd.restKcal || hd.activeKcal ? fmtInt((Number(hd.restKcal) || 0) + (Number(hd.activeKcal) || 0)) : "—"}</b><span>всего<br>потрачено</span></div>
+      <div class="tha-bar"><i style="width:${stepPct.toFixed(1)}%"></i></div>
+      <div class="tha-cap"><span>${Math.round(stepPct)}% цели</span>${wkStepsAvg ? `<span>в среднем ${fmtInt(wkStepsAvg)} в день</span>` : ""}</div>
+      <div class="tha-tiles">
+        <div class="tha-tile"><b>${kcalTot ? fmtInt(kcalTot) : "—"}</b><span>ккал потрачено</span><div class="tha-split"><i style="width:${kcalTot ? ((kcalAct / kcalTot) * 100).toFixed(1) : 0}%"></i></div><small>активные ${kcalAct ? fmtInt(kcalAct) : "—"} · покой ${kcalRest ? fmtInt(kcalRest) : "—"}</small></div>
+        <div class="tha-tile"><span>Шаги за неделю</span><div class="tha-bars">${wkBars}</div></div>
       </div>
-      ${hrLine}
-      ${wkStepsAvg ? `<p class="th-note">В среднем за неделю ${fmtInt(wkStepsAvg)} шагов в день</p>` : ""}
     </section>` : `<section class="card">
       <div class="card-top fl-top"><span class="fl-ic ic-shoe" data-ek="act">👟</span><h2 class="h2">Активность</h2><span class="pill">нет данных с часов</span></div>
       <p class="foot-note" style="margin:12px 0 0">За этот день данных с часов нет. Они приходят из Apple Health через Health Auto Export примерно каждые 15 минут, пока открыто это приложение или телефон на связи.</p>
