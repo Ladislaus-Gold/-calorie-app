@@ -2782,9 +2782,9 @@ html:root[data-theme="dark"] body .hvw .tr-win p, html:root[data-theme="dark"] b
 html:root[data-theme="dark"] body .hvw .tr-win .bar, html:root[data-theme="dark"] body .overlay .tr-win .bar { background: #3A3A3C !important; }
 html:root[data-theme="dark"] body .hvw .tr-win .bar i, html:root[data-theme="dark"] body .overlay .tr-win .bar i { background: #C6F135 !important; }
 html:root[data-theme="dark"] body .hvw .pg-card .stat-grid .stat.full:nth-child(n), html:root[data-theme="dark"] body .overlay .pg-card .stat-grid .stat.full:nth-child(n) { background: #C6F135 !important; box-shadow: none !important; }
-html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) b { color: #C6F135 !important; }
-html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { background: #C6F135 !important; }
-html:not([data-theme="dark"]) body .hvw .card .stat-grid .stat.stat.stat.stat:nth-child(1) .ok { color: #C6F135 !important; }
+html:not([data-theme="dark"]) body .hvw .pg-card .stat-grid .stat.stat.stat.stat:nth-child(1) b { color: #C6F135 !important; }
+html:not([data-theme="dark"]) body .hvw .pg-card .stat-grid .stat.stat.stat.stat:nth-child(1) .sb u { background: #C6F135 !important; }
+html:not([data-theme="dark"]) body .hvw .pg-card .stat-grid .stat.stat.stat.stat:nth-child(1) .ok { color: #C6F135 !important; }
 
 /* v3.72: Отчёты → «Общее»: чёрное окно сводки в стиле приложения; чипы по смыслу (норма зелёные, внимание красные) */
 html body .dv.r2 .r2-hero.r2-sum { position: relative; overflow: hidden; background: #000 !important; color: #fff; border: 0 !important; box-shadow: 0 10px 24px rgba(0,0,0,.22) !important; }
