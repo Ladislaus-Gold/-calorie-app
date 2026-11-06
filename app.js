@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 374;
-const APP_VERSION_LABEL = "3.72"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 375;
+const APP_VERSION_LABEL = "3.73"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2052,10 +2052,10 @@ function reportTodayHtml(a) {
     const rem = Math.round(goal - p.kcal), remP = plan && plan.protein ? Math.round(plan.protein - p.protein) : 0;
     lead = rem >= 0 ? `Осталось ${r2Num(rem)} ккал${plan && plan.protein ? (remP > 0 ? ` и ${r2Num(remP)} г белка` : ", белок в норме") : ""}.` : `Цель по калориям превышена на ${r2Num(-rem)} ккал.`;
   }
-  const hero = `<section class="r2-card r2-hero"><div class="r2-hr"><svg viewBox="0 0 120 120" width="104" height="104" aria-hidden="true">${r2Ring(52, kp, "#FF3B30")}${r2Ring(38, pp, "#34C759")}${r2Ring(24, wp, "#0A84FF")}</svg>
+  const hero = `<section class="r2-card r2-hero r2-sum"><div class="r2-hr"><svg viewBox="0 0 120 120" width="104" height="104" aria-hidden="true">${r2Ring(52, kp, "#FF3B30")}${r2Ring(38, pp, "#C6F135")}${r2Ring(24, wp, "#0A84FF")}</svg>
     <div class="r2-hl">
       <div><b style="color:#FF3B30">${p.has ? r2Num(p.kcal) : "—"}</b> <span>из ${r2Num(goal)} ккал${p.has ? ` · ${Math.round(kp * 100)}%` : ""}</span></div>
-      <div><b style="color:#2faa4f">${p.has ? r2Num(p.protein) : "—"}</b> <span>${plan && plan.protein ? `из ${plan.protein} г белка${p.has ? ` · ${Math.round(pp * 100)}%` : ""}` : "г белка"}</span></div>
+      <div><b style="color:#C6F135">${p.has ? r2Num(p.protein) : "—"}</b> <span>${plan && plan.protein ? `из ${plan.protein} г белка${p.has ? ` · ${Math.round(pp * 100)}%` : ""}` : "г белка"}</span></div>
       <div><b style="color:#0A84FF">${r2Num(p.hyd)}</b> <span>из ${r2Num(p.target)} мл воды · ${Math.round(wp * 100)}%</span></div>
     </div></div><p class="r2-lead">${esc(lead)}</p></section>`;
 

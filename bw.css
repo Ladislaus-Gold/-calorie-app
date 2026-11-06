@@ -2807,3 +2807,5 @@ html body .dv.r2 .r2-hero.r2-sum .vd-ch .b { background: rgba(255,59,48,.22); co
 html:root[data-theme="dark"] body .dv.r2 .r2-hero.r2-sum { background: #1C1C1E !important; box-shadow: none !important; }
 html:root[data-theme="dark"] body .dv.r2 .r2-hero.r2-sum::after { background: #242426; }
 html:root[data-theme="dark"] body .dv.r2 .r2-hero.r2-sum .vd-sc { background: #2C2C2E !important; }
+/* v3.73: «Сегодня» — та же чёрная сводка */
+html body .dv.r2 .r2-hero.r2-sum .r2-lead { color: #fff !important; }
