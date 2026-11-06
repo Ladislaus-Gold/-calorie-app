@@ -1081,6 +1081,62 @@ function openTrainAdd(date) {
 }
 
 // Окно упражнения: рисунок «старт и финиш», как выполнять, типичные ошибки
+// Справочник упражнений: все упражнения с иллюстрациями; по нажатию видео, иллюстрации, описание и частые ошибки (без записи в журнал)
+function openExerciseLibrary() {
+  const ids = Object.keys(TR.EXERCISES).filter((id) => thumbOf(id));
+  const fold = (s) => String(s).toLowerCase().replace(/ё/g, "е");
+  const ov = openSheet(`<div id="exl-head" class="sheet-head"></div><div id="exl-body"></div>`, { bw: true });
+  const head = $("#exl-head", ov), body = $("#exl-body", ov);
+  const sh = ov.querySelector(".sheet");
+  let qv = "", cur = "", top = 0;
+  const setHead = (title) => { head.innerHTML = `<h2>${esc(title)}</h2><button type="button" class="icon-btn" data-close aria-label="Закрыть">×</button>`; };
+  const row = (id) => {
+    const ex = TR.EXERCISES[id], k = thumbOf(id).slice(4, -7), cls = FX_FULL.has(k) ? "full" : FX_UL.has(k) ? "ul" : "sd";
+    return `<button type="button" data-exid="${id}" style="display:flex;align-items:center;gap:12px;width:100%;padding:8px 0;border:0;border-bottom:1px solid rgba(128,128,128,.2);background:none;color:inherit;text-align:left;font:inherit"><span class="fx-im ${cls}" style="flex:none"><img src="${thumbOf(id)}" alt="" loading="lazy" decoding="async"></span><span style="min-width:0"><b style="display:block;font-weight:600">${esc(ex.name)}</b><small style="color:#6E6E73">${esc(ex.muscles)}</small></span></button>`;
+  };
+  const draw = () => {
+    const words = fold(qv).split(/\s+/).filter(Boolean);
+    const list = ids.filter((id) => { const e = TR.EXERCISES[id]; const s = fold(`${e.name} ${e.muscles}`); return words.every((w) => s.includes(w)); });
+    $("#exl-list", ov).innerHTML = list.length ? list.map(row).join("") : `<div class="empty"><b>Ничего не найдено</b>Попробуйте другое слово.</div>`;
+  };
+  const showList = () => {
+    cur = "";
+    setHead("Упражнения");
+    body.innerHTML = `<input id="exl-q" class="input search" type="search" placeholder="Найти упражнение" value="${esc(qv)}" autocomplete="off">
+      <p class="foot-note" style="margin:6px 2px 10px">${ids.length} упражнений с иллюстрациями. Нажмите на упражнение: откроются видео (если есть), иллюстрации и описание.</p>
+      <div id="exl-list"></div>`;
+    draw();
+    if (sh) sh.scrollTop = top;
+  };
+  const showEx = (id, vk0) => {
+    const ex = TR.EXERCISES[id];
+    cur = id;
+    const vks = [...PHOTOS.keys()].filter((k) => k.startsWith(`${id}:`)).map((k) => k.split(":")[1]);
+    const vk = vks.includes(vk0) ? vk0 : vks.includes("bw") ? "bw" : vks[0];
+    const vlabel = (k) => { const v = (ex.variants || []).find((x) => x.k === k); return v ? v.label : k === "bw" ? "Без веса" : "Основной"; };
+    const cue = ((ex.variants || []).find((x) => x.k === vk) || {}).cue || "";
+    const dose = ex.reps ? `${ex.reps[0] === ex.reps[1] ? ex.reps[0] : `${ex.reps[0]}–${ex.reps[1]}`} повторений${ex.side ? " на сторону" : ""}` : ex.secs ? `${ex.secs[0]}–${ex.secs[1]} секунд${ex.side ? " на сторону" : ""}` : "";
+    setHead(ex.name);
+    body.innerHTML = `<button type="button" class="btn ghost" id="exl-back" style="margin:0 0 10px">← Все упражнения</button>
+      <div class="ex-fig">${exFig(id, vk)}</div>
+      ${vks.length > 1 ? `<div class="chips ex-seg" style="margin:10px 0 0">${vks.map((k) => `<button type="button" class="chip${k === vk ? " sel" : ""}" data-vk="${k}">${esc(vlabel(k))}</button>`).join("")}</div>` : ""}
+      ${cue ? `<p class="ex-note">${esc(cue)}</p>` : ""}
+      <div class="ex-meta"><span class="pill g">${esc(ex.muscles)}</span>${dose ? `<span class="pill">${esc(dose)}</span>` : ""}</div>
+      <div class="ex-sec"><h4>Как выполнять</h4><ol class="ex-steps">${ex.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></div>
+      <div class="ex-sec"><h4>Частые ошибки</h4><ul class="ex-mist">${ex.mistakes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+    if (sh) sh.scrollTop = 0;
+  };
+  body.addEventListener("click", (e) => {
+    const r = e.target.closest("[data-exid]");
+    if (r) { top = sh ? sh.scrollTop : 0; showEx(r.dataset.exid); return; }
+    const c = e.target.closest("[data-vk]");
+    if (c && cur) { showEx(cur, c.dataset.vk); return; }
+    if (e.target.closest("#exl-back")) showList();
+  });
+  body.addEventListener("input", (e) => { if (e.target.id === "exl-q") { qv = e.target.value; draw(); } });
+  showList();
+}
+
 function openTrainExercise(date, key) {
   const ses = trainSession(date);
   const it = ses && ses.items.find((i) => i.key === key);
@@ -2048,5 +2104,5 @@ async function resetTrainProgress() {
   } catch (e) { writeFail(e); }
 }
 
-  return { sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
+  return { sndPlay, sndUnlock, W_CATS, bandsText, ebandsText, feelLabel, openExerciseLibrary, openTrainAdd, openTrainExercise, openTrainFinish, openTrainForm, openTrainMove, openTrainSkip, openTrainWorkout, resetTrainProgress, saveTrainLog, trainBannerHtml, trainCardHtml, trainCfg, trainDynCardHtml, trainLogOn, trainMinutes, trainPlanData, trainProgressCardHtml, trainSession, trainStats, wCat };
 }
