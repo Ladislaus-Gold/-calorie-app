@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 365;
-const APP_VERSION_LABEL = "3.63"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 366;
+const APP_VERSION_LABEL = "3.64"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -221,7 +221,7 @@ const state = {
   health: [],
   workouts: [],
   drinks: [],
-  fav: [], dots: {}, customDrinks: [], sharedDrinks: [], drinkdbReady: false, drinkSetReady: false,
+  fav: [], dots: {}, srv: {}, customDrinks: [], sharedDrinks: [], drinkdbReady: false, drinkSetReady: false,
   obShown: false,
   ready: { products: false, entries: false, settings: false, water: false, activity: false, drinks: false },
   unsubs: [],
@@ -334,7 +334,7 @@ function stopData() {
   state.unsubs = [];
   state.products = []; state.entries = []; state.error = "";
   state.ready = { products: false, entries: false, settings: false, water: false, activity: false, drinks: false };
-  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.dots = {}; state.customDrinks = []; state.sharedDrinks = []; state.drinkdbReady = false; state.drinkSetReady = false; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.measures = []; state.msKey = lsGet("msKey") || "waist"; state.hTab = (lsGet("hTab") === "dyn" ? "today" : lsGet("hTab")) || "today"; state.pulseRange = lsGet("pulseRange") != null && [7, 30, 180, 0].includes(Number(lsGet("pulseRange"))) ? Number(lsGet("pulseRange")) : 7; state.pulseSel = null; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null; state.trainCfg = null; state.trainLog = [];
+  state.profile = {}; state.water = []; state.activity = []; state.health = []; state.workouts = []; state.drinks = []; state.fav = []; state.dots = {}; state.srv = {}; state.customDrinks = []; state.sharedDrinks = []; state.drinkdbReady = false; state.drinkSetReady = false; state.bcMap = {}; state.bcOwner = {}; state.weights = []; state.measures = []; state.msKey = lsGet("msKey") || "waist"; state.hTab = (lsGet("hTab") === "dyn" ? "today" : lsGet("hTab")) || "today"; state.pulseRange = lsGet("pulseRange") != null && [7, 30, 180, 0].includes(Number(lsGet("pulseRange"))) ? Number(lsGet("pulseRange")) : 7; state.pulseSel = null; state.wtRange = lsGet("wtRange") == null ? 30 : Number(lsGet("wtRange")); state.cafInfo = false; state.rTab = lsGet("rTab") || "over"; state.moreCharts = false; state.openDays = {}; state.openWks = {}; state.obShown = false; state.aiLast = null; state.trainCfg = null; state.trainLog = [];
 }
 
 function markReady(name) {
@@ -418,6 +418,7 @@ function startData(uid) {
     state.fav = snap.exists() && Array.isArray(snap.data().fav) ? snap.data().fav : [];
     state.dots = snap.exists() && snap.data().dots && typeof snap.data().dots === "object" ? snap.data().dots : {};
     state.customDrinks = snap.exists() && Array.isArray(snap.data().custom) ? snap.data().custom : [];
+    state.srv = snap.exists() && snap.data().srv && typeof snap.data().srv === "object" ? snap.data().srv : {};
     state.drinkSetReady = true;
     maybeMigrateDrinks();
     render();
@@ -4365,6 +4366,10 @@ const bcConflict = (code, ig = {}) => {
 const saveCustomDrinks = (extra = {}) => setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { custom: state.customDrinks, ...extra }, { merge: true }).catch(writeFail);
 // Встроенный напиток можно поправить: тогда в общей базе (drinkdb) появляется карточка с тем же id и она главнее встроенной
 const drinkOvr = (id) => customList().find((x) => x.id === id) || null;
+// Напитки «пакетик»: кофеин на пакетик (mg) и вес пакетика (g); калории и БЖУ карточки тогда на 100 г сухого.
+// Хранится в личных настройках (users/uid/settings/drinks, поле srv), поэтому правила общей базы напитков не меняются
+const srvOf = (id) => { const x = state.srv && state.srv[id]; return x && Number(x.g) > 0 && Number(x.mg) >= 0 ? { g: Number(x.g), mg: Number(x.mg) } : null; };
+const saveSrv = () => setDoc(doc(db, "users", state.user.uid, "settings", "drinks"), { srv: state.srv }, { merge: true }).catch(writeFail);
 const allDrinks = () => { const cl = customList(), by = new Map(cl.map((x) => [x.id, x])); return [...DRINKS.map((d) => by.get(d.id) || d), ...cl.filter((x) => !DRINK_BY_ID[x.id])]; };
 const drinkById = (id) => (DRINK_BY_ID[id] ? drinkOvr(id) || DRINK_BY_ID[id] : customList().find((x) => x.id === id) || null);
 // Значок напитка: свой эмодзи (если задан), иначе по категории
@@ -5235,7 +5240,8 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
   const st = { q: "", cat: "all", ed: false };
 
   const rowHtml = (d) => {
-    const sub = [d.k > 0 ? `${d.k} ккал/100 мл` : "", d.c > 0 ? `${d.c} мг кофеина` : "", d.a].filter(Boolean).join(", ");
+    const sv = srvOf(d.id);
+    const sub = [d.k > 0 ? `${d.k} ккал/${sv ? "100 г" : "100 мл"}` : "", sv ? `${fmt(sv.mg)} мг кофеина на пакетик` : d.c > 0 ? `${d.c} мг кофеина` : "", d.a].filter(Boolean).join(", ");
     return `<div class="drow">
       <button type="button" class="d-main dk-main" data-did="${d.id}"><span class="d-ava" style="--c:${esc(dotOf(d.id))}">${esc(drinkIcon(d))}</span><span class="d-tx"><span class="p-name">${esc(d.n)}</span>${sub ? `<span class="p-sub">${esc(sub)}</span>` : ""}</span></button>
       <span class="d-pct ${d.h < 0 ? "neg" : ""}">${d.h}%</span>
@@ -5299,10 +5305,15 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     if (!box) { showDetail(d); return; }
     const isWater = d.id === "water";
     const lastMl = presetMl > 0 ? presetMl : (Number(lsGet(`dml:${d.id}`)) || 250);
+    const sv = srvOf(d.id);
+    const lastN = sv ? (Number(lsGet(`dsn:${d.id}`)) || 1) : 1;
     box.innerHTML = `<div class="dk-pick">
-      <div class="pk-row"><span class="pk-ava">${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div><div class="p-sub">${esc([d.k > 0 ? `${d.k} ккал/100 мл` : "", d.a].filter(Boolean).join(", ") || "Гидратация " + fmt(d.h) + "%")}</div></div><button type="button" class="dk-dot" id="dk-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(d.id))}"><i></i></button><button type="button" class="dk-x" id="dk-unpick" aria-label="Снять выбор">×</button></div>
+      <div class="pk-row"><span class="pk-ava">${esc(drinkIcon(d))}</span><div class="pk-tx"><div class="p-name">${esc(d.n)}</div><div class="p-sub">${esc([d.k > 0 ? `${d.k} ккал/${sv ? "100 г" : "100 мл"}` : "", sv ? `${fmt(sv.mg)} мг кофеина на пакетик` : "", d.a].filter(Boolean).join(", ") || "Гидратация " + fmt(d.h) + "%")}</div></div><button type="button" class="dk-dot" id="dk-dot" aria-label="Цвет напитка" style="--c:${esc(dotOf(d.id))}"><i></i></button><button type="button" class="dk-x" id="dk-unpick" aria-label="Снять выбор">×</button></div>
       <div class="dk-pal hidden" id="dk-pal" data-noswipe>${DOT_PAL.map((h) => `<button type="button" data-hex="${h}" style="background:${h}" aria-label="Цвет ${h}"></button>`).join("")}</div>
-      <div class="dk-lbw">Объём, мл</div>
+      ${sv ? `<div class="dk-lbw">Пакетиков</div>
+      <div class="dk-inw"><input id="dk-n" inputmode="decimal" value="${String(lastN).replace(".", ",")}" autocomplete="off"><em>шт</em></div>
+      <div class="dk-pre" id="dk-snp" data-noswipe>${[1, 2, 3, 4].map((n) => `<button type="button" data-sn="${n}">${n}</button>`).join("")}</div>` : ""}
+      <div class="dk-lbw">${sv ? "Воды, мл" : "Объём, мл"}</div>
       <div class="dk-inw"><input id="dk-ml" inputmode="decimal" value="${String(lastMl).replace(".", ",")}" autocomplete="off"><em>мл</em></div>
       <div class="dk-pre" data-noswipe>${[100, 150, 200, 250, 330, 500].map((n) => `<button type="button" data-n="${n}">${n}</button>`).join("")}</div>
       <div class="preview" id="dk-prev"></div>
@@ -5310,23 +5321,32 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       <button type="button" class="btn primary full" id="dk-save">Добавить</button>
     </div>`;
     const readMl = () => num($("#dk-ml", ov).value);
+    const readN = () => num($("#dk-n", ov).value);
     const caf100 = r1((d.c / 240) * 100);
+    const zero = { kcal: 0, protein: 0, fat: 0, carbs: 0 };
+    const nutrG = { kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0 };
     const upd = () => {
       const ml = readMl();
+      const n = sv ? readN() : 1;
       const eff = ml > 0 ? (ml * d.h) / 100 : 0;
-      const caf = ml > 0 ? (ml * caf100) / 100 : 0;
-      const kc = ml > 0 && !isWater ? calc({ kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0 }, ml) : { kcal: 0, protein: 0, fat: 0, carbs: 0 };
+      const caf = sv ? (n > 0 ? n * sv.mg : 0) : ml > 0 ? (ml * caf100) / 100 : 0;
+      const kc = sv ? (n > 0 ? calc(nutrG, n * sv.g) : zero) : ml > 0 && !isWater ? calc(nutrG, ml) : zero;
       $("#dk-kbox", ov).classList.toggle("hidden", !(kc.kcal > 0));
       $("#dk-prev", ov).innerHTML = `
         <div class="pv-kcal ${eff < 0 ? "neg" : ""}">${signed(Math.round(eff))}<small>мл жидкости засчитано</small></div>
         <div class="pv-macros"><div><b>${fmt(d.h)}%</b>гидратация</div>${caf > 0 ? `<div><b class="cof">${fmtInt(caf)} мг</b>кофеин</div>` : ""}</div>
         ${kc.kcal > 0 ? `<div class="pv-macros" style="margin-top:8px"><div><b>${fmtInt(kc.kcal)}</b>ккал</div><div><b>${fmt(kc.protein)}</b>белки, г</div><div><b>${fmt(kc.fat)}</b>жиры, г</div><div><b>${fmt(kc.carbs)}</b>углеводы, г</div></div>` : ""}
         ${isWater ? "" : cafWarnHtml(caf, 0)}`;
-      box.querySelectorAll(".dk-pre button").forEach((b) => b.classList.toggle("on", Number(b.dataset.n) === ml));
+      box.querySelectorAll(".dk-pre:not(#dk-snp) button").forEach((b) => b.classList.toggle("on", Number(b.dataset.n) === ml));
+      if (sv) box.querySelectorAll("#dk-snp button").forEach((b) => b.classList.toggle("on", Number(b.dataset.sn) === n));
     };
     upd();
     $("#dk-ml", ov).addEventListener("input", upd);
-    box.querySelectorAll(".dk-pre button").forEach((b) => b.addEventListener("click", () => { $("#dk-ml", ov).value = b.dataset.n; upd(); }));
+    if (sv) {
+      $("#dk-n", ov).addEventListener("input", upd);
+      box.querySelectorAll("#dk-snp button").forEach((b) => b.addEventListener("click", () => { $("#dk-n", ov).value = b.dataset.sn; upd(); }));
+    }
+    box.querySelectorAll(".dk-pre:not(#dk-snp) button").forEach((b) => b.addEventListener("click", () => { $("#dk-ml", ov).value = b.dataset.n; upd(); }));
     $("#dk-unpick", ov).addEventListener("click", () => { box.innerHTML = ""; body.querySelectorAll(".dk-sel").forEach((x) => x.classList.remove("dk-sel")); });
     const dotBtn = $("#dk-dot", ov), pal = $("#dk-pal", ov);
     dotBtn.addEventListener("click", () => pal.classList.toggle("hidden"));
@@ -5346,23 +5366,31 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     body.querySelectorAll(`[data-did="${d.id}"]`).forEach((x) => (x.closest(".drow") || x).classList.add("dk-sel"));
     $("#dk-save", ov).addEventListener("click", () => {
       const ml = readMl();
-      if (!(ml > 0 && ml <= 5000)) { toast("Введите объём от 1 до 5000 мл"); return; }
+      if (!(ml > 0 && ml <= 5000)) { toast(sv ? "Введите воду от 1 до 5000 мл" : "Введите объём от 1 до 5000 мл"); return; }
+      const n = sv ? readN() : 1;
+      if (sv && !(n > 0 && n <= 50)) { toast("Введите число пакетиков от 1 до 50"); return; }
       lsSet(`dml:${d.id}`, String(ml));
+      if (sv) lsSet(`dsn:${d.id}`, String(n));
       if (isWater) { changeWater(Math.round(ml)); ov.close(); return; }
-      const nutr = { kcal: d.k || 0, protein: d.p || 0, fat: d.f || 0, carbs: d.cb || 0 };
+      // Пакетик: кофеин и БЖУ считаются от числа пакетиков, вода влияет только на жидкость.
+      // В записи это значения на 100 мл выпитого, чтобы остальные расчёты (кофеин за день, лимит) работали без изменений
+      const cafAdd = sv ? n * sv.mg : (ml * caf100) / 100;
+      const cafPer100 = sv ? (cafAdd * 100) / ml : caf100;
+      const sc = sv ? (n * sv.g) / ml : 1;
+      const nutr = { kcal: nutrG.kcal * sc, protein: nutrG.protein * sc, fat: nutrG.fat * sc, carbs: nutrG.carbs * sc };
       if (nutr.kcal > 0) {
         const per100 = { ...nutr };
         addDoc(colRef("entries"), {
           date: state.date, meal: $("#dk-meal", ov).value, productId: `drink:${d.id}`, name: d.n, brand: "",
-          grams: ml, per100, ...calc(per100, ml), drink: { pct: d.h, caf100 }, createdAt: serverTimestamp(),
+          grams: ml, per100, ...calc(per100, ml), drink: { pct: d.h, caf100: cafPer100 }, createdAt: serverTimestamp(),
         }).catch(writeFail);
-        const w = cafToast((ml * caf100) / 100, 0);
+        const w = cafToast(cafAdd, 0);
         ov.close();
         toast(w || `Добавлено: ${fmtInt(calc(per100, ml).kcal)} ккал и ${fmtInt((ml * d.h) / 100)} мл жидкости`);
         return;
       }
-      addDoc(colRef("drinks"), { drinkId: d.id, name: d.n, ml, pct: d.h, caf100, alc: d.a || "", date: state.date, createdAt: serverTimestamp() }).catch(writeFail);
-      const warn = cafToast((ml * caf100) / 100, 0);
+      addDoc(colRef("drinks"), { drinkId: d.id, name: d.n, ml, pct: d.h, caf100: cafPer100, alc: d.a || "", date: state.date, createdAt: serverTimestamp() }).catch(writeFail);
+      const warn = cafToast(cafAdd, 0);
       ov.close();
       toast(warn || "Напиток добавлен");
     });
@@ -5374,7 +5402,9 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
     const bcs = [...(d.bc || [])];
     const v = (x) => (x === "" || x == null ? "" : String(x).replace(".", ","));
     const v0 = (x) => (Number(x) > 0 ? v(x) : "");
-    const cafInit = d.c > 0 ? r1((d.c / 240) * 100) : 0;
+    const sv0 = srvOf(d.id);
+    let sach = !!sv0;
+    const cafInit = sv0 ? sv0.mg : d.c > 0 ? r1((d.c / 240) * 100) : 0;
     const alcOpts = [["Слабый алкоголь", "Слабый (пиво, сидр)"], ["Легкий алкоголь", "Лёгкий"], ["Умеренный алкоголь", "Умеренный"], ["Средний алкоголь", "Средний (вино, вермут)"], ["Крепкий алкоголь", "Крепкий (водка, виски, коньяк)"]];
     const hideN = !isNew && ![d.k, d.p, d.f, d.cb].some((x) => Number(x) > 0), hideB = !isNew && bcs.length === 0;
     const alcSel0 = alcOpts.some((o) => o[0] === d.a) ? d.a : "Средний алкоголь";
@@ -5390,13 +5420,15 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       <label class="field"><span>Категория</span><select id="dc-cat" class="input">${DRINK_CATS.filter((c) => c.id !== "all").map((c) => `<option value="${c.id}" ${c.id === d.cat ? "selected" : ""}>${c.t}</option>`).join("")}${isNew || DRINK_BY_ID[d.id] ? "" : `<option value="__prod__">🍽️ Продукты (перенести в продукты)</option>`}</select></label>
       <label class="field ${d.cat === "alc" ? "" : "hidden"}" id="dc-alc-box"><span>Крепость</span><select id="dc-alc" class="input">${alcOpts.map((o) => `<option value="${o[0]}" ${o[0] === alcSel0 ? "selected" : ""}>${o[1]}</option>`).join("")}</select></label>
       <p class="note" id="dc-hint" style="margin-top:-4px"></p>
+      <div class="chips" id="dc-mode" style="margin:4px 0 8px"><button type="button" class="chip ${sach ? "" : "sel"}" data-mode="ml">На 100 мл</button><button type="button" class="chip ${sach ? "sel" : ""}" data-mode="sach">Пакетик</button></div>
       <div class="field-grid">
         <label class="field"><span>Гидратация, %</span><div class="inp-wrap"><input id="dc-pct" class="input" inputmode="decimal" value="${v(d.h)}" autocomplete="off"><button type="button" class="mini-sign" id="dc-sign" aria-label="Сменить знак гидратации (минус для алкоголя)">±</button></div></label>
-        <label class="field"><span>Кофеин, мг на 100 мл</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
+        <label class="field"><span id="dc-caf-l">${sach ? "Кофеин, мг на пакетик" : "Кофеин, мг на 100 мл"}</span><input id="dc-caf" class="input" inputmode="decimal" placeholder="0" value="${v0(cafInit)}" autocomplete="off"></label>
+        <label class="field ${sach ? "" : "hidden"}" id="dc-sg-box"><span>Вес пакетика, г</span><input id="dc-sg" class="input" inputmode="decimal" placeholder="20" value="${sv0 ? v(sv0.g) : ""}" autocomplete="off"></label>
       </div>
       ${hideN ? `<button type="button" class="opt-add" data-reveal="dc-nutr-wrap">+ Добавить калории и БЖУ (на 100 мл)</button>` : ""}
       <div id="dc-nutr-wrap"${hideN ? ' style="display:none"' : ""}>
-      <div class="field sec-label"><span>Значения на 100 мл</span></div>
+      <div class="field sec-label"><span id="dc-nutr-l">${sach ? "Значения на 100 г сухого" : "Значения на 100 мл"}</span></div>
       <div class="field-grid">
         <label class="field"><span>Калории, ккал</span><input id="dc-k" class="input" inputmode="decimal" placeholder="0" value="${v0(d.k)}" autocomplete="off"></label>
         <label class="field"><span>Белки, г</span><input id="dc-p" class="input" inputmode="decimal" placeholder="0" value="${v0(d.p)}" autocomplete="off"></label>
@@ -5479,11 +5511,22 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       const t = String(pct.value).trim(), w = t.replace(/^[−–-]\s*/, "");
       pct.value = /^[−–-]/.test(t) ? w : (w ? "-" + w : "-");
     });
+    const cafL = $("#dc-caf-l", ov), sgBox = $("#dc-sg-box", ov), nutrL = $("#dc-nutr-l", ov);
+    $("#dc-mode", ov).addEventListener("click", (e) => {
+      const b = e.target.closest("[data-mode]");
+      if (!b) return;
+      sach = b.dataset.mode === "sach";
+      $("#dc-mode", ov).querySelectorAll(".chip").forEach((c) => c.classList.toggle("sel", c === b));
+      cafL.textContent = sach ? "Кофеин, мг на пакетик" : "Кофеин, мг на 100 мл";
+      nutrL.textContent = sach ? "Значения на 100 г сухого" : "Значения на 100 мл";
+      sgBox.classList.toggle("hidden", !sach);
+    });
     const back = $("#dc-back", ov);
     if (back) back.addEventListener("click", showList);
     const removeFromList = () => {
       state.customDrinks = state.customDrinks.filter((x) => x.id !== d.id);
       state.fav = state.fav.filter((x) => x !== d.id);
+      if (srvOf(d.id)) { state.srv = { ...state.srv, [d.id]: null }; saveSrv(); }
       if ((state.sharedDrinks || []).some((x) => x.id === d.id)) deleteSharedDrink(d.id);
       saveCustomDrinks({ fav: state.fav });
     };
@@ -5514,26 +5557,29 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
       const h = numS(pct.value), caf = opt("#dc-caf"), k = opt("#dc-k"), p = opt("#dc-p"), f = opt("#dc-f"), cb = opt("#dc-cb");
       if (!name) { toast("Введите название напитка"); return; }
       if (!Number.isFinite(h) || h < -400 || h > 200) { toast("Гидратация: от −400 до 200 процентов"); return; }
-      if (!Number.isFinite(caf) || caf < 0 || caf > 1000) { toast("Кофеин: от 0 до 1000 мг на 100 мл"); return; }
+      if (!Number.isFinite(caf) || caf < 0 || caf > 1000) { toast(sach ? "Кофеин: от 0 до 1000 мг на пакетик" : "Кофеин: от 0 до 1000 мг на 100 мл"); return; }
+      const sg = sach ? opt("#dc-sg") : 0;
+      if (sach && !(sg > 0 && sg <= 1000)) { toast("Вес пакетика: от 1 до 1000 г"); return; }
       if (![k, p, f, cb].every(Number.isFinite) || k < 0 || p < 0 || f < 0 || cb < 0) { toast("Калории и БЖУ: введите числа"); return; }
-      if (k > 1000) { toast("Калории на 100 мл: не больше 1000"); return; }
-      if ([p, f, cb].some((x) => x > 100)) { toast("Белки, жиры и углеводы на 100 мл: не больше 100"); return; }
+      if (k > 1000) { toast(sach ? "Калории на 100 г: не больше 1000" : "Калории на 100 мл: не больше 1000"); return; }
+      if ([p, f, cb].some((x) => x > 100)) { toast(sach ? "Белки, жиры и углеводы на 100 г: не больше 100" : "Белки, жиры и углеводы на 100 мл: не больше 100"); return; }
       for (const c of bcs) { const m = bcConflict(c, { drinkId: d.id, productId: from && from.id }); if (m) { toast(m); return; } }
       const cat = catSel.value;
-      const item = { id: isNew ? newDrinkId() : d.id, n: name, h, c: Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs], e: curE, col: curCol };
+      const item = { id: isNew ? newDrinkId() : d.id, n: name, h, c: sach ? 0 : Math.round(((caf * 240) / 100) * 10) / 10, cat, a: cat === "alc" ? alcSel.value : "", k, p, f, cb, bc: [...bcs], e: curE, col: curCol };
       state.customDrinks = state.customDrinks.filter((x) => x.id !== item.id);
       const cur = (state.sharedDrinks || []).find((x) => x.id === item.id);
       const sv = $("#dc-save", ov);
       sv.disabled = true; sv.textContent = "Сохраняю…";
       const res = await confirmWrite(setDoc(doc(db, "drinkdb", item.id), drinkData(item, cur && cur.createdAt)));
       if (res === "fail") { sv.disabled = false; sv.textContent = "Сохранить"; saveErrShow(sv); return; }
+      if (sach || srvOf(item.id)) { state.srv = { ...state.srv, [item.id]: sach ? { g: sg, mg: caf } : null }; saveSrv(); }
       if (from) {
         aliasCodes(from.id).forEach((c) => unlinkBarcode(c));
         deleteDoc(prodDoc(from.id)).catch(writeFail);
       }
       if (!(state.sharedDrinks || []).some((x) => x.id === item.id)) state.sharedDrinks = [...(state.sharedDrinks || []), { id: item.id, n: item.n, h: item.h, c: item.c, cat: item.cat, a: item.a, k: item.k, p: item.p, f: item.f, cb: item.cb, bc: [...item.bc], e: item.e, col: item.col, createdBy: state.user.uid, createdByName: "" }];
       if (state.drinkdbErr && state.drinkdbResub) state.drinkdbResub();
-      const sub = [item.k > 0 ? `${item.k} ккал/100 мл` : "", item.c > 0 ? `${item.c} мг кофеина на 240 мл` : "", `гидратация ${item.h}%`].filter(Boolean).join(", ");
+      const sub = [item.k > 0 ? `${item.k} ккал/${sach ? "100 г" : "100 мл"}` : "", sach ? `${fmt(caf)} мг кофеина на пакетик` : item.c > 0 ? `${item.c} мг кофеина на 240 мл` : "", `гидратация ${item.h}%`].filter(Boolean).join(", ");
       body.innerHTML = `${savedHtml("drink", item.n, sub, res)}
         <div class="row"><button type="button" class="btn ghost" id="dc-edit">Изменить</button><button type="button" class="btn primary grow" id="dc-add">Добавить</button></div>`;
       $("#dc-edit", ov).addEventListener("click", () => showCard(drinkById(item.id) || item, false));
@@ -5542,6 +5588,7 @@ function openDrinkSheet(entry, presetId, presetMl, prefill) {
   }
 
   function showDetail(d, existing) {
+    if (!existing && d.id !== "custom" && srvOf(d.id)) { showList(); showInline(d); return; }
     const isCustom = d.id === "custom";
     const isWater = d.id === "water" && !existing;
     const oldCaf = existing ? (Number(existing.ml) * Number(existing.caf100)) / 100 : 0;
