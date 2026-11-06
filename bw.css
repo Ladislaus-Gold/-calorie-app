@@ -2674,8 +2674,8 @@ html:root[data-theme="dark"] body .hvw .wk-band, html:root[data-theme="dark"] bo
 html body .hvw .exl-card { position: relative; overflow: hidden; margin: 16px 0 6px; padding: 18px 0 16px; border-radius: 28px; background: #000; color: #fff; box-shadow: 0 12px 26px rgba(0,0,0,.27); }
 html body .hvw .exl-card::after { content: ""; position: absolute; width: 230px; height: 230px; border-radius: 50%; background: #121214; right: -105px; top: -125px; pointer-events: none; }
 html body .hvw .exl-card > * { position: relative; z-index: 1; }
-html body .hvw .exl-k { padding: 0 20px; font-size: 13px; font-weight: 700; letter-spacing: .06em; color: #F7BE6E; }
-html body .hvw .exl-h { padding: 0 20px; margin-top: 4px; font-size: 30px; font-weight: 800; line-height: 1.1; color: #F7BE6E; }
+html body .hvw .exl-k { padding: 0 20px; font-size: 13px; font-weight: 700; letter-spacing: .06em; color: #C6F135; }
+html body .hvw .exl-h { padding: 0 20px; margin-top: 4px; font-size: 30px; font-weight: 800; line-height: 1.1; color: #C6F135; }
 html body .hvw .exl-s { padding: 0 20px; margin-top: 4px; font-size: 14px; color: #9A9A9F; }
 html body .hvw .exl-strip { margin: 16px 0 14px; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 html body .hvw .exl-track { display: flex; width: max-content; animation: exl-run 70s linear infinite; }
@@ -2685,17 +2685,50 @@ html body .hvw .exl-t img { position: absolute; width: 144px; height: 144px; max
 html body .hvw .exl-t.sd img { left: 0; top: -33px; }
 html body .hvw .exl-t.ul img { left: -36px; top: 0; }
 html body .hvw .exl-t.full img { width: 100%; height: 100%; left: 0; top: 0; object-fit: cover; }
-html body .hvw .exl-btn { display: block; width: calc(100% - 40px); margin: 0 20px; padding: 13px 0; border: 0; border-radius: 16px; background: #F7BE6E; color: #000; font-size: 16px; font-weight: 700; font-family: inherit; }
+html body .hvw .exl-btn { display: block; width: calc(100% - 40px); margin: 0 20px; padding: 13px 0; border: 0; border-radius: 16px; background: #C6F135; color: #000; font-size: 16px; font-weight: 700; font-family: inherit; }
 html body .hvw .exl-btn:active { transform: scale(.98); }
-html:root[data-theme="dark"] body .hvw .exl-card { background: #fff; color: #000; }
-html:root[data-theme="dark"] body .hvw .exl-card::after { background: #F2F2F7; }
-html:root[data-theme="dark"] body .hvw .exl-k, html:root[data-theme="dark"] body .hvw .exl-h { color: #D9820A; }
-html:root[data-theme="dark"] body .hvw .exl-s { color: #6E6E73; }
-html:root[data-theme="dark"] body .hvw .exl-t { background: #E5E5EA; }
-html:root[data-theme="dark"] body .hvw .exl-btn { background: #000; color: #fff; }
+html:root[data-theme="dark"] body .hvw .exl-card { background: #1C1C1E; color: #fff; }
+html:root[data-theme="dark"] body .hvw .exl-card::after { background: #242426; }
+html:root[data-theme="dark"] body .hvw .exl-k, html:root[data-theme="dark"] body .hvw .exl-h { color: #C6F135; }
+html:root[data-theme="dark"] body .hvw .exl-s { color: #9A9A9F; }
+html:root[data-theme="dark"] body .hvw .exl-t { background: #F2F2F7; }
+html:root[data-theme="dark"] body .hvw .exl-btn { background: #C6F135; color: #000; }
 @media (prefers-reduced-motion: reduce) { html body .hvw .exl-track { animation: none; } }
 html body .hvw .pg-card.pg-reset { background: transparent !important; box-shadow: none !important; border: 0 !important; margin: 2px 0 0 !important; padding: 4px 0 0 !important; }
 html body .hvw .pg-reset .more-btn.red { background: transparent !important; border: 0 !important; color: #8E8E93 !important; font-size: 13px; font-weight: 500; padding: 6px 12px; }
 html body .hvw .pg-reset .foot-note { margin: 0; font-size: 11.5px; color: #AEAEB2; }
 html:root[data-theme="dark"] body .hvw .pg-reset .more-btn.red { background: transparent !important; border: 0 !important; color: #8E8E93 !important; }
 html:root[data-theme="dark"] body .hvw .pg-card.pg-reset { background: transparent !important; border: 0 !important; }
+
+/* v3.68: акцент лайм (#C6F135) — карточка шагов (вариант A), «Нагрузка» в дневнике, справочник упражнений */
+html body .hvw .th-hero.th-a { padding: 18px; background: #000 !important; color: #fff !important; }
+html body .hvw .th-hero.th-a .tha-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+html body .hvw .th-hero.th-a .th-t1 { font-size: 12px; font-weight: 600; letter-spacing: .08em; color: #C6F135 !important; }
+html body .hvw .th-hero.th-a .th-t2 { font-size: 44px; font-weight: 800; line-height: 1.05; color: #C6F135 !important; }
+html body .hvw .th-hero.th-a .th-t3 { font-size: 12px; color: #9A9A9F !important; }
+html body .hvw .th-hero.th-a .tha-hr { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #3A3A3C; border-radius: 999px; color: #fff; }
+html body .hvw .th-hero.th-a .tha-hr svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
+html body .hvw .th-hero.th-a .tha-hr b { font-size: 15px; font-weight: 600; color: #fff; }
+html body .hvw .th-hero.th-a .tha-hr small { font-size: 11px; color: #9A9A9F; }
+html body .hvw .th-hero.th-a .tha-bar { height: 10px; margin: 14px 0 6px; border-radius: 999px; background: #2A2A2C; overflow: hidden; }
+html body .hvw .th-hero.th-a .tha-bar i { display: block; height: 100%; min-width: 10px; border-radius: 999px; background: #C6F135; }
+html body .hvw .th-hero.th-a .tha-cap { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #9A9A9F; }
+html body .hvw .th-hero.th-a .tha-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+html body .hvw .th-hero.th-a .tha-tile { min-width: 0; padding: 10px; border-radius: 14px; background: #1C1C1E; }
+html body .hvw .th-hero.th-a .tha-tile b { display: block; font-size: 22px; font-weight: 700; color: #fff; }
+html body .hvw .th-hero.th-a .tha-tile span { display: block; font-size: 11px; color: #9A9A9F; }
+html body .hvw .th-hero.th-a .tha-tile small { display: block; margin-top: 4px; font-size: 10px; white-space: nowrap; color: #9A9A9F; }
+html body .hvw .th-hero.th-a .tha-split { display: flex; height: 6px; margin-top: 8px; border-radius: 999px; background: #48484A; overflow: hidden; }
+html body .hvw .th-hero.th-a .tha-split i { background: #C6F135; }
+html body .hvw .th-hero.th-a .tha-bars { display: flex; align-items: flex-end; gap: 4px; height: 44px; margin-top: 8px; }
+html body .hvw .th-hero.th-a .tha-bars i { flex: 1; border-radius: 3px; background: #48484A; }
+html body .hvw .th-hero.th-a .tha-bars i.on { background: #C6F135; }
+html:root[data-theme="dark"] body .hvw .th-hero.th-a { background: #1C1C1E !important; color: #fff !important; }
+html:root[data-theme="dark"] body .hvw .th-hero.th-a::after { background: #242426 !important; }
+html:root[data-theme="dark"] body .hvw .th-hero.th-a .th-t1, html:root[data-theme="dark"] body .hvw .th-hero.th-a .th-t2 { color: #C6F135 !important; }
+html:root[data-theme="dark"] body .hvw .th-hero.th-a .th-t3 { color: #9A9A9F !important; }
+html:root[data-theme="dark"] body .hvw .th-hero.th-a .tha-tile { background: #2C2C2E; }
+html:root[data-theme="dark"] body .hvw .th-hero.th-a .tha-bar { background: #3A3A3C; }
+html body .dv .mini.act .mini-ic.sq, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq { background: linear-gradient(180deg, #D4F85A, #B4E01A) !important; color: #1A2200 !important; box-shadow: 0 2px 6px rgba(168,214,20,.4) !important; }
+html body .dv .mini.act .mini-ic.sq svg, html:root[data-theme="dark"] body .dv .mini.act .mini-ic.sq svg { color: #1A2200 !important; fill: currentColor; filter: none !important; }
+html body .dv .mini.act .mini-bar > i, html:root[data-theme="dark"] body .dv .mini.act .mini-bar > i, html body .dv .mini.act.done .mini-bar i { background: linear-gradient(90deg, #B4E01A, #D4F85A) !important; }
