@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 379;
-const APP_VERSION_LABEL = "3.76"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 380;
+const APP_VERSION_LABEL = "3.77"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -744,15 +744,18 @@ function fillAnim(root, base = 0) {
   });
 
 }
-/* Анимация «Отчётов»: карточки плавно подъезжают по очереди, крупные числа появляются с мягким подъёмом (при входе на вкладку и смене периода) */
-let repSig = "";
-function reportsAnim(root) {
+/* Анимация «Отчётов»: карточки плавно подъезжают по очереди, крупные числа появляются с мягким подъёмом (при входе на вкладку и смене периода).
+   Если страница перерисовалась, пока анимация шла (пришли данные), новая разметка продолжает её с того же момента, а не прыгает. */
+let repSig = "", repT0 = 0;
+function reportsAnim(root, elapsed = 0) {
   if (!root || !root.animate || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
   const wrap = root.querySelector(".dv.r2");
   if (!wrap) return;
+  const go = (el, kf, o) => { const an = el.animate(kf, o); if (elapsed > 0) an.currentTime = elapsed; };
   Array.from(wrap.children).forEach((el, i) => {
-    el.animate([{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }], { duration: 450, delay: Math.min(i * 55, 440), easing: FILL_EASE, fill: "backwards" });
-    el.querySelectorAll(".r2-big, .r2-bmi-n").forEach((n) => n.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: Math.min(i * 55, 440) + 140, easing: FILL_EASE, fill: "backwards" }));
+    const d = Math.min(i * 55, 440);
+    go(el, [{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }], { duration: 450, delay: d, easing: FILL_EASE, fill: "backwards" });
+    el.querySelectorAll(".r2-big, .r2-bmi-n").forEach((n) => go(n, [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: d + 140, easing: FILL_EASE, fill: "backwards" }));
   });
 }
 let fillSig = "", fillTab = "";
@@ -849,7 +852,9 @@ function render() {
   if (state.tab === "reports") {
     let sig = "";
     try { const d = reportDays(); sig = `${state.rTab}|${d[0]}|${d.length}`; } catch (_) { sig = String(state.rTab); }
-    if (fillTab !== "reports" || sig !== repSig) reportsAnim($("#view"));
+    const now = Date.now();
+    if (fillTab !== "reports" || sig !== repSig) { repT0 = now; reportsAnim($("#view")); }
+    else if (now - repT0 < 1100) reportsAnim($("#view"), now - repT0);
     repSig = sig;
   }
   fillTab = state.tab;
