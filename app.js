@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 377;
-const APP_VERSION_LABEL = "3.74"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 378;
+const APP_VERSION_LABEL = "3.75"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -2257,11 +2257,14 @@ function viewReportsInner() {
   // ИМТ от последнего записанного веса и роста из профиля (пересчитывается при каждой новой записи веса)
   const hCm = Number((state.profile || {}).heightCm), bmiV = lastW && hCm >= 120 && hCm <= 230 ? Number(lastW.kg) / ((hCm / 100) ** 2) : null;
   const bmiTxt = bmiV == null ? "" : bmiV < 18.5 ? "ниже нормы" : bmiV < 25 ? "в норме" : bmiV < 30 ? "выше нормы" : "значительно выше нормы";
-  const bmiTile = bmiV == null ? "" : `<div class="r2-bmi"><div class="r2-bmi-h"><b>${fmt(Math.round(bmiV * 10) / 10)}</b><span>индекс массы тела: ${bmiTxt}</span></div><u class="r2-bmi-sc"><i style="left:${Math.max(0, Math.min(100, ((bmiV - 15) / 20) * 100)).toFixed(0)}%"></i></u><small>Считается от последнего веса и роста из профиля. Мышечную массу не учитывает.</small></div>`;
+  const bmiCol = bmiV == null ? "" : bmiV < 18.5 ? "#0A84FF" : bmiV < 25 ? "#1FA34A" : bmiV < 30 ? "#F27A00" : "#E5322D";
+  const bmiPos = bmiV == null ? 0 : Math.max(0, Math.min(100, ((bmiV - 15) / 20) * 100));
+  const bmiBox = bmiV == null ? "" : `<div class="r"><div class="r2-big r2-bmi-n" style="color:${bmiCol}">${fmt(Math.round(bmiV * 10) / 10)}</div><div class="r2-sub">ИМТ · ${bmiTxt}</div></div>`;
+  const bmiScale = bmiV == null ? "" : `<u class="r2-bmi-sc"><i style="left:${bmiPos.toFixed(0)}%"></i></u>`;
   const bodyCard = `<section class="r2-card">${r2Ch("#8E8E93", "scale", "Вес и замеры", `<button type="button" class="r2-plus" data-act="addWeight" aria-label="Записать вес">+</button>`)}
     ${lastW ? `<div class="r2-bd"><div><div class="r2-big">${fmt(Number(lastW.kg))}<small>кг</small></div><div class="r2-sub">${wDelta !== null ? `<b>${dFmt(wDelta, "кг")}</b> за период` : `запись от ${esc(shortDate(lastW.date))}`}</div></div>
-      ${waistAll.length ? `<div class="r"><div class="r2-big" style="font-size:22px">${fmt(msOf(waistAll[waistAll.length - 1], "waist"))}<small>см</small></div><div class="r2-sub">талия${mDelta !== null ? ` · <b>${dFmt(mDelta, "см")}</b>` : ""}</div></div>` : ""}</div>
-      ${bmiTile}
+      ${waistAll.length ? `<div class="r"><div class="r2-big" style="font-size:22px">${fmt(msOf(waistAll[waistAll.length - 1], "waist"))}<small>см</small></div><div class="r2-sub">талия${mDelta !== null ? ` · <b>${dFmt(mDelta, "см")}</b>` : ""}</div></div>` : ""}${bmiBox}</div>
+      ${bmiScale}
       ${wIn.length ? `<div class="r2-chart">${r2Line(wIn, days[0], days[n - 1], "#636366")}</div>` : `<p class="r2-sub" style="margin:10px 0 0">За этот период веса нет. Последняя запись: ${esc(shortDate(lastW.date))}.</p>`}`
       : `<p class="r2-sub" style="margin:0 0 4px">Вес пока не записан. Нажмите «+» или откройте «Я» → «Тело».</p>`}
     <div class="r2-two"><button type="button" data-act="addWeight">Записать вес</button><button type="button" data-act="addMeasures">Записать замеры</button></div></section>`;
