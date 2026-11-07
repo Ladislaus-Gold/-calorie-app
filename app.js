@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 378;
-const APP_VERSION_LABEL = "3.75"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 379;
+const APP_VERSION_LABEL = "3.76"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -744,6 +744,17 @@ function fillAnim(root, base = 0) {
   });
 
 }
+/* Анимация «Отчётов»: карточки плавно подъезжают по очереди, крупные числа появляются с мягким подъёмом (при входе на вкладку и смене периода) */
+let repSig = "";
+function reportsAnim(root) {
+  if (!root || !root.animate || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  const wrap = root.querySelector(".dv.r2");
+  if (!wrap) return;
+  Array.from(wrap.children).forEach((el, i) => {
+    el.animate([{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }], { duration: 450, delay: Math.min(i * 55, 440), easing: FILL_EASE, fill: "backwards" });
+    el.querySelectorAll(".r2-big, .r2-bmi-n").forEach((n) => n.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: Math.min(i * 55, 440) + 140, easing: FILL_EASE, fill: "backwards" }));
+  });
+}
 let fillSig = "", fillTab = "";
 const trainProgSig = (d) => { try { const s = trainSession(d); if (!s) return ""; const p = trainProgress(d, s); return `${p.k}/${p.n}`; } catch (_) { return ""; } };
 
@@ -834,6 +845,12 @@ function render() {
     fillSig = sig;
     fillTab = key;
     return;
+  }
+  if (state.tab === "reports") {
+    let sig = "";
+    try { const d = reportDays(); sig = `${state.rTab}|${d[0]}|${d.length}`; } catch (_) { sig = String(state.rTab); }
+    if (fillTab !== "reports" || sig !== repSig) reportsAnim($("#view"));
+    repSig = sig;
   }
   fillTab = state.tab;
 }
@@ -2261,7 +2278,7 @@ function viewReportsInner() {
   const bmiPos = bmiV == null ? 0 : Math.max(0, Math.min(100, ((bmiV - 15) / 20) * 100));
   const bmiBox = bmiV == null ? "" : `<div class="r"><div class="r2-big r2-bmi-n" style="color:${bmiCol}">${fmt(Math.round(bmiV * 10) / 10)}</div><div class="r2-sub">ИМТ · ${bmiTxt}</div></div>`;
   const bmiScale = bmiV == null ? "" : `<u class="r2-bmi-sc"><i style="left:${bmiPos.toFixed(0)}%"></i></u>`;
-  const bodyCard = `<section class="r2-card">${r2Ch("#8E8E93", "scale", "Вес и замеры", `<button type="button" class="r2-plus" data-act="addWeight" aria-label="Записать вес">+</button>`)}
+  const bodyCard = `<section class="r2-card">${r2Ch("#8E8E93", "scale", "Вес и замеры")}
     ${lastW ? `<div class="r2-bd"><div><div class="r2-big">${fmt(Number(lastW.kg))}<small>кг</small></div><div class="r2-sub">${wDelta !== null ? `<b>${dFmt(wDelta, "кг")}</b> за период` : `запись от ${esc(shortDate(lastW.date))}`}</div></div>
       ${waistAll.length ? `<div class="r"><div class="r2-big" style="font-size:22px">${fmt(msOf(waistAll[waistAll.length - 1], "waist"))}<small>см</small></div><div class="r2-sub">талия${mDelta !== null ? ` · <b>${dFmt(mDelta, "см")}</b>` : ""}</div></div>` : ""}${bmiBox}</div>
       ${bmiScale}

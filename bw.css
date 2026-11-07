@@ -2815,3 +2815,6 @@ html body .dv.r2 .r2-hero.r2-sum .r2-lead { color: #fff !important; }
 .dv.r2 .r2-bmi-sc { display: block; position: relative; height: 6px; border-radius: 3px; margin-top: 14px; background: linear-gradient(90deg,#5AC8FA 0 17.5%,#30B94D 17.5% 50%,#FF9F0A 50% 75%,#FF453A 75%); }
 .dv.r2 .r2-bmi-sc i { position: absolute; top: -3px; width: 4px; height: 12px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 1.5px #fff; }
 :root[data-theme="dark"] .dv.r2 .r2-bmi-sc i { box-shadow: 0 0 0 1.5px #1C1C1E; }
+
+/* Отчёты: карточки анимируются по очереди (reportsAnim), общий подъезд обёртки отключён, чтобы не удваивать */
+#view.enter > .dv.r2 { animation: none; }
