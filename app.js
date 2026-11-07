@@ -2254,9 +2254,14 @@ function viewReportsInner() {
   const waistAll = state.measures.filter((m) => m.date <= days[n - 1] && msOf(m, "waist")), waistIn = waistAll.filter((m) => m.date >= days[0]);
   const wDelta = wIn.length > 1 ? wIn[wIn.length - 1].v - wIn[0].v : null, mDelta = waistIn.length > 1 ? msOf(waistIn[waistIn.length - 1], "waist") - msOf(waistIn[0], "waist") : null;
   const dFmt = (x, u) => `${r2Sgn(x)}${fmt(Math.abs(Math.round(x * 10) / 10))} ${u}`;
+  // ИМТ от последнего записанного веса и роста из профиля (пересчитывается при каждой новой записи веса)
+  const hCm = Number((state.profile || {}).heightCm), bmiV = lastW && hCm >= 120 && hCm <= 230 ? Number(lastW.kg) / ((hCm / 100) ** 2) : null;
+  const bmiTxt = bmiV == null ? "" : bmiV < 18.5 ? "ниже нормы" : bmiV < 25 ? "в норме" : bmiV < 30 ? "выше нормы" : "значительно выше нормы";
+  const bmiTile = bmiV == null ? "" : `<div class="r2-bmi"><div class="r2-bmi-h"><b>${fmt(Math.round(bmiV * 10) / 10)}</b><span>индекс массы тела: ${bmiTxt}</span></div><u class="r2-bmi-sc"><i style="left:${Math.max(0, Math.min(100, ((bmiV - 15) / 20) * 100)).toFixed(0)}%"></i></u><small>Считается от последнего веса и роста из профиля. Мышечную массу не учитывает.</small></div>`;
   const bodyCard = `<section class="r2-card">${r2Ch("#8E8E93", "scale", "Вес и замеры", `<button type="button" class="r2-plus" data-act="addWeight" aria-label="Записать вес">+</button>`)}
     ${lastW ? `<div class="r2-bd"><div><div class="r2-big">${fmt(Number(lastW.kg))}<small>кг</small></div><div class="r2-sub">${wDelta !== null ? `<b>${dFmt(wDelta, "кг")}</b> за период` : `запись от ${esc(shortDate(lastW.date))}`}</div></div>
       ${waistAll.length ? `<div class="r"><div class="r2-big" style="font-size:22px">${fmt(msOf(waistAll[waistAll.length - 1], "waist"))}<small>см</small></div><div class="r2-sub">талия${mDelta !== null ? ` · <b>${dFmt(mDelta, "см")}</b>` : ""}</div></div>` : ""}</div>
+      ${bmiTile}
       ${wIn.length ? `<div class="r2-chart">${r2Line(wIn, days[0], days[n - 1], "#636366")}</div>` : `<p class="r2-sub" style="margin:10px 0 0">За этот период веса нет. Последняя запись: ${esc(shortDate(lastW.date))}.</p>`}`
       : `<p class="r2-sub" style="margin:0 0 4px">Вес пока не записан. Нажмите «+» или откройте «Я» → «Тело».</p>`}
     <div class="r2-two"><button type="button" data-act="addWeight">Записать вес</button><button type="button" data-act="addMeasures">Записать замеры</button></div></section>`;
@@ -2453,10 +2458,9 @@ function planGoalCardHtml() {
   }
   let tiles = "";
   if (plan && !edit) {
-    const bp = Math.max(0, Math.min(100, ((plan.bmi - 15) / 20) * 100));
     tiles = `<div class="me-div"></div>
       <div class="me-mac"><div class="m-p"><b>${plan.protein}<small> г</small></b><span>белки</span></div><div class="m-f"><b>${plan.fat}<small> г</small></b><span>жиры</span></div><div class="m-c"><b>${plan.carbs}<small> г</small></b><span>углеводы</span></div></div>
-      <div class="me-mac2"><div class="m-w"><b>${fmtInt(plan.water)}<small> мл</small></b><span>норма воды в день</span></div><div class="m-b"><b>${fmt(plan.bmi)}</b><span>индекс массы тела: ${esc(plan.bmiLabel)}</span><u class="me-scale"><i style="left:${bp.toFixed(0)}%"></i></u></div></div>
+      <div class="me-mac2"><div class="m-w"><b>${fmtInt(plan.water)}<small> мл</small></b><span>норма воды в день</span></div></div>
       ${plan.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}
       <p class="foot-note" style="margin:10px 0 0">Индекс массы тела не учитывает мышечную массу. Все значения ориентировочные, для здоровых взрослых, и не заменяют рекомендацию врача. При беременности, диабете и других заболеваниях согласуйте питание и нагрузку с врачом.</p>`;
   }
