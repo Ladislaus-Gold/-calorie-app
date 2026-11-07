@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 380;
-const APP_VERSION_LABEL = "3.77"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 381;
+const APP_VERSION_LABEL = "3.78"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -744,19 +744,49 @@ function fillAnim(root, base = 0) {
   });
 
 }
-/* Анимация «Отчётов»: карточки плавно подъезжают по очереди, крупные числа появляются с мягким подъёмом (при входе на вкладку и смене периода).
-   Если страница перерисовалась, пока анимация шла (пришли данные), новая разметка продолжает её с того же момента, а не прыгает. */
-let repSig = "", repT0 = 0;
+/* Анимация «Отчётов»: каждая карточка подъезжает, когда появляется на экране (видимые сразу по очереди, нижние при прокрутке);
+   внутри: кольца заполняются, столбики растут, линия веса дорисовывается, полоски и шкала ИМТ тянутся, крупные числа появляются с подъёмом.
+   Если страница перерисовалась, пока анимация шла (пришли данные), видимые карточки продолжают её с того же момента, а не прыгают. */
+let repSig = "", repT0 = 0, repIO = null;
 function reportsAnim(root, elapsed = 0) {
+  if (repIO) { repIO.disconnect(); repIO = null; }
   if (!root || !root.animate || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
   const wrap = root.querySelector(".dv.r2");
   if (!wrap) return;
-  const go = (el, kf, o) => { const an = el.animate(kf, o); if (elapsed > 0) an.currentTime = elapsed; };
-  Array.from(wrap.children).forEach((el, i) => {
-    const d = Math.min(i * 55, 440);
-    go(el, [{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }], { duration: 450, delay: d, easing: FILL_EASE, fill: "backwards" });
-    el.querySelectorAll(".r2-big, .r2-bmi-n").forEach((n) => go(n, [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: d + 140, easing: FILL_EASE, fill: "backwards" }));
+  const go = (el, kf, o, el0 = elapsed) => { const an = el.animate(kf, { fill: "backwards", easing: FILL_EASE, ...o }); if (el0 > 0) an.currentTime = el0; };
+  const play = (card, d, el0) => {
+    go(card, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "none" }], { duration: 480, delay: d }, el0);
+    card.querySelectorAll(".r2-big, .r2-bmi-n").forEach((n) => go(n, [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: 460, delay: d + 140 }, el0));
+    card.querySelectorAll("circle[stroke-dasharray]").forEach((c, i) => {
+      const [x, y] = c.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
+      if (x > 0) go(c, [{ strokeDasharray: `0.01 ${y}` }, { strokeDasharray: `${x} ${y}` }], { duration: 950, delay: d + 120 + i * 90 }, el0);
+    });
+    card.querySelectorAll(".r2-svg rect:not(.r2-sel):not([data-act]), .r2-mini rect").forEach((r, i) => {
+      r.style.transformBox = "fill-box"; r.style.transformOrigin = "50% 100%";
+      go(r, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 720, delay: d + 100 + Math.min(i * 16, 320) }, el0);
+    });
+    card.querySelectorAll(".r2-chart svg").forEach((v) => go(v, [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 950, delay: d + 120 }, el0));
+    card.querySelectorAll(".r2-pro .bar > i, .r2-bmi-sc").forEach((v) => { v.style.transformOrigin = "0 50%"; go(v, [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 800, delay: d + 160 }, el0); });
+    card.querySelectorAll(".r2-bmi-sc i").forEach((v) => { const l = v.style.left; if (l) go(v, [{ left: "0%" }, { left: l }], { duration: 900, delay: d + 220 }, el0); });
+  };
+  const vh = window.innerHeight || 800, below = [];
+  let n = 0;
+  Array.from(wrap.children).forEach((el) => {
+    if (el.getBoundingClientRect().top < vh) play(el, Math.min(n++ * 55, 330), elapsed);
+    else below.push(el);
   });
+  if (below.length && "IntersectionObserver" in window) {
+    below.forEach((el) => { el.style.opacity = "0"; });
+    repIO = new IntersectionObserver((es) => {
+      es.forEach((e) => {
+        if (!e.isIntersecting) return;
+        repIO && repIO.unobserve(e.target);
+        e.target.style.opacity = "";
+        play(e.target, 0, 0);
+      });
+    }, { threshold: 0.04, rootMargin: "0px 0px -6% 0px" });
+    below.forEach((el) => repIO.observe(el));
+  }
 }
 let fillSig = "", fillTab = "";
 const trainProgSig = (d) => { try { const s = trainSession(d); if (!s) return ""; const p = trainProgress(d, s); return `${p.k}/${p.n}`; } catch (_) { return ""; } };
