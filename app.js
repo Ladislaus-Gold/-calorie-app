@@ -76,8 +76,8 @@ function dayLabel(s) {
 // Всплывающие оповещения отключены полностью (по просьбе пользователя): функция оставлена пустой, чтобы не менять вызовы по коду
 function toast() {}
 
-const APP_VERSION = 381;
-const APP_VERSION_LABEL = "3.78"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
+const APP_VERSION = 382;
+const APP_VERSION_LABEL = "3.79"; // показывается пользователю; APP_VERSION (число) — только для проверки актуальности кэша
 
 /* ================= Состояние ================= */
 const HISTORY_DAYS = 90; // сколько последних дней подписка держит «вживую»; всё, что старше, подгружается по запросу и никогда не удаляется
@@ -756,7 +756,7 @@ function reportsAnim(root, elapsed = 0) {
   const go = (el, kf, o, el0 = elapsed) => { const an = el.animate(kf, { fill: "backwards", easing: FILL_EASE, ...o }); if (el0 > 0) an.currentTime = el0; };
   const play = (card, d, el0) => {
     go(card, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "none" }], { duration: 480, delay: d }, el0);
-    card.querySelectorAll(".r2-big, .r2-bmi-n").forEach((n) => go(n, [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: 460, delay: d + 140 }, el0));
+    card.querySelectorAll(".r2-big, .r2-bmi-n, .vd-sc b").forEach((n) => go(n, [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: 460, delay: d + 140 }, el0));
     card.querySelectorAll("circle[stroke-dasharray]").forEach((c, i) => {
       const [x, y] = c.getAttribute("stroke-dasharray").split(/[ ,]+/).map(Number);
       if (x > 0) go(c, [{ strokeDasharray: `0.01 ${y}` }, { strokeDasharray: `${x} ${y}` }], { duration: 950, delay: d + 120 + i * 90 }, el0);
@@ -766,7 +766,13 @@ function reportsAnim(root, elapsed = 0) {
       go(r, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 720, delay: d + 100 + Math.min(i * 16, 320) }, el0);
     });
     card.querySelectorAll(".r2-chart svg").forEach((v) => go(v, [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 950, delay: d + 120 }, el0));
-    card.querySelectorAll(".r2-pro .bar > i, .r2-bmi-sc").forEach((v) => { v.style.transformOrigin = "0 50%"; go(v, [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 800, delay: d + 160 }, el0); });
+    // все полоски (с шириной в стиле, сегменты вердикта под кольцами, сегменты сна, шкала ИМТ, ёмкость кофеина) тянутся слева направо, сегменты по очереди
+    card.querySelectorAll('i[style*="width"], .vd-seg i, .r2-gauge .cap, .r2-bmi-sc').forEach((v) => {
+      const k = v.parentElement ? Array.prototype.indexOf.call(v.parentElement.children, v) : 0;
+      v.style.transformOrigin = "0 50%";
+      go(v, [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 650, delay: d + 200 + Math.min(k, 12) * 65 }, el0);
+    });
+    card.querySelectorAll(".vd-ch em").forEach((v, i) => go(v, [{ opacity: 0, transform: "translateY(6px) scale(.92)" }, { opacity: 1, transform: "none" }], { duration: 420, delay: d + 550 + Math.min(i, 12) * 45 }, el0));
     card.querySelectorAll(".r2-bmi-sc i").forEach((v) => { const l = v.style.left; if (l) go(v, [{ left: "0%" }, { left: l }], { duration: 900, delay: d + 220 }, el0); });
   };
   const vh = window.innerHeight || 800, below = [];
